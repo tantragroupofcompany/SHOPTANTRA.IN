@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: linear-gradient(135deg, #dbeafe 0%, #fae8ff 50%, #fce7f3 100%) !important;
+    transition: background 0.3s ease;
+  }
+  
+  .dark body {
+    background: linear-gradient(135deg, #0b1528 0%, #1b1635 50%, #2b0f27 100%) !important;
+  }
+}
+
+@layer components {
+  /* 3D skeuomorphic Card style */
+  .card-3d, 
+  .bg-white.shadow-sm, 
+  .bg-white.shadow,
+  .dark\:bg-brand-navy.shadow-sm,
+  .dark\:bg-brand-navy {
+    background: rgba(255, 255, 255, 0.65) !important;
+    backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 20px -5px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0px rgba(255, 255, 255, 0.8),
+      0 1px 3px rgba(0, 0, 0, 0.05) !important;
+    transform: perspective(1000px) translateZ(0);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+    border-radius: 1rem;
+  }
+
+  .dark .card-3d,
+  .dark .bg-white.shadow-sm,
+  .dark .bg-white.shadow,
+  .dark .dark\:bg-brand-navy.shadow-sm,
+  .dark .dark\:bg-brand-navy {
+    background: rgba(27, 58, 107, 0.45) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.09) !important;
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.2),
+      0 10px 20px -5px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0px rgba(255, 255, 255, 0.15) !important;
+  }
+
+  /* Card hover lift effect */
+  .card-3d:hover, 
+  .bg-white.shadow-sm:hover,
+  .dark\:bg-brand-navy.shadow-sm:hover {
+    transform: perspective(1000px) translateZ(15px) translateY(-5px) !important;
+    box-shadow: 
+      0 20px 30px -10px rgba(0, 0, 0, 0.12),
+      0 15px 15px -10px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0px rgba(255, 255, 255, 0.9),
+      0 0 0 1px rgba(249, 115, 22, 0.2) !important;
+    border-color: rgba(249, 115, 22, 0.3) !important;
+  }
+
+  .dark .card-3d:hover,
+  .dark .bg-white.shadow-sm:hover,
+  .dark .dark\:bg-brand-navy.shadow-sm:hover {
+    box-shadow: 
+      0 20px 30px -10px rgba(0, 0, 0, 0.4),
+      0 15px 15px -10px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0px rgba(255, 255, 255, 0.25) !important;
+  }
+
+  /* 3D button pressable style */
+  .btn-3d,
+  button.bg-brand-orange,
+  a.bg-brand-orange,
+  .bg-brand-orange {
+    position: relative;
+    border-bottom: 3.5px solid #c2410c !important;
+    transition: transform 0.1s ease, border-bottom-width 0.1s ease, box-shadow 0.1s ease;
+  }
+  .btn-3d:active,
+  button.bg-brand-orange:active,
+  a.bg-brand-orange:active,
+  .bg-brand-orange:active {
+    transform: translateY(2.5px);
+    border-bottom-width: 1px !important;
+  }
+  
+  /* Additional 3D depth classes */
+  .depth-3d {
+    box-shadow: 
+      0px 5px 10px rgba(0, 0, 0, 0.08),
+      0px 15px 25px rgba(0, 0, 0, 0.1),
+      inset 0px 1px 0px rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  }
+  .dark .depth-3d {
+    box-shadow: 
+      0px 5px 10px rgba(0, 0, 0, 0.3),
+      0px 15px 25px rgba(0, 0, 0, 0.4),
+      inset 0px 1px 0px rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+}

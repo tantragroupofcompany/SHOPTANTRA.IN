@@ -1,0 +1,3 @@
+{
+  "/api/checkout/validate-cod/route": "app/api/checkout/validate-cod/route.js"
+}

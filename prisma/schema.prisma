@@ -1,0 +1,429 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  password      String
+  role          String          @default("BUYER") // BUYER, SELLER, ADMIN
+  fullName      String?
+  phone         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  orders        Order[]         @relation("BuyerOrders")
+  sellerProfile Seller?
+  reviews       Review[]
+}
+
+
+model Seller {
+  id                String          @id @default(uuid())
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName         String
+  storeDescription  String?
+  gstNumber         String?
+  panNumber         String?
+  bankAccountNo     String?
+  bankIfsc          String?
+  bankAccountName   String?
+  upiId             String?
+  commissionRate    Float           @default(10.0) // Vendor-specific commission override
+  status            String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
+  logoUrl           String?
+  bannerUrl         String?
+  businessType      String?
+  city              String?
+  state             String?
+  pincode           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  emailVerified     Boolean         @default(false)
+  otpCode           String?
+  otpExpiresAt      DateTime?
+  otpResendCount    Int             @default(0)
+  lastOtpSentAt     DateTime?
+  verificationStatus String         @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED
+  products          Product[]
+  orders            Order[]         @relation("SellerOrders")
+  wallet            VendorWallet?
+  payouts           PayoutRequest[]
+  commissions       Commission[]
+  pickupAddress     PickupAddress?
+  shipments         Shipment[]
+  subscriptions     Subscription[]
+  coupons           Coupon[]
+  settings          SellerSettings?
+}
+
+
+model Product {
+  id               String      @id @default(uuid())
+  sellerId         String
+  seller           Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  title            String
+  price            Float
+  comparePrice     Float?
+  stock            Int         @default(0)
+  category         String
+  shortDescription String?
+  description      String?
+  sku              String?
+  barcode          String?
+  status           String      @default("draft") // draft, pending, active, suspended
+  images           String?     // JSON string
+  variants         String?     // JSON string
+  tags             String?
+  weight           Float?
+  dimensionLength  Float?
+  dimensionWidth   Float?
+  dimensionHeight  Float?
+  createdAt        DateTime    @default(now())
+  orderItems       OrderItem[]
+  reviews          Review[]
+}
+
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique
+  buyerId         String
+  buyer           User          @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId        String?
+  seller          Seller?       @relation("SellerOrders", fields: [sellerId], references: [id])
+  status          String        @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
+  paymentStatus   String        @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paymentMethod   String?
+  subtotal        Float
+  discountAmount  Float         @default(0)
+  shippingAmount  Float         @default(0)
+  taxAmount       Float         @default(0)
+  totalAmount     Float
+  isCod           Boolean       @default(false)
+  shippingAddress String        // Stored as JSON string
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  items           OrderItem[]
+  payments        Payment[]
+  commission      Commission?
+  shipments       Shipment[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  title       String
+  price       Float
+  quantity    Int
+  total       Float
+  shipmentId  String?
+  shipment    Shipment? @relation(fields: [shipmentId], references: [id])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gateway           String        @default("RAZORPAY") // RAZORPAY, CASHFREE, PHONEPE
+  amount            Float
+  status            String        @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  method            String?
+  gatewayLogs       String?       // Stored as JSON string
+  webhookVerified   Boolean       @default(false)
+  transactionReference String?     @unique // Gateway reference/transaction ID
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  razorpaySignature String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model Commission {
+  id                String      @id @default(uuid())
+  orderId           String      @unique
+  order             Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerId          String
+  seller            Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  orderAmount       Float
+  commissionRate    Float
+  commissionAmount  Float       // calculated platform fee
+  sellerPayout      Float       // calculated net vendor earnings
+  status            String      @default("PENDING") // PENDING, PROCESSED
+  createdAt         DateTime    @default(now())
+}
+
+model VendorWallet {
+  id                String              @id @default(uuid())
+  sellerId          String              @unique
+  seller            Seller              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  balance           Float               @default(0.0) // withdrawable balance
+  pendingEarnings   Float               @default(0.0) // locked earnings (e.g. return window active)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  transactions      WalletTransaction[]
+}
+
+model WalletTransaction {
+  id            String       @id @default(uuid())
+  walletId      String
+  wallet        VendorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount        Float
+  type          String       // CREDIT (earnings), DEBIT (withdrawal)
+  description   String
+  createdAt     DateTime     @default(now())
+}
+
+model PayoutRequest {
+  id            String       @id @default(uuid())
+  sellerId      String
+  seller        Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  amount        Float
+  status        String       @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
+  paymentMethod String       // BANK_TRANSFER, UPI
+  bankDetails   String?      // encrypted account number, ifsc, etc. (Stored as JSON string)
+  upiId         String?
+  transactionId String?      // bank/razorpay ref number
+  notes         String?
+  requestedAt   DateTime     @default(now())
+  processedAt   DateTime?
+}
+
+model GlobalSettings {
+  id                      String   @id @default("settings")
+  defaultCommissionRate   Float    @default(10.0)
+  categoryCommissions     String   // Stored as JSON string
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String
+  orderId     String?
+  subject     String
+  description String
+  type        String   // RETURN, REFUND, CANCEL, GENERAL
+  status      String   @default("OPEN") // OPEN, RESOLVED, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminNotification {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  type        String   // ORDER, SYSTEM, SELLER, PAYOUT
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model PickupAddress {
+  id            String   @id @default(uuid())
+  sellerId      String   @unique
+  seller        Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  storeName     String
+  contactName   String
+  phone         String
+  email         String
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  pincode       String
+  country       String   @default("India")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CourierPartner {
+  id                 String     @id @default(uuid())
+  name               String     @unique
+  code               String     @unique // e.g. SHIPROCKET, DELHIVERY, DTDC, BLUEDART, XPRESSBEES, ECOM_EXPRESS
+  isActive           Boolean    @default(true)
+  baseRatePrepaid    Float      @default(40.0)
+  baseRateCOD        Float      @default(60.0)
+  averageDeliveryDays Int       @default(4)
+  shipments          Shipment[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model Shipment {
+  id               String          @id @default(uuid())
+  shipmentNumber   String          @unique
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerId         String
+  seller           Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  courierPartnerId String?
+  courierPartner   CourierPartner? @relation(fields: [courierPartnerId], references: [id])
+  status           String          @default("PENDING") // PENDING, PACKED, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, RETURNED
+  awbNumber        String?         @unique
+  trackingNumber   String?         @unique
+  trackingLink     String?
+  labelUrl         String?
+  codAmount        Float           @default(0.0)
+  shippingCost     Float           @default(0.0)
+  weight           Float           @default(0.5)
+  dispatchDate     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  items            OrderItem[]
+  trackingUpdates  TrackingUpdate[]
+  invoice          Invoice?
+}
+
+model TrackingUpdate {
+  id         String   @id @default(uuid())
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status     String
+  location   String?
+  message    String
+  timestamp  DateTime @default(now())
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  shipmentId    String   @unique
+  shipment      Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  invoiceDate   DateTime @default(now())
+  subtotal      Float
+  taxAmount     Float
+  totalAmount   Float
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+}
+
+model NewsletterSubscription {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model ContactInquiry {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id             String   @id @default(uuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating         Int
+  comment        String
+  status         String   @default("pending") // pending, approved, rejected
+  sellerResponse String?
+  createdAt      DateTime @default(now())
+}
+
+model Lead {
+  id           String    @id @default(uuid())
+  name         String
+  email        String
+  phone        String
+  company      String?
+  source       String    @default("other") // website, email, referral, social, other
+  status       String    @default("new") // new, contacted, qualified, won, lost
+  priority     String    @default("medium") // low, medium, high
+  assignedTo   String?
+  followUpDate DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model SubscriptionPlan {
+  id            String         @id @default(uuid())
+  name          String
+  description   String?
+  price         Float
+  features      String         // JSON string array
+  durationDays  Int            @default(30)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id           String           @id @default(uuid())
+  sellerId     String
+  seller       Seller           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  planId       String
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  billingCycle String           @default("monthly") // monthly, yearly
+  status       String           @default("active") // active, trial, expired, cancelled
+  startDate    DateTime         @default(now())
+  endDate      DateTime
+  amount       Float
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model Coupon {
+  id            String   @id @default(uuid())
+  sellerId      String
+  seller        Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  code          String   @unique
+  discountType  String   // percentage, flat
+  discountValue Float
+  minSpend      Float    @default(0.0)
+  expiryDate    String
+  status        String   @default("active") // active, inactive
+  usageCount    Int      @default(0)
+  totalSavings  Float    @default(0.0)
+  createdAt     DateTime @default(now())
+}
+
+model SellerSettings {
+  id                  String   @id @default(uuid())
+  sellerId            String   @unique
+  seller              Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  notificationPrefs   String   // JSON string
+  twoFaEnabled        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model OTP {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  otpCode     String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  lockedUntil DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model PincodeServiceability {
+  id              String   @id @default(uuid())
+  pincode         String   @unique
+  city            String
+  state           String
+  isMetro         Boolean  @default(false)
+  allowCod        Boolean  @default(true)
+  deliveryDays    Int      @default(4)
+  createdAt       DateTime @default(now())
+}

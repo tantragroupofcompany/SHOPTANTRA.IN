@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "errors": [],
+  "users": {
+    "adminId": "00bc8a2b-ceb8-4f68-809f-06c92e062b01",
+    "sellerId": "test-seller-uuid",
+    "buyerId": "test-buyer-uuid"
+  }
+}
