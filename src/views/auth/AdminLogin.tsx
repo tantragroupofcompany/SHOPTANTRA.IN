@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, KeyRound, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { scrollToErrorAndFocus } from '../../lib/formUtils';
+import shoptantraLogo from '../../assets/SHOPTANTRA.png';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -98,6 +99,9 @@ export default function AdminLogin() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo Section */}
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <img src={shoptantraLogo} alt="ShopTantra" className="h-14 object-contain brightness-0 invert" />
+          </div>
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl mb-6 shadow-2xl">
             <ShieldCheck className="w-8 h-8 text-white" />
           </div>

@@ -1,3 +1,0 @@
-{
-  "/api/auth/admin/verify-otp/route": "app/api/auth/admin/verify-otp/route.js"
-}

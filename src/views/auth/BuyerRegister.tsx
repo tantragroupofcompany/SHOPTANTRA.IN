@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { AlertCircle, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { scrollToErrorAndFocus } from '../../lib/formUtils';
+import shoptantraLogo from '../../assets/SHOPTANTRA.png';
 
 export default function BuyerRegister() {
   const navigate = useNavigate();
@@ -116,10 +117,9 @@ export default function BuyerRegister() {
 
         {/* Logo Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-[#1B3A6B] rounded-lg mb-4">
-            <span className="text-white font-bold text-lg">ST</span>
+          <div className="flex justify-center mb-3">
+            <img src={shoptantraLogo} alt="ShopTantra" className="h-16 object-contain" />
           </div>
-          <h1 className="text-3xl font-bold text-[#1B3A6B]">ShopTantra</h1>
           <p className="text-gray-600 mt-2">Create your buyer account</p>
         </div>
 
