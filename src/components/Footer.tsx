@@ -119,10 +119,17 @@ export function Footer() {
               SHOPTANTRA (shoptantra.in) is India's premium multi-vendor marketplace, connecting authentic local brands and sellers with buyers nationwide. 
             </p>
             <div className="flex gap-3 pt-2">
-              {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
+              {[
+                { Icon: Facebook, url: 'https://www.facebook.com/shoptantra.in' },
+                { Icon: Twitter, url: 'https://twitter.com/shoptantra_in' },
+                { Icon: Instagram, url: 'https://www.instagram.com/shoptantra.in' },
+                { Icon: Youtube, url: 'https://www.youtube.com/@shoptantra' }
+              ].map(({ Icon, url }, i) => (
                 <a
                   key={i}
-                  href="#"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-9 h-9 bg-white/15 dark:bg-brand-navy-light/30 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:scale-105 hover:-translate-y-0.5 transition-all text-white"
                 >
                   <Icon className="w-4.5 h-4.5" />
