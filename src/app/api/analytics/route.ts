@@ -198,7 +198,9 @@ export async function GET(request: Request) {
       let shipping: any = {};
       try {
         shipping = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : (order.shippingAddress || {});
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to parse shipping address JSON in analytics route:', e);
+      }
 
       const country = shipping.country || 'India';
       const state = shipping.state || 'N/A';

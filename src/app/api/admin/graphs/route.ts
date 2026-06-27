@@ -128,7 +128,9 @@ export async function GET() {
       let shipping: any = {};
       try {
         shipping = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : (order.shippingAddress || {});
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to parse shipping address JSON in graphs route:', e);
+      }
 
       const state = shipping.state || 'N/A';
       const city = shipping.city || 'N/A';

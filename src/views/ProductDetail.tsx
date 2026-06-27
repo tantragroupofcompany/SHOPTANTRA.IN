@@ -16,6 +16,57 @@ export default function ProductDetail() {
   const [copied, setCopied] = useState(false);
   const [zoomStyle, setZoomStyle] = useState<React.CSSProperties>({ display: 'none' });
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomStyle({
+      display: 'block',
+      backgroundImage: `url(${activeImage})`,
+      backgroundPosition: `${x}% ${y}%`,
+      backgroundSize: '200%'
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setZoomStyle({ display: 'none' });
+  };
+
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart({
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        image: product.images[0],
+        seller: product.seller,
+        sellerId: product.sellerId
+      }, quantity, selectedColor, selectedSize);
+      addNotification('Added to Cart', `${product.title} has been added to your cart.`, 'success');
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (product) {
+      addToCart({
+        id: product.id,
+        title: product.title,
+        price: product.price,
+        image: product.images[0],
+        seller: product.seller,
+        sellerId: product.sellerId
+      }, quantity, selectedColor, selectedSize);
+      navigate('/cart');
+    }
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    addNotification('Link Copied', 'Product link copied to clipboard.', 'success');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const product = useMemo(() => {
     return mockProducts.find((p) => p.id === id);
   }, [id]);
