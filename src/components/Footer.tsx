@@ -238,9 +238,9 @@ export function Footer() {
       {/* Footer base */}
       <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/SHOPTANTRA.png" alt="Tantra Group Logo" className="h-6 w-auto object-contain" />
-            <p className="text-gray-400 text-xs font-semibold">
+          <div className="flex items-center gap-3">
+            <img src="/tantra-group-logo.jpg" alt="Tantra Group Logo" className="h-8 w-auto object-contain rounded" />
+            <p className="text-gray-450 dark:text-gray-400 text-sm font-bold tracking-wide">
               TANTRA GROUP
             </p>
           </div>
