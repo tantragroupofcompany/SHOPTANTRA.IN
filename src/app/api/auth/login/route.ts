@@ -20,19 +20,59 @@ export async function POST(request: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 2. Query Database for user
-    const dbUser = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-      include: { sellerProfile: true },
-    });
+    // Check if credentials match secure environment variables
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!dbUser) {
-      return NextResponse.json({ error: 'No account found matching this email address.' }, { status: 404 });
-    }
+    let dbUser;
 
-    // 3. Verify Hashed Password
-    if (!verifyPassword(password, dbUser.password)) {
-      return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+    if (adminEmail && cleanEmail === adminEmail) {
+      if (password !== adminPassword) {
+        return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+      }
+
+      // Fetch or dynamically synchronize the admin user in the database
+      dbUser = await prisma.user.findUnique({
+        where: { email: cleanEmail },
+        include: { sellerProfile: true },
+      });
+
+      if (!dbUser) {
+        const bcrypt = await import('bcryptjs');
+        const salt = bcrypt.default.genSaltSync(10);
+        const hashedPassword = bcrypt.default.hashSync(password, salt);
+
+        dbUser = await prisma.user.create({
+          data: {
+            email: cleanEmail,
+            password: hashedPassword,
+            role: 'ADMIN',
+            fullName: 'ShopTantra Owner',
+          },
+          include: { sellerProfile: true },
+        });
+      } else if (dbUser.role !== 'ADMIN') {
+        dbUser = await prisma.user.update({
+          where: { email: cleanEmail },
+          data: { role: 'ADMIN' },
+          include: { sellerProfile: true },
+        });
+      }
+    } else {
+      // 2. Query Database for user
+      dbUser = await prisma.user.findUnique({
+        where: { email: cleanEmail },
+        include: { sellerProfile: true },
+      });
+
+      if (!dbUser) {
+        return NextResponse.json({ error: 'No account found matching this email address.' }, { status: 404 });
+      }
+
+      // 3. Verify Hashed Password
+      if (!verifyPassword(password, dbUser.password)) {
+        return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+      }
     }
 
     // 4. Check status if user is a seller

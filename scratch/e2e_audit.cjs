@@ -395,7 +395,8 @@ async function run() {
 
   // 1. Start Server
   console.log('Starting local Next.js dev server on port 4000...');
-  const devServer = spawn('npx', ['next', 'dev', '-p', '4000'], {
+  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const devServer = spawn(command, ['next', 'dev', '-p', '4000'], {
     cwd: path.resolve(__dirname, '..'),
     shell: true
   });
@@ -405,7 +406,7 @@ async function run() {
   for (let i = 0; i < 25; i++) {
     await sleep(1000);
     try {
-      const res = await testEndpoint(`${BASE_URL}/api/auth/check-admin`); // Simple endpoint check
+      const res = await testEndpoint(`${BASE_URL}/`); // Simple endpoint check
       if (res.status !== 500) { // If server responds (even with 404/405/400), it is up
         serverReady = true;
         break;

@@ -83,10 +83,33 @@ export async function GET(request: Request) {
       }
     );
 
-    // 4. Fetch counts from database
+    // 4. Fetch counts and statistics from database
     let totalCustomers = 0;
     let totalSellers = 0;
     let totalProducts = 0;
+
+    let totalCommissionEarned = 0;
+    let pendingOrders = 0;
+    let completedOrders = 0;
+    let cancelledOrders = 0;
+    let refundRequests = 0;
+    let activeSellers = 0;
+    let newSellersToday = 0;
+    let totalWithdrawalsAmount = 0;
+
+    const locationSalesMap: Record<string, any> = {};
+
+    let codOrdersCount = 0;
+    let codOrdersRevenue = 0;
+    let onlineOrdersCount = 0;
+    let onlineOrdersRevenue = 0;
+    let pendingPaymentsCount = 0;
+    let pendingPaymentsAmount = 0;
+    let successfulPaymentsCount = 0;
+    let successfulPaymentsAmount = 0;
+    let failedPaymentsCount = 0;
+    let failedPaymentsAmount = 0;
+    let totalRefundsAmount = 0;
 
     if (sellerId) {
       totalProducts = await prisma.product.count({ where: { sellerId } });
@@ -100,9 +123,156 @@ export async function GET(request: Request) {
       totalCustomers = await prisma.user.count({ where: { role: 'BUYER' } });
       totalSellers = await prisma.seller.count();
       totalProducts = await prisma.product.count();
+      activeSellers = await prisma.seller.count({ where: { status: 'ACTIVE' } });
+      
+      newSellersToday = await prisma.seller.count({
+        where: {
+          createdAt: { gte: startOfToday }
+        }
+      });
+
+      refundRequests = await prisma.supportTicket.count({
+        where: {
+          type: { in: ['REFUND', 'RETURN'] },
+          status: { notIn: ['RESOLVED', 'CLOSED'] }
+        }
+      });
+
+      const totalWithdrawals = await prisma.payoutRequest.aggregate({
+        where: { status: 'PAID' },
+        _sum: { amount: true }
+      });
+      totalWithdrawalsAmount = totalWithdrawals._sum.amount || 0;
+
+      const commissionsAgg = await prisma.commission.aggregate({
+        _sum: { commissionAmount: true }
+      });
+      totalCommissionEarned = commissionsAgg._sum.commissionAmount || 0;
     }
 
-    // 5. Fetch Top Performing Products
+    // 5. Loop over all orders to aggregate detailed statistics
+    const allDbOrders = await prisma.order.findMany({
+      where: sellerId ? { sellerId } : undefined,
+      include: {
+        commission: true,
+        seller: {
+          select: { storeName: true }
+        },
+        items: true,
+      }
+    });
+
+    allDbOrders.forEach(order => {
+      // Order status
+      if (['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED'].includes(order.status)) {
+        pendingOrders++;
+      } else if (order.status === 'DELIVERED') {
+        completedOrders++;
+      } else if (order.status === 'CANCELLED') {
+        cancelledOrders++;
+      } else if (order.status === 'REFUNDED') {
+        totalRefundsAmount += order.totalAmount;
+      }
+
+      // Payments breakdown
+      if (order.isCod || order.paymentMethod?.toUpperCase() === 'COD') {
+        codOrdersCount++;
+        codOrdersRevenue += order.totalAmount;
+      } else {
+        onlineOrdersCount++;
+        onlineOrdersRevenue += order.totalAmount;
+      }
+
+      if (order.paymentStatus === 'PAID') {
+        successfulPaymentsCount++;
+        successfulPaymentsAmount += order.totalAmount;
+      } else if (order.paymentStatus === 'FAILED') {
+        failedPaymentsCount++;
+        failedPaymentsAmount += order.totalAmount;
+      } else {
+        pendingPaymentsCount++;
+        pendingPaymentsAmount += order.totalAmount;
+      }
+
+      // Location Analytics (aggregate by shipping address details)
+      let shipping: any = {};
+      try {
+        shipping = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : (order.shippingAddress || {});
+      } catch (e) {}
+
+      const country = shipping.country || 'India';
+      const state = shipping.state || 'N/A';
+      const city = shipping.city || 'N/A';
+      const pincode = shipping.pincode || 'N/A';
+      const district = shipping.district || city;
+
+      const locationKey = `${country}_${state}_${city}_${pincode}`.toLowerCase();
+      if (!locationSalesMap[locationKey]) {
+        locationSalesMap[locationKey] = {
+          country,
+          state,
+          district,
+          city,
+          pincode,
+          ordersCount: 0,
+          revenue: 0,
+          commission: 0,
+          sellers: {},
+          products: {}
+        };
+      }
+
+      const loc = locationSalesMap[locationKey];
+      loc.ordersCount++;
+      loc.revenue += order.totalAmount;
+      if (order.commission) {
+        loc.commission += order.commission.commissionAmount;
+      }
+
+      if (order.sellerId && order.seller) {
+        const storeName = order.seller.storeName;
+        loc.sellers[storeName] = (loc.sellers[storeName] || 0) + order.totalAmount;
+      }
+
+      order.items.forEach(item => {
+        loc.products[item.title] = (loc.products[item.title] || 0) + item.quantity;
+      });
+    });
+
+    const locationAnalytics = Object.values(locationSalesMap).map(loc => {
+      let topSellerName = 'N/A';
+      let maxSellerSales = 0;
+      Object.keys(loc.sellers).forEach(store => {
+        if (loc.sellers[store] > maxSellerSales) {
+          maxSellerSales = loc.sellers[store];
+          topSellerName = store;
+        }
+      });
+
+      let topProductName = 'N/A';
+      let maxProductUnits = 0;
+      Object.keys(loc.products).forEach(prod => {
+        if (loc.products[prod] > maxProductUnits) {
+          maxProductUnits = loc.products[prod];
+          topProductName = prod;
+        }
+      });
+
+      return {
+        country: loc.country,
+        state: loc.state,
+        district: loc.district,
+        city: loc.city,
+        pincode: loc.pincode,
+        ordersCount: loc.ordersCount,
+        revenue: Math.round(loc.revenue),
+        commission: Math.round(loc.commission),
+        topSeller: topSellerName,
+        topProduct: topProductName
+      };
+    });
+
+    // 6. Fetch Top Performing Products
     const items = await prisma.orderItem.findMany({
       where: sellerId ? { order: { sellerId } } : undefined,
       select: {
@@ -126,7 +296,7 @@ export async function GET(request: Request) {
       .sort((a: any, b: any) => b.sales - a.sales)
       .slice(0, 5);
 
-    // 6. Fetch Top Performing Vendors (only relevant for admin dashboard)
+    // 7. Fetch Top Performing Vendors (only relevant for admin dashboard)
     let topVendors: any[] = [];
     if (!sellerId) {
       const commissions = await prisma.commission.findMany({
@@ -158,6 +328,18 @@ export async function GET(request: Request) {
         .slice(0, 5);
     }
 
+    // 8. Fetch Seller Payout History (recent withdrawals)
+    const payoutHistory = await prisma.payoutRequest.findMany({
+      where: sellerId ? { sellerId } : undefined,
+      take: 10,
+      include: {
+        seller: {
+          select: { storeName: true }
+        }
+      },
+      orderBy: { requestedAt: 'desc' }
+    });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -167,6 +349,31 @@ export async function GET(request: Request) {
         totalProducts,
         topProducts,
         topVendors: sellerId ? undefined : topVendors,
+        payoutHistory,
+        locationAnalytics: sellerId ? undefined : locationAnalytics,
+        extra: sellerId ? undefined : {
+          totalCommissionEarned,
+          pendingOrders,
+          completedOrders,
+          cancelledOrders,
+          refundRequests,
+          activeSellers,
+          newSellersToday,
+          totalWithdrawalsAmount,
+          payments: {
+            codCount: codOrdersCount,
+            codRevenue: codOrdersRevenue,
+            onlineCount: onlineOrdersCount,
+            onlineRevenue: onlineOrdersRevenue,
+            pendingCount: pendingPaymentsCount,
+            pendingAmount: pendingPaymentsAmount,
+            successfulCount: successfulPaymentsCount,
+            successfulAmount: successfulPaymentsAmount,
+            failedCount: failedPaymentsCount,
+            failedAmount: failedPaymentsAmount,
+            refundsAmount: totalRefundsAmount
+          }
+        }
       },
     });
   } catch (error: any) {
