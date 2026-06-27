@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { AlertCircle, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react';
 import { scrollToErrorAndFocus } from '../../lib/formUtils';
-import shoptantraLogo from '../../assets/SHOPTANTRA.png';
 
 type Step = 1 | 2 | 3;
 
@@ -248,7 +247,7 @@ export default function SellerRegister() {
         {/* Logo Section */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-3">
-            <img src={shoptantraLogo} alt="ShopTantra" className="h-16 object-contain" />
+            <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-16 object-contain" />
           </div>
           <p className="text-gray-600 mt-2">Create your seller account</p>
         </div>
