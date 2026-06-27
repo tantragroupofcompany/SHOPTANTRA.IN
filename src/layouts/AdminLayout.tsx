@@ -59,8 +59,9 @@ export function AdminLayout() {
   const { user, profile, signOut } = useAuth();
   const location = useLocation();
 
-  // Enforce admin authentication
-  if (!user || profile?.role !== 'admin') {
+  // Enforce admin/executive authentication (FOUNDER, MD, CEO, ADMIN)
+  const userRole = profile?.role?.toUpperCase();
+  if (!user || !['ADMIN', 'FOUNDER', 'MD', 'CEO'].includes(userRole)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -98,7 +99,7 @@ export function AdminLayout() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium truncate">{profile?.full_name ?? 'Admin'}</p>
-              <p className="text-xs text-orange-300 font-medium">Administrator</p>
+              <p className="text-xs text-orange-300 font-medium capitalize">{profile?.role?.toLowerCase() || 'Administrator'}</p>
             </div>
           </div>
         </div>

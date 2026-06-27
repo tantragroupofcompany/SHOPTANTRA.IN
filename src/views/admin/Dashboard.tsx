@@ -235,13 +235,21 @@ export default function AdminDashboard() {
     setTimeout(() => setSettingsStatus(''), 4000);
   };
 
+  const getHeaderTitle = () => {
+    const role = profile?.role?.toUpperCase();
+    if (role === 'FOUNDER') return 'Founder Master Ledger';
+    if (role === 'MD') return 'Managing Director Dashboard';
+    if (role === 'CEO') return 'Chief Executive Dashboard';
+    return 'Master Administrator Console';
+  };
+
   return (
     <div className="space-y-6 transition-colors duration-300">
       
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-brand-navy dark:text-white border-l-4 border-brand-orange pl-3">
-          Master Administrator Console
+          {getHeaderTitle()}
         </h1>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           Welcome back, {profile?.full_name ?? 'Super Admin'}! Here is the SHOPTANTRA marketplace overview ledger.
