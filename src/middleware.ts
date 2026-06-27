@@ -82,7 +82,7 @@ export function middleware(request: NextRequest) {
     try {
       // Decode JWT payload (without verification, since Edge runtime doesn't support bcrypt/crypto natively well)
       // Real verification happens in the actual API route.
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split('.')[0]));
       
       const role = payload.role?.toUpperCase();
       

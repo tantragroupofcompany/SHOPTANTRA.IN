@@ -269,22 +269,33 @@ async function runApiAndRouteAudit() {
   // --- ADMIN APIs ---
   console.log('- Testing Admin Panel APIs...');
   
-  let adminRes = await testEndpoint(`${BASE_URL}/api/admin/sellers`);
+  let adminToken = '';
+  try {
+    if (loginResults[2] && loginResults[2].status === 200) {
+      const adminLoginData = JSON.parse(loginResults[2].data);
+      adminToken = adminLoginData.session.access_token;
+    }
+  } catch (e) {
+    console.error('Failed to parse admin login token:', e);
+  }
+  const adminHeaders = adminToken ? { 'Cookie': `auth_token=${adminToken}` } : {};
+  
+  let adminRes = await testEndpoint(`${BASE_URL}/api/admin/sellers/analytics`, 'GET', null, adminHeaders);
   if (adminRes.status !== 200) {
-    logError('HIGH', 'Failed to load admin sellers list', 'src/app/api/admin/sellers/route.ts');
+    logError('HIGH', 'Failed to load admin sellers list', 'src/app/api/admin/sellers/analytics/route.ts');
   }
 
-  adminRes = await testEndpoint(`${BASE_URL}/api/admin/commissions`);
+  adminRes = await testEndpoint(`${BASE_URL}/api/admin/commissions`, 'GET', null, adminHeaders);
   if (adminRes.status !== 200) {
     logError('HIGH', 'Failed to load admin commissions list', 'src/app/api/admin/commissions/route.ts');
   }
 
-  adminRes = await testEndpoint(`${BASE_URL}/api/admin/payouts`);
+  adminRes = await testEndpoint(`${BASE_URL}/api/admin/payouts`, 'GET', null, adminHeaders);
   if (adminRes.status !== 200) {
     logError('HIGH', 'Failed to load admin payouts list', 'src/app/api/admin/payouts/route.ts');
   }
 
-  adminRes = await testEndpoint(`${BASE_URL}/api/admin/reports`);
+  adminRes = await testEndpoint(`${BASE_URL}/api/admin/reports`, 'GET', null, adminHeaders);
   if (adminRes.status !== 200) {
     logError('HIGH', 'Failed to load admin reports list', 'src/app/api/admin/reports/route.ts');
   }
