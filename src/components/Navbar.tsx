@@ -187,7 +187,7 @@ export function Navbar() {
           
           {/* Brand Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center">
-            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-10 sm:h-12 w-auto object-contain" />
+            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-9 w-auto object-contain max-w-[130px] xs:max-w-[160px] sm:max-w-none sm:h-12 max-h-12" />
           </Link>
 
           {/* Categories Dropdown & AI Smart Search Bar */}
@@ -281,14 +281,14 @@ export function Navbar() {
             {/* Dark / Light Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 transition-colors"
+              className="hidden md:flex p-2.5 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 transition-colors"
               title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
             {/* Notification Center */}
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => {
                   setNotifOpen(!notifOpen);
@@ -333,7 +333,7 @@ export function Navbar() {
             {/* Wishlist Link */}
             <Link
               to="/buyer/wishlist"
-              className="p-2.5 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 relative transition-colors"
+              className="hidden md:flex p-2.5 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 relative transition-colors"
               title="Wishlist"
             >
               <Heart size={18} />
@@ -499,6 +499,29 @@ export function Navbar() {
           </form>
 
           <div className="space-y-1">
+            {/* Theme Toggle (Mobile Drawer) */}
+            <div
+              onClick={() => { toggleTheme(); setMenuOpen(false); }}
+              className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg cursor-pointer transition-colors"
+            >
+              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              {theme === 'dark' ? <Sun size={16} className="text-brand-orange" /> : <Moon size={16} className="text-gray-400" />}
+            </div>
+
+            {/* Notifications (Mobile Drawer) */}
+            <Link
+              to="/buyer/notifications"
+              className="flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg transition-colors"
+              onClick={() => { setMenuOpen(false); markNotificationsAsRead(); }}
+            >
+              <span>Notifications</span>
+              {unreadNotifCount > 0 && (
+                <span className="bg-brand-orange text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </Link>
+
             <Link to="/" className="block px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg" onClick={() => setMenuOpen(false)}>Home</Link>
             <Link to="/categories" className="block px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg" onClick={() => setMenuOpen(false)}>Categories</Link>
             <Link to="/products" className="block px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg" onClick={() => setMenuOpen(false)}>Products</Link>
