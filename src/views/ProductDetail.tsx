@@ -74,8 +74,8 @@ export default function ProductDetail() {
   useEffect(() => {
     if (product) {
       setActiveImage(product.images[0]);
-      setSelectedColor(product.variants.colors?.[0] ?? '');
-      setSelectedSize(product.variants.sizes?.[0] ?? '');
+      setSelectedColor(product.variants?.colors?.[0] ?? '');
+      setSelectedSize(product.variants?.sizes?.[0] ?? '');
     }
   }, [product]);
 
@@ -215,7 +215,7 @@ export default function ProductDetail() {
 
           {/* Variants selectors */}
           <div className="space-y-4 pt-2">
-            {product.variants.colors && (
+            {product.variants?.colors && (
               <div>
                 <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Select Color:</span>
                 <div className="flex gap-2.5 mt-2">
@@ -232,7 +232,7 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {product.variants.sizes && (
+            {product.variants?.sizes && (
               <div>
                 <span className="text-sm font-bold text-gray-800 dark:text-gray-200">Select Size:</span>
                 <div className="flex gap-2.5 mt-2">
