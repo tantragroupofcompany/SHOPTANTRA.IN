@@ -3,11 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Heart, Star, ShoppingCart, Share2, Shield, Truck, RotateCcw, AlertTriangle, Check, ArrowRight } from 'lucide-react';
 import { mockProducts, Product } from '../data/products';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, isInWishlist, addNotification } = useApp();
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
 
   const [activeImage, setActiveImage] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -67,8 +71,118 @@ export default function ProductDetail() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const product = useMemo(() => {
-    return mockProducts.find((p) => p.id === id);
+  useEffect(() => {
+    const getProduct = async () => {
+      setLoadingProduct(true);
+      // Try mockProducts first
+      const mock = mockProducts.find((p) => p.id === id);
+      if (mock) {
+        setProduct(mock);
+        setLoadingProduct(false);
+        return;
+      }
+
+      // Try database query
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (data && !error) {
+          // Parse images
+          let imagesArray: string[] = [];
+          if (data.images) {
+            try {
+              const parsed = typeof data.images === 'string' ? JSON.parse(data.images) : data.images;
+              imagesArray = Array.isArray(parsed) 
+                ? parsed.map((img: any) => typeof img === 'string' ? img : (img.url || '')) 
+                : [];
+            } catch (e) {
+              console.warn('Failed to parse product images:', e);
+            }
+          }
+          if (imagesArray.length === 0) {
+            imagesArray = ['https://images.unsplash.com/photo-1578500494198-246f612d3b3d'];
+          }
+
+          // Parse variants
+          let variants = { colors: [], sizes: [] };
+          if (data.variants) {
+            try {
+              variants = typeof data.variants === 'string' ? JSON.parse(data.variants) : data.variants;
+            } catch (e) {
+              console.warn('Failed to parse product variants:', e);
+            }
+          }
+
+          // Parse specifications
+          let specifications = {};
+          if (data.specifications) {
+            try {
+              specifications = typeof data.specifications === 'string' ? JSON.parse(data.specifications) : data.specifications;
+            } catch (e) {
+              console.warn('Failed to parse product specs:', e);
+            }
+          }
+
+          // Fetch seller store name
+          let sellerName = 'Tantra Store';
+          try {
+            const { data: sellerData } = await supabase
+              .from('sellers')
+              .select('store_name')
+              .eq('id', data.sellerId || data.seller_id)
+              .single();
+            if (sellerData?.store_name) {
+              sellerName = sellerData.store_name;
+            }
+          } catch (e) {
+            console.warn('Failed to fetch seller store name:', e);
+          }
+
+          const price = Number(data.price);
+          const comparePrice = Number(data.comparePrice || data.compare_price || price * 1.3);
+          const discount = comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+
+          const dbProduct: Product = {
+            id: data.id,
+            title: data.title,
+            seller: sellerName,
+            sellerId: data.sellerId || data.seller_id,
+            price: price,
+            originalPrice: comparePrice,
+            discount: discount,
+            rating: Number(data.rating || 4.5),
+            reviewsCount: Number(data.reviewsCount || data.reviews_count || 0),
+            category: data.category || 'General',
+            images: imagesArray,
+            description: data.description || '',
+            stockStatus: data.stock > 5 ? 'In Stock' : data.stock > 0 ? 'Low Stock' : 'Out of Stock',
+            stockCount: data.stock || 0,
+            variants: variants || { colors: [], sizes: [] },
+            specifications: specifications || {},
+            reviews: []
+          };
+          setProduct(dbProduct);
+        } else {
+          setProduct(null);
+        }
+      } catch (err) {
+        console.error('Error fetching product from DB:', err);
+        setProduct(null);
+      } finally {
+        setLoadingProduct(false);
+      }
+    };
+
+    if (id) {
+      getProduct();
+    } else {
+      setProduct(null);
+      setLoadingProduct(false);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -85,6 +199,15 @@ export default function ProductDetail() {
       .filter((p) => p.category === product.category && p.id !== product.id)
       .slice(0, 4);
   }, [product]);
+
+  if (loadingProduct) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-32 text-center flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 font-semibold animate-pulse">Loading product details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
