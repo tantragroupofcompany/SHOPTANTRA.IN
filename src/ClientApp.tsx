@@ -8,6 +8,7 @@ import { PublicLayout } from './layouts/PublicLayout';
 import { SellerLayout } from './layouts/SellerLayout';
 import { BuyerLayout } from './layouts/BuyerLayout';
 import { AdminLayout } from './layouts/AdminLayout';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 // Public pages
 import Home from './views/Home';
@@ -102,7 +103,7 @@ export default function ClientApp() {
         <AuthProvider>
           <Routes>
             {/* Public routes */}
-            <Route element={<PublicLayout />}>
+            <Route element={<ErrorBoundary><PublicLayout /></ErrorBoundary>}>
               <Route index element={<Home />} />
               <Route path="about" element={<About />} />
               <Route path="contact" element={<Contact />} />
@@ -140,7 +141,7 @@ export default function ClientApp() {
             <Route path="/about" element={<About />} />
 
             {/* Seller dashboard routes */}
-            <Route path="seller" element={<SellerLayout />}>
+            <Route path="seller" element={<ErrorBoundary><SellerLayout /></ErrorBoundary>}>
               <Route index element={<SellerDashboard />} />
               <Route path="profile" element={<SellerProfile />} />
               <Route path="profiles" element={<SellerProfile />} />
@@ -182,7 +183,7 @@ export default function ClientApp() {
             </Route>
 
             {/* Buyer dashboard routes */}
-            <Route path="buyer" element={<BuyerLayout />}>
+            <Route path="buyer" element={<ErrorBoundary><BuyerLayout /></ErrorBoundary>}>
               <Route index element={<BuyerDashboard />} />
               <Route path="profile" element={<BuyerProfile />} />
               <Route path="orders" element={<OrderHistory />} />
@@ -195,7 +196,7 @@ export default function ClientApp() {
             </Route>
 
             {/* Admin panel routes */}
-            <Route path="admin" element={<AdminLayout />}>
+            <Route path="admin" element={<ErrorBoundary><AdminLayout /></ErrorBoundary>}>
               <Route index element={<AdminDashboard />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="revenue" element={<AdminRevenue />} />
