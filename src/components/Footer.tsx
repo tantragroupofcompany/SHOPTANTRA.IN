@@ -14,6 +14,14 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
+function FooterHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
+      {children}
+    </h4>
+  );
+}
+
 export function Footer() {
   const { addNotification } = useApp();
   const [email, setEmail] = useState('');
@@ -140,9 +148,7 @@ export function Footer() {
 
           {/* Introduction Section */}
           <div>
-            <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
-              Introduction
-            </h4>
+            <FooterHeading>Introduction</FooterHeading>
             <ul className="space-y-2.5 text-sm">
               {[
                 { label: 'Founder (Jadav Nilesh)', to: '/introduction#founder' },
@@ -160,9 +166,7 @@ export function Footer() {
 
           {/* Quick links */}
           <div>
-            <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
-              Company
-            </h4>
+            <FooterHeading>Company</FooterHeading>
             <ul className="space-y-2.5 text-sm">
               {[
                 { label: 'About Us', to: '/about' },
@@ -182,9 +186,7 @@ export function Footer() {
 
           {/* Policy Links */}
           <div>
-            <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
-              Policies & Help
-            </h4>
+            <FooterHeading>Policies & Help</FooterHeading>
             <ul className="space-y-2.5 text-sm">
               {[
                 { label: 'Privacy Policy', to: '/privacy' },
@@ -204,9 +206,7 @@ export function Footer() {
 
           {/* Contact Details */}
           <div>
-            <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
-              Marketplace Office
-            </h4>
+            <FooterHeading>Marketplace Office</FooterHeading>
             <ul className="space-y-3.5 text-sm">
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-brand-orange mt-0.5 shrink-0" />
@@ -216,7 +216,7 @@ export function Footer() {
                   rel="noopener noreferrer" 
                   className="text-gray-300 leading-snug hover:text-brand-orange transition-colors hover:underline"
                 >
-                  147, NAVA PARA BAPASITARAM MADHULI NEAR, BODIYA -382245
+                  147, Nava Para, Near Bapasitaram Madhuli, Bodiya - 382245
                 </a>
               </li>
               <li className="flex items-center gap-3">
