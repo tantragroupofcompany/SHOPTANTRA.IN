@@ -228,7 +228,7 @@ const Settings = () => {
             <h2 className="text-xl font-semibold text-gray-900">Email Configuration</h2>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-              <strong>Note:</strong> Email settings are displayed for reference only. Changes are not saved in demo mode.
+              <strong>Note:</strong> Email settings are displayed for reference only. Changes are managed via secure environment variables.
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -23,8 +23,9 @@ import {
   ArrowLeft,
   BookOpen
 } from 'lucide-react';
-import { mockProducts, CATEGORIES_LIST } from '../data/products';
+import { mockProducts, CATEGORIES_LIST, Product } from '../data/products';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -59,6 +60,106 @@ export default function Home() {
   ];
 
   const [activeBanner, setActiveBanner] = useState(0);
+
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    const fetchDbProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
+
+        if (data && !error) {
+          const formatted: Product[] = [];
+          for (const item of data) {
+            let imagesArray: string[] = [];
+            if (item.images) {
+              try {
+                const parsed = typeof item.images === 'string' ? JSON.parse(item.images) : item.images;
+                imagesArray = Array.isArray(parsed) 
+                  ? parsed.map((img: any) => typeof img === 'string' ? img : (img.url || '')) 
+                  : [];
+              } catch (e) {
+                console.warn('Failed to parse home product images:', e);
+              }
+            }
+            if (imagesArray.length === 0) {
+              imagesArray = ['https://images.unsplash.com/photo-1578500494198-246f612d3b3d'];
+            }
+
+            let variants = { colors: [], sizes: [] };
+            if (item.variants) {
+              try {
+                variants = typeof item.variants === 'string' ? JSON.parse(item.variants) : item.variants;
+              } catch (e) {
+                console.warn('Failed to parse home product variants:', e);
+              }
+            }
+
+            let specifications = {};
+            if (item.specifications) {
+              try {
+                specifications = typeof item.specifications === 'string' ? JSON.parse(item.specifications) : item.specifications;
+              } catch (e) {
+                console.warn('Failed to parse home product specifications:', e);
+              }
+            }
+
+            // Get seller store name
+            let sellerName = 'Tantra Store';
+            try {
+              const { data: sellerData } = await supabase
+                .from('sellers')
+                .select('store_name')
+                .eq('id', item.sellerId || item.seller_id)
+                .single();
+              if (sellerData?.store_name) {
+                sellerName = sellerData.store_name;
+              }
+            } catch (e) {
+              console.warn('Failed to fetch home product seller:', e);
+            }
+
+            const price = Number(item.price);
+            const comparePrice = Number(item.comparePrice || item.compare_price || price * 1.3);
+            const discount = comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+
+            formatted.push({
+              id: item.id,
+              title: item.title,
+              seller: sellerName,
+              sellerId: item.sellerId || item.seller_id,
+              price: price,
+              originalPrice: comparePrice,
+              discount: discount,
+              rating: Number(item.rating || 4.5),
+              reviewsCount: Number(item.reviewsCount || item.reviews_count || 0),
+              category: item.category || 'General',
+              images: imagesArray,
+              description: item.description || '',
+              stockStatus: item.stock > 5 ? 'In Stock' : item.stock > 0 ? 'Low Stock' : 'Out of Stock',
+              stockCount: item.stock || 0,
+              variants: variants || { colors: [], sizes: [] },
+              specifications: specifications || {},
+              reviews: []
+            });
+          }
+          setDbProducts(formatted);
+        }
+      } catch (err) {
+        console.error('Failed to fetch products on home:', err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    fetchDbProducts();
+  }, []);
+
+  const allProducts = useMemo(() => {
+    return [...mockProducts, ...dbProducts];
+  }, [dbProducts]);
 
   // Auto scroll banners
   useEffect(() => {
@@ -238,7 +339,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockProducts.slice(0, 4).map((p) => (
+            {allProducts.slice(0, 4).map((p) => (
               <div
                 key={p.id}
                 className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
@@ -284,7 +385,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockProducts.slice(4, 8).map((p) => (
+            {allProducts.slice(4, 8).map((p) => (
               <div
                 key={p.id}
                 className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
@@ -354,7 +455,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-gray-800">
-            {mockProducts.slice(8, 12).map((p) => {
+            {allProducts.slice(8, 12).map((p) => {
               const itemsLeft = Math.floor(2 + Math.random() * 8);
               return (
                 <div
@@ -423,7 +524,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockProducts.slice(12, 16).map((p) => (
+            {allProducts.slice(12, 16).map((p) => (
               <div
                 key={p.id}
                 className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
@@ -466,7 +567,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {mockProducts.slice(16, 20).map((p) => (
+            {allProducts.slice(16, 20).map((p) => (
               <div
                 key={p.id}
                 className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"

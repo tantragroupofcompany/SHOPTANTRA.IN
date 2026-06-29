@@ -3,6 +3,7 @@ import { Heart, Star, Search, ChevronDown, Sparkles } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { mockProducts, CATEGORIES_LIST, Product } from '../data/products';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,6 +15,103 @@ export default function ProductsPage() {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDbProducts = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
+
+        if (data && !error) {
+          const formatted: Product[] = [];
+          for (const item of data) {
+            let imagesArray: string[] = [];
+            if (item.images) {
+              try {
+                const parsed = typeof item.images === 'string' ? JSON.parse(item.images) : item.images;
+                imagesArray = Array.isArray(parsed) 
+                  ? parsed.map((img: any) => typeof img === 'string' ? img : (img.url || '')) 
+                  : [];
+              } catch (e) {
+                console.warn('Failed to parse catalog product images:', e);
+              }
+            }
+            if (imagesArray.length === 0) {
+              imagesArray = ['https://images.unsplash.com/photo-1578500494198-246f612d3b3d'];
+            }
+
+            let variants = { colors: [], sizes: [] };
+            if (item.variants) {
+              try {
+                variants = typeof item.variants === 'string' ? JSON.parse(item.variants) : item.variants;
+              } catch (e) {
+                console.warn('Failed to parse catalog product variants:', e);
+              }
+            }
+
+            let specifications = {};
+            if (item.specifications) {
+              try {
+                specifications = typeof item.specifications === 'string' ? JSON.parse(item.specifications) : item.specifications;
+              } catch (e) {
+                console.warn('Failed to parse catalog product specifications:', e);
+              }
+            }
+
+            // Get seller store name
+            let sellerName = 'Tantra Store';
+            try {
+              const { data: sellerData } = await supabase
+                .from('sellers')
+                .select('store_name')
+                .eq('id', item.sellerId || item.seller_id)
+                .single();
+              if (sellerData?.store_name) {
+                sellerName = sellerData.store_name;
+              }
+            } catch (e) {
+              console.warn('Failed to fetch catalog product seller:', e);
+            }
+
+            const price = Number(item.price);
+            const comparePrice = Number(item.comparePrice || item.compare_price || price * 1.3);
+            const discount = comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+
+            formatted.push({
+              id: item.id,
+              title: item.title,
+              seller: sellerName,
+              sellerId: item.sellerId || item.seller_id,
+              price: price,
+              originalPrice: comparePrice,
+              discount: discount,
+              rating: Number(item.rating || 4.5),
+              reviewsCount: Number(item.reviewsCount || item.reviews_count || 0),
+              category: item.category || 'General',
+              images: imagesArray,
+              description: item.description || '',
+              stockStatus: item.stock > 5 ? 'In Stock' : item.stock > 0 ? 'Low Stock' : 'Out of Stock',
+              stockCount: item.stock || 0,
+              variants: variants || { colors: [], sizes: [] },
+              specifications: specifications || {},
+              reviews: []
+            });
+          }
+          setDbProducts(formatted);
+        }
+      } catch (err) {
+        console.error('Failed to fetch products from DB:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDbProducts();
+  }, []);
 
   // Sync category and search query from URL search parameters
   useEffect(() => {
@@ -48,8 +146,12 @@ export default function ProductsPage() {
   ];
 
   // Filters calculation
+  const allProducts = useMemo(() => {
+    return [...mockProducts, ...dbProducts];
+  }, [dbProducts]);
+
   const filteredProducts = useMemo(() => {
-    let result = [...mockProducts];
+    let result = [...allProducts];
 
     // Search query
     if (searchQuery) {
@@ -89,7 +191,7 @@ export default function ProductsPage() {
     }
 
     return result;
-  }, [searchQuery, selectedCategory, selectedPrice, selectedRating, sortBy]);
+  }, [allProducts, searchQuery, selectedCategory, selectedPrice, selectedRating, sortBy]);
 
   const itemsPerPage = 8;
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
