@@ -9,7 +9,7 @@ interface AuthContextType {
   profile: Profile | null;
   role: UserRole | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null; profile?: Profile | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; profile?: Profile | null; roles?: string[] }>;
   signUp: (
     email: string,
     password: string,
@@ -21,6 +21,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ error: Error | null; link?: string | null }>;
   resetPassword: (token: string, newPassword: string) => Promise<{ error: Error | null }>;
+  setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,10 +116,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(resData.profile as Profile);
         
         setLoading(false);
-        return { error: null, profile: resData.profile as Profile };
+        return { error: null, profile: resData.profile as Profile, roles: resData.roles || [] };
       } else {
         setLoading(false);
-        return { error: new Error(resData.error || 'Failed to authenticate.'), profile: null };
+        return { error: new Error(resData.error || 'Failed to authenticate.'), profile: null, roles: [] };
       }
     } catch (e: any) {
       console.error('API signIn failed:', e);
@@ -272,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, profile, role: profile?.role ?? null, loading,
-      signIn, signUp, signOut, refreshProfile, forgotPassword, resetPassword
+      signIn, signUp, signOut, refreshProfile, forgotPassword, resetPassword, setProfile
     }}>
       {children}
     </AuthContext.Provider>

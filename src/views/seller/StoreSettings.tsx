@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { Seller } from '../../types';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { Upload, X, Store, RefreshCw } from 'lucide-react';
 
 const StoreSettings = () => {
   const { user } = useAuth();
@@ -33,6 +34,9 @@ const StoreSettings = () => {
   const [savingAddress, setSavingAddress] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessages, setSuccessMessages] = useState<Record<string, string>>({});
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSellerData = async () => {
@@ -48,6 +52,7 @@ const StoreSettings = () => {
         if (resData.success && resData.data) {
           const data = resData.data;
           setSeller(data as any);
+          setLogoUrl(data.store_logo_url || null);
           setFormData({
             store_name: data.store_name || '',
             store_description: data.store_description || '',
@@ -213,6 +218,134 @@ const StoreSettings = () => {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setLogoError('Invalid file type. Please upload JPG, JPEG, PNG, or WEBP.');
+      return;
+    }
+
+    // Validate size (5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setLogoError('File size must be less than 5 MB.');
+      return;
+    }
+
+    setUploadingLogo(true);
+    setLogoError(null);
+
+    // Client-side crop and compress using HTML5 Canvas
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = Math.min(img.width, img.height);
+        canvas.width = 400; // 400x400 square crop is perfect
+        canvas.height = 400;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Draw cropped to square center
+          ctx.drawImage(
+            img,
+            (img.width - size) / 2,
+            (img.height - size) / 2,
+            size,
+            size,
+            0,
+            0,
+            400,
+            400
+          );
+
+          // Convert canvas to Blob (JPEG with 0.85 quality compression)
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              setLogoError('Failed to compress image.');
+              setUploadingLogo(false);
+              return;
+            }
+
+            const uploadFile = new File([blob], file.name, { type: 'image/jpeg' });
+            const formData = new FormData();
+            formData.append('file', uploadFile);
+            formData.append('userId', user.id);
+
+            try {
+              const res = await fetch('/api/seller/upload-logo', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Failed to upload logo.');
+              }
+
+              const resData = await res.json();
+              setLogoUrl(resData.logoUrl);
+              setSuccessMessages(prev => ({ ...prev, logo: 'Store logo updated successfully!' }));
+              setTimeout(() => {
+                setSuccessMessages(prev => {
+                  const copy = { ...prev };
+                  delete copy.logo;
+                  return copy;
+                });
+              }, 3000);
+            } catch (err: any) {
+              setLogoError(err.message || 'Failed to upload logo.');
+            } finally {
+              setUploadingLogo(false);
+            }
+          }, 'image/jpeg', 0.85);
+        }
+      };
+    };
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!user) return;
+    setUploadingLogo(true);
+    setLogoError(null);
+
+    try {
+      const res = await fetch('/api/seller/store-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          store_logo_url: null
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to remove store logo.');
+      }
+
+      setLogoUrl(null);
+      setSuccessMessages(prev => ({ ...prev, logo: 'Store logo removed successfully!' }));
+      setTimeout(() => {
+        setSuccessMessages(prev => {
+          const copy = { ...prev };
+          delete copy.logo;
+          return copy;
+        });
+      }, 3000);
+    } catch (err: any) {
+      setLogoError(err.message || 'Failed to remove logo.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !seller) return;
@@ -297,6 +430,72 @@ const StoreSettings = () => {
           <p className="text-red-800">{errors.general}</p>
         </Card>
       )}
+
+      <Card>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Store Brand Logo</h2>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative group shrink-0">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Store Logo"
+                loading="lazy"
+                className="w-24 h-24 rounded-2xl object-cover border border-gray-200 shadow-sm"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-2xl bg-gray-100 flex flex-col items-center justify-center border border-dashed border-gray-300 text-gray-400">
+                <Store size={32} />
+                <span className="text-[10px] mt-1 font-semibold uppercase tracking-wider">No Logo</span>
+              </div>
+            )}
+            {uploadingLogo && (
+              <div className="absolute inset-0 bg-white/70 dark:bg-brand-navy-dark/70 rounded-2xl flex items-center justify-center">
+                <RefreshCw className="w-6 h-6 text-brand-orange animate-spin" />
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-2 flex-grow">
+            <div className="flex flex-wrap gap-3">
+              <label className={`cursor-pointer bg-brand-orange hover:bg-brand-orange-hover text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm ${uploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Upload size={16} />
+                {logoUrl ? 'Change Logo' : 'Upload Logo'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  disabled={uploadingLogo}
+                />
+              </label>
+              
+              {logoUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  disabled={uploadingLogo}
+                  className="px-4 py-2 border border-red-200 text-red-650 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <X size={15} />
+                  Remove
+                </button>
+              )}
+            </div>
+            
+            <p className="text-xs text-gray-500">
+              Accepted formats: JPG, JPEG, PNG, WEBP. Max size: 5 MB. Image is automatically cropped to a square and optimized.
+            </p>
+
+            {logoError && (
+              <p className="text-red-500 text-xs font-semibold">{logoError}</p>
+            )}
+            
+            {successMessages.logo && (
+              <p className="text-green-600 text-xs font-semibold">{successMessages.logo}</p>
+            )}
+          </div>
+        </div>
+      </Card>
 
       <Card>
         <h2 className="text-xl font-bold text-gray-900 mb-6">Store Information</h2>

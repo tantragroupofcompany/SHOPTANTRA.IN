@@ -16,7 +16,7 @@ import { useApp } from '../context/AppContext';
 
 function FooterHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h4 className="font-bold text-white mb-5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
+    <h4 className="font-bold text-white mb-3.5 uppercase tracking-wider text-xs border-l-2 border-brand-orange pl-2">
       {children}
     </h4>
   );
@@ -75,17 +75,17 @@ export function Footer() {
       
       {/* Newsletter Section */}
       <div className="border-b border-white/10 dark:border-brand-navy-light/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="max-w-md">
-            <h4 className="text-xl font-bold mb-1 flex items-center gap-2">
-              <Mail className="text-brand-orange" />
-              Subscribe to our Newsletter
+            <h4 className="text-lg font-bold mb-0.5 flex items-center gap-2 text-white">
+              <Mail className="text-brand-orange w-5 h-5" />
+              Subscribe To Our Newsletter
             </h4>
-            <p className="text-gray-300 text-sm">
+            <p className="text-gray-300 text-xs">
               Get weekly updates on hot deals, new arrivals, and seller insights. No spam, we promise.
             </p>
           </div>
-          <div className="w-full md:w-auto max-w-md flex flex-col gap-2 flex-grow">
+          <div className="w-full md:w-auto max-w-md flex flex-col gap-1.5 flex-grow">
             <form onSubmit={handleSubscribe} className="w-full flex gap-2">
               <input
                 type="email"
@@ -96,37 +96,37 @@ export function Footer() {
                   if (subscribeError) setSubscribeError(null);
                 }}
                 required
-                className="flex-grow bg-white/10 dark:bg-brand-navy-light/20 border border-white/20 dark:border-brand-navy-light/30 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                className="flex-grow bg-white/10 dark:bg-brand-navy-light/20 border border-white/20 dark:border-brand-navy-light/30 text-white rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
               />
               <button
                 type="submit"
                 disabled={subscribed}
-                className="bg-brand-orange hover:bg-brand-orange-hover text-white text-sm font-semibold px-5 py-2.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60"
+                className="bg-brand-orange hover:bg-brand-orange-hover text-white text-sm font-semibold px-4.5 py-2 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60"
               >
                 {subscribed ? 'Subscribed!' : 'Subscribe'}
-                <Send size={14} />
+                <Send size={12} />
               </button>
             </form>
             {subscribeError && (
-              <p className="text-red-400 text-xs mt-1" role="alert">{subscribeError}</p>
+              <p className="text-red-400 text-xs mt-0.5" role="alert">{subscribeError}</p>
             )}
             {subscribed && (
-              <p className="text-green-400 text-xs mt-1">Successfully subscribed! Thank you.</p>
+              <p className="text-green-400 text-xs mt-0.5">Successfully subscribed! Thank you.</p>
             )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 gap-x-4">
           
           {/* Brand Info & Socials */}
-          <div className="space-y-4">
-            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-10 sm:h-12 w-auto" />
-            <p className="text-gray-300 text-sm leading-relaxed">
+          <div className="space-y-3">
+            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-9 w-auto" />
+            <p className="text-gray-300 text-xs leading-relaxed">
               SHOPTANTRA (shoptantra.in) is India's premium multi-vendor marketplace, connecting authentic local brands and sellers with buyers nationwide. 
             </p>
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-1.5">
               {[
                 { Icon: Facebook, url: 'https://www.facebook.com/shoptantra.in' },
                 { Icon: Twitter, url: 'https://twitter.com/shoptantra_in' },
@@ -138,9 +138,9 @@ export function Footer() {
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 bg-white/15 dark:bg-brand-navy-light/30 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:scale-105 hover:-translate-y-0.5 transition-all text-white"
+                  className="w-8 h-8 bg-white/10 dark:bg-brand-navy-light/20 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:scale-105 hover:-translate-y-0.5 transition-all text-white"
                 >
-                  <Icon className="w-4.5 h-4.5" />
+                  <Icon className="w-4 h-4" />
                 </a>
               ))}
             </div>
@@ -149,7 +149,7 @@ export function Footer() {
           {/* Introduction Section */}
           <div>
             <FooterHeading>Introduction</FooterHeading>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-1.5 text-xs">
               {[
                 { label: 'Founder (Jadav Nilesh)', to: '/introduction#founder' },
                 { label: 'Managing Director (Nayna Jadav)', to: '/introduction#md' },
@@ -167,7 +167,7 @@ export function Footer() {
           {/* Quick links */}
           <div>
             <FooterHeading>Company</FooterHeading>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-1.5 text-xs">
               {[
                 { label: 'About Us', to: '/about' },
                 { label: 'Blog & Articles', to: '/blog' },
@@ -187,7 +187,7 @@ export function Footer() {
           {/* Policy Links */}
           <div>
             <FooterHeading>Policies & Help</FooterHeading>
-            <ul className="space-y-2.5 text-sm">
+            <ul className="space-y-1.5 text-xs">
               {[
                 { label: 'Privacy Policy', to: '/privacy' },
                 { label: 'Terms & Conditions', to: '/terms' },
@@ -207,9 +207,9 @@ export function Footer() {
           {/* Contact Details */}
           <div>
             <FooterHeading>Marketplace Office</FooterHeading>
-            <ul className="space-y-3.5 text-sm">
-              <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-brand-orange mt-0.5 shrink-0" />
+            <ul className="space-y-2 text-xs">
+              <li className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-brand-orange mt-0.5 shrink-0" />
                 <a 
                   href="https://www.google.com/maps/search/?api=1&query=147,+NAVA+PARA+BAPASITARAM+MADHULI+NEAR,+BODIYA+-382245" 
                   target="_blank" 
@@ -219,8 +219,8 @@ export function Footer() {
                   147, Nava Para, Near Bapasitaram Madhuli, Bodiya - 382245
                 </a>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-brand-orange shrink-0" />
+              <li className="flex items-center gap-2.5">
+                <Phone className="w-4 h-4 text-brand-orange shrink-0" />
                 <a 
                   href="tel:+919099985145" 
                   className="text-gray-300 hover:text-brand-orange transition-colors hover:underline"
@@ -228,8 +228,8 @@ export function Footer() {
                   +91 90999 85145
                 </a>
               </li>
-              <li className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-brand-orange shrink-0" />
+              <li className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-brand-orange shrink-0" />
                 <a 
                   href="mailto:support@shoptantra.in" 
                   className="text-gray-300 hover:text-brand-orange transition-colors hover:underline"
@@ -243,25 +243,25 @@ export function Footer() {
       </div>
 
       {/* Footer base */}
-      <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-6">
+      <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src="/tantra-group-logo.jpg" alt="Tantra Group Logo" className="h-8 w-auto object-contain rounded" />
-            <p className="text-gray-450 dark:text-gray-400 text-sm font-bold tracking-wide">
+          <div className="flex items-center gap-2.5">
+            <img src="/tantra-group-logo.jpg" alt="Tantra Group Logo" className="h-7 w-auto object-contain rounded" />
+            <p className="text-gray-450 dark:text-gray-400 text-xs font-bold tracking-wide">
               TANTRA GROUP
             </p>
           </div>
           
           {/* Payment & Security badges */}
           <div className="flex items-center gap-4 text-gray-400 text-xs">
-            <span className="flex items-center gap-1">
-              <ShieldCheck size={14} className="text-brand-orange" />
+            <span className="flex items-center gap-1 text-[11px]">
+              <ShieldCheck size={13} className="text-brand-orange" />
               SSL Secured Payments
             </span>
-            <div className="flex gap-2">
-              <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-gray-300">UPI</span>
-              <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-gray-300">Razorpay</span>
-              <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-gray-300">Cashfree</span>
+            <div className="flex gap-1.5">
+              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">UPI</span>
+              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">Razorpay</span>
+              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">Cashfree</span>
             </div>
           </div>
         </div>

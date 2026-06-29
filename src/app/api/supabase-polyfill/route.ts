@@ -383,6 +383,7 @@ export async function POST(request: Request) {
             buyer_phone: row.buyer?.phone || 'N/A',
             seller_id: row.sellerId,
             seller_name: row.seller?.storeName || 'N/A',
+            seller_logo_url: row.seller?.logoUrl || null,
             status: row.status.toLowerCase(),
             payment_status: row.paymentStatus.toLowerCase(),
             payment_method: row.paymentMethod,

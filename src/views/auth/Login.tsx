@@ -1,18 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, ShieldCheck, ShoppingBag, Store } from 'lucide-react';
 import { scrollToErrorAndFocus } from '../../lib/formUtils';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, signUp, loading, setProfile } = useAuth();
   
   // Login Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Role Selector States
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
+  const [tempProfile, setTempProfile] = useState<any>(null);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+
+  const handleSelectRole = (role: string) => {
+    if (tempProfile) {
+      setProfile({ ...tempProfile, role });
+      localStorage.setItem('st_last_selected_role', role);
+      
+      if (role === 'seller') {
+        navigate('/seller');
+      } else if (role === 'buyer') {
+        navigate('/buyer');
+      } else if (role === 'admin') {
+        navigate('/admin');
+      }
+    }
+  };
 
   // Admin Check States
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
@@ -62,22 +82,37 @@ export default function Login() {
     }
 
     try {
-      const { error: signInError, profile } = await signIn(email.trim(), password);
-      if (signInError) {
-        setError(signInError.message || 'Login failed. Please check your credentials.');
+      const result = await signIn(email.trim(), password);
+      if (result.error) {
+        setError(result.error.message || 'Login failed. Please check your credentials.');
         scrollToErrorAndFocus();
         return;
       }
       
-      // Navigate based on user role profile
-      if (profile?.role === 'seller') {
-        navigate('/seller');
-      } else if (profile?.role === 'buyer') {
-        navigate('/buyer');
-      } else if (profile?.role === 'admin') {
-        navigate('/admin');
+      const roles = result.roles || [];
+      const profile = result.profile;
+      
+      if (roles.length > 1) {
+        const lastSelected = localStorage.getItem('st_last_selected_role');
+        if (lastSelected && roles.includes(lastSelected)) {
+          setProfile({ ...profile, role: lastSelected });
+          navigate(lastSelected === 'seller' ? '/seller' : lastSelected === 'admin' ? '/admin' : '/buyer');
+        } else {
+          setAvailableRoles(roles);
+          setTempProfile(profile);
+          setShowRoleSelector(true);
+        }
       } else {
-        navigate('/');
+        // Navigate based on user role profile
+        if (profile?.role === 'seller') {
+          navigate('/seller');
+        } else if (profile?.role === 'buyer') {
+          navigate('/buyer');
+        } else if (profile?.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred during sign in.');
@@ -188,7 +223,38 @@ export default function Login() {
             </div>
           )}
 
-          {!hasAdmin ? (
+          {showRoleSelector ? (
+            /* Role Selector Screen */
+            <div className="space-y-6 text-center">
+              <h2 className="text-xl font-bold text-gray-800">Continue As</h2>
+              <p className="text-sm text-gray-500">Please select a dashboard to proceed</p>
+              
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                {availableRoles.includes('buyer') && (
+                  <button
+                    onClick={() => handleSelectRole('buyer')}
+                    className="flex flex-col items-center gap-3 p-5 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-brand-orange group-hover:scale-110 transition-transform">
+                      <ShoppingBag className="w-6 h-6" />
+                    </div>
+                    <span className="font-bold text-sm text-gray-700">Buyer Dashboard</span>
+                  </button>
+                )}
+                {availableRoles.includes('seller') && (
+                  <button
+                    onClick={() => handleSelectRole('seller')}
+                    className="flex flex-col items-center gap-3 p-5 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                      <Store className="w-6 h-6" />
+                    </div>
+                    <span className="font-bold text-sm text-gray-700">Seller Dashboard</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : !hasAdmin ? (
             /* First Admin Creation Wizard */
             <form onSubmit={handleAdminSubmit} className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">

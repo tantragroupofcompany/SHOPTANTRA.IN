@@ -22,6 +22,7 @@ function SellerDashboard() {
 
   const [withdrawalInput, setWithdrawalInput] = useState('');
   const [withdrawalStatus, setWithdrawalStatus] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const sellerId = profile?.id || 'seller_placeholder';
 
   useEffect(() => {
@@ -42,6 +43,12 @@ function SellerDashboard() {
             commissionsPaid: Math.round((analyticsData.data.revenue.totalRevenue * 10) / 100) || 0,
             withdrawableBalance: walletData.data?.wallet?.balance || 0,
           });
+        }
+
+        const storeRes = await fetch(`/api/seller/store-settings?userId=${sellerId}`);
+        const storeData = await storeRes.json();
+        if (storeData.success && storeData.data) {
+          setLogoUrl(storeData.data.store_logo_url || null);
         }
 
         // Fetch real recent orders from database
@@ -102,13 +109,27 @@ function SellerDashboard() {
     <div className="space-y-6 transition-colors duration-300">
       
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-brand-navy dark:text-white border-l-4 border-brand-orange pl-3">
-          Seller Control Console
-        </h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Welcome back, {profile?.full_name ?? 'Tantra Partner'}! Here is your marketplace statistics ledger.
-        </p>
+      <div className="flex items-center gap-4 pb-2 border-b border-gray-150 dark:border-brand-navy-light/10">
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt="Seller Brand Logo"
+            loading="lazy"
+            className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-brand-navy-light/20 shadow-xs shrink-0"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-brand-orange/10 dark:bg-brand-navy-light/20 flex items-center justify-center border border-dashed border-brand-orange/20 text-brand-orange shrink-0">
+            <Award className="w-7 h-7" />
+          </div>
+        )}
+        <div>
+          <h1 className="text-2xl font-extrabold text-brand-navy dark:text-white">
+            Seller Control Console
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Welcome back, {profile?.full_name ?? 'Tantra Partner'}! Here is your marketplace statistics ledger.
+          </p>
+        </div>
       </div>
 
       {/* Stats Cards Row */}

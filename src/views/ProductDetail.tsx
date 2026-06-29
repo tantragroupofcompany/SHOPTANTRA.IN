@@ -12,6 +12,7 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
+  const [sellerLogo, setSellerLogo] = useState<string | null>(null);
 
   const [activeImage, setActiveImage] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -127,20 +128,25 @@ export default function ProductDetail() {
             }
           }
 
-          // Fetch seller store name
+          // Fetch seller store name and logo
           let sellerName = 'Tantra Store';
+          let logoUrl = null;
           try {
             const { data: sellerData } = await supabase
               .from('sellers')
-              .select('store_name')
+              .select('store_name, store_logo_url')
               .eq('id', data.sellerId || data.seller_id)
               .single();
             if (sellerData?.store_name) {
               sellerName = sellerData.store_name;
             }
+            if (sellerData?.store_logo_url) {
+              logoUrl = sellerData.store_logo_url;
+            }
           } catch (e) {
-            console.warn('Failed to fetch seller store name:', e);
+            console.warn('Failed to fetch seller store name/logo:', e);
           }
+          setSellerLogo(logoUrl);
 
           const price = Number(data.price);
           const comparePrice = Number(data.comparePrice || data.compare_price || price * 1.3);
@@ -298,8 +304,20 @@ export default function ProductDetail() {
               {product.title}
             </h1>
             <div className="flex items-center gap-3 mt-3">
-              <span className="text-xs font-semibold bg-brand-orange/10 text-brand-orange px-2 py-0.5 rounded">
-                Seller: <Link to={`/store/${product.sellerId}`} className="underline font-bold">{product.seller}</Link>
+              <span className="text-xs font-semibold bg-brand-orange/10 text-brand-orange px-2.5 py-1 rounded flex items-center gap-1.5 shadow-sm">
+                {sellerLogo ? (
+                  <img
+                    src={sellerLogo}
+                    alt="Seller Logo"
+                    loading="lazy"
+                    className="w-4.5 h-4.5 rounded-full object-cover border border-brand-orange/20"
+                  />
+                ) : (
+                  <span className="w-4.5 h-4.5 rounded-full bg-brand-orange/20 flex items-center justify-center text-[9px] font-bold text-brand-orange">
+                    🏪
+                  </span>
+                )}
+                Seller: <Link to={`/store/${product.sellerId}`} className="underline font-extrabold">{product.seller}</Link>
               </span>
               <div className="flex items-center gap-1.5 border-l border-gray-200 dark:border-brand-navy-light/20 pl-3">
                 {ratingStars(product.rating)}

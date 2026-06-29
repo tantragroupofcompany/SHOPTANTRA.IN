@@ -25,6 +25,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
+    const sellerProfile = await prisma.seller.findUnique({
+      where: { userId: dbUser.id }
+    });
+
     const formattedProfile = {
       id: dbUser.id,
       user_id: dbUser.id,
@@ -32,6 +36,8 @@ export async function GET(request: Request) {
       full_name: dbUser.fullName || '',
       phone: dbUser.phone || '',
       role: dbUser.role.toLowerCase(),
+      has_seller_profile: !!sellerProfile,
+      logo_url: sellerProfile?.logoUrl || null,
       created_at: dbUser.createdAt,
       updated_at: dbUser.updatedAt
     };
@@ -92,6 +98,10 @@ export async function PUT(request: Request) {
       data: updateData
     });
 
+    const sellerProfile = await prisma.seller.findUnique({
+      where: { userId: updatedUser.id }
+    });
+
     const formattedProfile = {
       id: updatedUser.id,
       user_id: updatedUser.id,
@@ -99,6 +109,8 @@ export async function PUT(request: Request) {
       full_name: updatedUser.fullName || '',
       phone: updatedUser.phone || '',
       role: updatedUser.role.toLowerCase(),
+      has_seller_profile: !!sellerProfile,
+      logo_url: sellerProfile?.logoUrl || null,
       created_at: updatedUser.createdAt,
       updated_at: updatedUser.updatedAt
     };

@@ -17,7 +17,8 @@ import {
   Sun,
   Moon,
   Store,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -25,7 +26,7 @@ import { mockProducts, CATEGORIES_LIST } from '../data/products';
 
 export function Navbar() {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, setProfile } = useAuth();
   const {
     cart,
     wishlist,
@@ -392,6 +393,21 @@ export function Navbar() {
                         <LayoutDashboard className="w-4 h-4 text-gray-400" />
                         Dashboard
                       </Link>
+                      {profile?.has_seller_profile && (
+                        <button
+                          onClick={() => {
+                            const newRole = profile.role === 'seller' ? 'buyer' : 'seller';
+                            setProfile({ ...profile, role: newRole });
+                            localStorage.setItem('st_last_selected_role', newRole);
+                            setUserMenuOpen(false);
+                            navigate(newRole === 'seller' ? '/seller' : '/buyer');
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-brand-orange hover:bg-orange-50 dark:hover:bg-brand-navy-light transition-colors border-t border-b border-gray-100 dark:border-brand-navy-light/10 text-left font-semibold"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Switch to {profile.role === 'seller' ? 'Buyer' : 'Seller'}
+                        </button>
+                      )}
                       <button
                         onClick={handleSignOut}
                         className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"

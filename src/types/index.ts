@@ -129,6 +129,8 @@ export interface Order {
   order_number: string;
   buyer_id: string;
   seller_id: string;
+  seller_name?: string;
+  seller_logo_url?: string | null;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   payment_method: string | null;

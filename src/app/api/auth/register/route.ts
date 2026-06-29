@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { hashPassword } from '../../../../lib/authUtils';
+import { hashPassword, verifyPassword } from '../../../../lib/authUtils';
 
 import { sendVerificationEmail } from '../../../../lib/email';
 import crypto from 'crypto';
@@ -64,8 +64,26 @@ export async function POST(request: Request) {
       where: { email: cleanEmail }
     });
 
+    let isUpgradingToSeller = false;
+
     if (emailExists) {
-      return NextResponse.json({ error: 'An account with this email address already exists.' }, { status: 400 });
+      if (uppercaseRole === 'SELLER') {
+        const existingSellerProfile = await prisma.seller.findUnique({
+          where: { userId: emailExists.id }
+        });
+        if (existingSellerProfile) {
+          return NextResponse.json({ error: 'An account with this email address is already registered as a seller. Please log in.' }, { status: 400 });
+        }
+
+        // Verify password
+        if (!verifyPassword(password, emailExists.password)) {
+          return NextResponse.json({ error: 'An account with this email address already exists. Please enter your correct password to add the Seller role to your account.' }, { status: 400 });
+        }
+
+        isUpgradingToSeller = true;
+      } else {
+        return NextResponse.json({ error: 'An account with this email address already exists. You can log in directly and access both buyer and seller options.' }, { status: 400 });
+      }
     }
 
     // 3. Prevent Duplicate Phone Number (if provided)
@@ -74,7 +92,7 @@ export async function POST(request: Request) {
       const phoneExists = await prisma.user.findFirst({
         where: { phone: cleanPhone }
       });
-      if (phoneExists) {
+      if (phoneExists && (!isUpgradingToSeller || phoneExists.id !== emailExists?.id)) {
         return NextResponse.json({ error: 'This phone number is already registered to another account.' }, { status: 400 });
       }
     }
@@ -94,15 +112,27 @@ export async function POST(request: Request) {
 
     // 4. Perform database insertions in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: {
-          email: cleanEmail,
-          password: hashedPassword,
-          role: uppercaseRole,
-          fullName: cleanFullName,
-          phone: phone ? phone.trim() : null,
-        }
-      });
+      let newUser;
+      if (isUpgradingToSeller && emailExists) {
+        newUser = await tx.user.update({
+          where: { id: emailExists.id },
+          data: {
+            role: 'SELLER',
+            fullName: cleanFullName,
+            phone: phone ? phone.trim() : emailExists.phone,
+          }
+        });
+      } else {
+        newUser = await tx.user.create({
+          data: {
+            email: cleanEmail,
+            password: hashedPassword,
+            role: uppercaseRole,
+            fullName: cleanFullName,
+            phone: phone ? phone.trim() : null,
+          }
+        });
+      }
 
       if (uppercaseRole === 'SELLER') {
         const storeName = businessInfo?.storeName || `${cleanFullName}'s Store`;

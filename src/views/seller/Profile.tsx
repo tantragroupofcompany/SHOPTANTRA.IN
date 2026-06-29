@@ -153,7 +153,24 @@ const Profile = () => {
       </div>
 
       <Card>
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Profile Information</h2>
+        <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-150">
+          {profile?.logo_url ? (
+            <img
+              src={profile.logo_url}
+              alt="Brand Logo"
+              loading="lazy"
+              className="w-16 h-16 rounded-xl object-cover border border-gray-200 shadow-sm"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-brand-orange/10 flex items-center justify-center border border-dashed border-brand-orange/20 text-brand-orange">
+              <span className="text-xs font-black uppercase">No Logo</span>
+            </div>
+          )}
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+            <p className="text-xs text-gray-500">Update your account personal settings</p>
+          </div>
+        </div>
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <Input
             label="Full Name"
@@ -179,15 +196,6 @@ const Profile = () => {
             value={formData.phone}
             onChange={handleInputChange}
             placeholder="Enter your phone number"
-          />
-
-          <Input
-            label="Avatar URL"
-            name="avatar_url"
-            value={formData.avatar_url}
-            onChange={handleInputChange}
-            placeholder="https://example.com/avatar.jpg"
-            hint="Enter a URL to your profile picture"
           />
 
           {error && (

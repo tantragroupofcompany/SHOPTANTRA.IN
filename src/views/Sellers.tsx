@@ -7,6 +7,7 @@ interface Seller {
   id: string;
   store_name: string;
   store_logo: string | null;
+  store_logo_url?: string | null;
   category: string;
   city: string;
   state: string;
@@ -40,10 +41,11 @@ const SellerCard = ({ seller }: { seller: Seller }) => (
     <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col">
       {/* Store Logo/Avatar Section */}
       <div className="h-32 bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-        {seller.store_logo ? (
+        {seller.store_logo_url || seller.store_logo ? (
           <img
-            src={seller.store_logo}
+            src={seller.store_logo_url || seller.store_logo || ''}
             alt={seller.store_name}
+            loading="lazy"
             className="w-24 h-24 rounded-full object-cover border-4 border-white"
           />
         ) : (

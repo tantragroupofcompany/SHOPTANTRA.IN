@@ -7,6 +7,7 @@ interface Seller {
   id: string;
   store_name: string;
   store_logo: string | null;
+  store_logo_url?: string | null;
   banner_image: string | null;
   category: string;
   city: string;
@@ -217,10 +218,11 @@ export default function StorePage() {
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-end">
             {/* Logo */}
             <div className="flex-shrink-0">
-              {seller.store_logo ? (
+              {seller.store_logo_url || seller.store_logo ? (
                 <img
-                  src={seller.store_logo}
+                  src={seller.store_logo_url || seller.store_logo || ''}
                   alt={seller.store_name}
+                  loading="lazy"
                   className="w-40 h-40 rounded-lg object-cover border-4 border-white shadow-lg"
                 />
               ) : (

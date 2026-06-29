@@ -94,8 +94,17 @@ export async function POST(request: Request) {
     const token = Buffer.from(JSON.stringify(payload)).toString('base64') + '.' + Buffer.from(JWT_SECRET).toString('base64');
 
     // 6. Return response
+    const roles = ['buyer'];
+    if (dbUser.sellerProfile) {
+      roles.push('seller');
+    }
+    if (dbUser.role === 'ADMIN') {
+      roles.push('admin');
+    }
+
     return NextResponse.json({
       success: true,
+      roles,
       user: {
         id: dbUser.id,
         email: dbUser.email,

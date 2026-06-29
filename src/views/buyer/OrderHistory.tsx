@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronDown, Download, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge, statusBadge } from '../../components/ui/Badge';
@@ -83,7 +84,15 @@ const OrderHistory = () => {
       header: 'Order #',
       render: (row: Order) => (
         <button
-          onClick={() => setExpandedId(expandedId === row.id ? null : row.id)}
+          onClick={() => {
+            if (expandedId === row.id) {
+              setExpandedId(null);
+              setSelectedOrder(null);
+            } else {
+              setExpandedId(row.id);
+              setSelectedOrder(row);
+            }
+          }}
           className="font-medium text-[#1B3A6B] hover:text-orange-500 flex items-center gap-2"
         >
           #{row.order_number}
@@ -173,7 +182,33 @@ const OrderHistory = () => {
       {/* Expandable Order Details */}
       {expandedId && selectedOrder && (
         <Card className="border-l-4 border-orange-500">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Order Details</h3>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 mb-4">
+            <h3 className="text-lg font-bold text-gray-900">Order Details</h3>
+            
+            <div className="flex items-center gap-2.5 bg-orange-50/50 dark:bg-brand-navy-light/10 px-3 py-1.5 rounded-xl border border-brand-orange/10">
+              {selectedOrder.seller_logo_url ? (
+                <img
+                  src={selectedOrder.seller_logo_url}
+                  alt="Seller Logo"
+                  loading="lazy"
+                  className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-brand-orange/10 flex items-center justify-center border border-dashed border-brand-orange/20 text-brand-orange text-xs font-bold">
+                  🏪
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider leading-none">Sold By</p>
+                <Link
+                  to={`/store/${selectedOrder.seller_id}`}
+                  className="font-bold text-gray-800 dark:text-gray-200 hover:text-brand-orange hover:underline text-xs"
+                >
+                  {selectedOrder.seller_name || 'Tantra Store'}
+                </Link>
+              </div>
+            </div>
+          </div>
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
