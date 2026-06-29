@@ -17,6 +17,7 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const t = searchParams.get('token');
@@ -29,6 +30,8 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting || loading) return;
+
     setError(null);
     setSuccess(null);
 
@@ -56,6 +59,7 @@ export default function ResetPassword() {
       return;
     }
 
+    setSubmitting(true);
     try {
       const { error: resetError } = await resetPassword(token, password);
       if (resetError) {
@@ -69,6 +73,8 @@ export default function ResetPassword() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
       scrollToErrorAndFocus();
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -86,7 +92,7 @@ export default function ResetPassword() {
 
         {/* Card */}
         <div className="bg-white rounded-xl shadow-lg p-8">
-          {error && (
+          {error && !success && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3" role="alert">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">{error}</p>
@@ -124,14 +130,14 @@ export default function ResetPassword() {
                     placeholder="••••••••"
                     required
                     className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition pr-10"
-                    disabled={loading}
+                    disabled={loading || submitting}
                   />
                   <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    disabled={loading}
+                    disabled={loading || submitting}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -156,14 +162,14 @@ export default function ResetPassword() {
                     placeholder="••••••••"
                     required
                     className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition pr-10"
-                    disabled={loading}
+                    disabled={loading || submitting}
                   />
                   <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    disabled={loading}
+                    disabled={loading || submitting}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -177,10 +183,10 @@ export default function ResetPassword() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || submitting}
                 className="w-full bg-[#1B3A6B] hover:bg-blue-900 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
               >
-                {loading ? 'Updating Password...' : 'Reset Password'}
+                {loading || submitting ? 'Updating Password...' : 'Reset Password'}
               </button>
             </form>
           )}

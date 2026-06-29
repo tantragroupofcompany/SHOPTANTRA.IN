@@ -210,6 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const forgotPassword = async (email: string) => {
+    setLoading(true);
     try {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
@@ -224,12 +225,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok && resData.success) {
         const apiLink = `${window.location.origin}/reset-password?token=${resData.token}`;
         console.log(`[PASSWORD RESET API LINK]: ${apiLink}`);
+        setLoading(false);
         return { error: null, link: apiLink };
       } else {
+        setLoading(false);
         return { error: new Error(resData.error || 'Failed to request password reset link.') };
       }
     } catch (e: any) {
       console.error('API forgotPassword failed:', e);
+      setLoading(false);
       return { error: new Error(e.message || 'An error occurred while requesting password reset.') };
     }
   };
@@ -239,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: new Error('Password must be at least 6 characters long.') };
     }
 
+    setLoading(true);
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
@@ -251,12 +256,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resData = await response.json();
 
       if (response.ok && resData.success) {
+        setLoading(false);
         return { error: null };
       } else {
+        setLoading(false);
         return { error: new Error(resData.error || 'Failed to reset password.') };
       }
     } catch (e: any) {
       console.error('API resetPassword failed:', e);
+      setLoading(false);
       return { error: new Error(e.message || 'An error occurred while resetting the password.') };
     }
   };
