@@ -20,24 +20,40 @@ export async function POST(request: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if credentials match secure environment variables
+    // 2. Query Database for user first
+    let dbUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      include: { sellerProfile: true },
+    });
+
     const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
     const adminPassword = process.env.ADMIN_PASSWORD;
 
-    let dbUser;
-
-    if (adminEmail && cleanEmail === adminEmail) {
-      if (password !== adminPassword) {
-        return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+    if (dbUser) {
+      // If user exists in DB, check password using DB hash
+      if (!verifyPassword(password, dbUser.password)) {
+        // Fallback: If it matches configured env credentials, allow it
+        const isAdminEmail = adminEmail && cleanEmail === adminEmail;
+        if (isAdminEmail && password === adminPassword) {
+          // Allow login
+          if (dbUser.role !== 'ADMIN') {
+            dbUser = await prisma.user.update({
+              where: { email: cleanEmail },
+              data: { role: 'ADMIN' },
+              include: { sellerProfile: true },
+            });
+          }
+        } else {
+          return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+        }
       }
+    } else {
+      // If user does not exist in DB, check config env variables for auto-creation
+      if (adminEmail && cleanEmail === adminEmail) {
+        if (password !== adminPassword) {
+          return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
+        }
 
-      // Fetch or dynamically synchronize the admin user in the database
-      dbUser = await prisma.user.findUnique({
-        where: { email: cleanEmail },
-        include: { sellerProfile: true },
-      });
-
-      if (!dbUser) {
         const bcrypt = await import('bcryptjs');
         const salt = bcrypt.default.genSaltSync(10);
         const hashedPassword = bcrypt.default.hashSync(password, salt);
@@ -51,27 +67,8 @@ export async function POST(request: Request) {
           },
           include: { sellerProfile: true },
         });
-      } else if (dbUser.role !== 'ADMIN') {
-        dbUser = await prisma.user.update({
-          where: { email: cleanEmail },
-          data: { role: 'ADMIN' },
-          include: { sellerProfile: true },
-        });
-      }
-    } else {
-      // 2. Query Database for user
-      dbUser = await prisma.user.findUnique({
-        where: { email: cleanEmail },
-        include: { sellerProfile: true },
-      });
-
-      if (!dbUser) {
+      } else {
         return NextResponse.json({ error: 'No account found matching this email address.' }, { status: 404 });
-      }
-
-      // 3. Verify Hashed Password
-      if (!verifyPassword(password, dbUser.password)) {
-        return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
       }
     }
 
