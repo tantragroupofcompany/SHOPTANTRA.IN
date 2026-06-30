@@ -95,6 +95,8 @@ import AdminSettings from './views/admin/Settings';
 import BlogManagement from './views/admin/BlogManagement';
 import AdminReports from './views/admin/Reports';
 import AdminSecurityLogs from './views/admin/SecurityLogs';
+import AdminPickupLocations from './views/admin/PickupLocations';
+import AdminSettlements from './views/admin/Settlements';
 
 export default function ClientApp() {
   return (
@@ -206,6 +208,8 @@ export default function ClientApp() {
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="shipments" element={<AdminShipments />} />
+              <Route path="pickup-locations" element={<AdminPickupLocations />} />
+              <Route path="settlements" element={<AdminSettlements />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="leads" element={<AdminLeads />} />
               <Route path="subscriptions" element={<AdminSubscriptions />} />

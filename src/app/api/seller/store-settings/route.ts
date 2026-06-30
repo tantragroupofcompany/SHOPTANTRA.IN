@@ -60,6 +60,16 @@ export async function GET(request: Request) {
       city: seller.pickupAddress?.city || seller.city || '',
       state: seller.pickupAddress?.state || seller.state || '',
       pincode: seller.pickupAddress?.pincode || seller.pincode || '',
+      pickup_store_name: seller.pickupAddress?.storeName || '',
+      pickup_contact_name: seller.pickupAddress?.contactName || '',
+      pickup_phone: seller.pickupAddress?.phone || '',
+      pickup_email: seller.pickupAddress?.email || '',
+      address_line2: seller.pickupAddress?.addressLine2 || '',
+      country: seller.pickupAddress?.country || 'India',
+      pickup_location_id: seller.pickupAddress?.pickupLocationId || null,
+      pickup_verification_status: seller.pickupAddress?.verificationStatus || 'PENDING',
+      latitude: seller.pickupAddress?.latitude || null,
+      longitude: seller.pickupAddress?.longitude || null,
       commission_rate: seller.commissionRate,
       status: seller.status.toLowerCase(),
       created_at: seller.createdAt,
@@ -102,7 +112,15 @@ export async function PUT(request: Request) {
       logoUrl,
       store_logo_url,
       bannerUrl,
-      store_banner_url
+      store_banner_url,
+      pickup_store_name,
+      pickup_contact_name,
+      pickup_phone,
+      pickup_email,
+      address_line2,
+      country,
+      latitude,
+      longitude
     } = body;
 
     const idToResolve = sellerIdParam || userId;
@@ -146,30 +164,55 @@ export async function PUT(request: Request) {
     });
 
     // Update or Create Pickup Address if address details are sent
-    if (address !== undefined || city !== undefined || state !== undefined || pincode !== undefined) {
+    if (address !== undefined || city !== undefined || state !== undefined || pincode !== undefined || pickup_store_name !== undefined || pickup_contact_name !== undefined || pickup_phone !== undefined || pickup_email !== undefined || latitude !== undefined || longitude !== undefined) {
       const addressLine1 = address !== undefined ? address : (seller.pickupAddress?.addressLine1 || '');
+      const addressLine2Val = address_line2 !== undefined ? address_line2 : (seller.pickupAddress?.addressLine2 || null);
       const cityVal = city !== undefined ? city : (seller.pickupAddress?.city || seller.city || '');
       const stateVal = state !== undefined ? state : (seller.pickupAddress?.state || seller.state || '');
       const pinVal = pincode !== undefined ? pincode : (seller.pickupAddress?.pincode || seller.pincode || '');
+      const countryVal = country !== undefined ? country : (seller.pickupAddress?.country || 'India');
+      
+      const pickupStoreNameVal = pickup_store_name !== undefined ? pickup_store_name : (seller.pickupAddress?.storeName || storeNameVal);
+      const pickupContactNameVal = pickup_contact_name !== undefined ? pickup_contact_name : (seller.pickupAddress?.contactName || seller.user?.fullName || 'Store Contact');
+      const pickupPhoneVal = pickup_phone !== undefined ? pickup_phone : (seller.pickupAddress?.phone || seller.user?.phone || '9999999999');
+      const pickupEmailVal = pickup_email !== undefined ? pickup_email : (seller.pickupAddress?.email || seller.user?.email || 'merchant@example.com');
+
+      const latVal = latitude !== undefined && latitude !== null && latitude !== '' ? parseFloat(String(latitude)) : (seller.pickupAddress?.latitude || null);
+      const lngVal = longitude !== undefined && longitude !== null && longitude !== '' ? parseFloat(String(longitude)) : (seller.pickupAddress?.longitude || null);
 
       await prisma.pickupAddress.upsert({
         where: { sellerId: seller.id },
         update: {
+          storeName: pickupStoreNameVal,
+          contactName: pickupContactNameVal,
+          phone: pickupPhoneVal,
+          email: pickupEmailVal,
           addressLine1,
+          addressLine2: addressLine2Val,
           city: cityVal,
           state: stateVal,
-          pincode: pinVal
+          pincode: pinVal,
+          country: countryVal,
+          latitude: latVal,
+          longitude: lngVal,
+          // Changing details sets verification back to PENDING until Admin approves
+          verificationStatus: 'PENDING',
         },
         create: {
           sellerId: seller.id,
-          storeName: storeNameVal,
-          contactName: seller.user?.fullName || 'Store Contact',
-          phone: seller.user?.phone || '9999999999',
-          email: seller.user?.email || 'merchant@example.com',
+          storeName: pickupStoreNameVal,
+          contactName: pickupContactNameVal,
+          phone: pickupPhoneVal,
+          email: pickupEmailVal,
           addressLine1,
+          addressLine2: addressLine2Val,
           city: cityVal,
           state: stateVal,
-          pincode: pinVal
+          pincode: pinVal,
+          country: countryVal,
+          latitude: latVal,
+          longitude: lngVal,
+          verificationStatus: 'PENDING',
         }
       });
     }

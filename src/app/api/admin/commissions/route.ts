@@ -15,6 +15,7 @@ export async function GET(request: Request) {
           id: 'settings',
           defaultCommissionRate: 10.0,
           categoryCommissions: '{}',
+          settlementDelayDays: 7,
         },
       });
 
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
 // Update global commission configurations
 export async function POST(request: Request) {
   try {
-    const { defaultCommissionRate, categoryCommissions } = await request.json();
+    const { defaultCommissionRate, categoryCommissions, settlementDelayDays } = await request.json();
 
     const catCommStr = categoryCommissions !== undefined
       ? (typeof categoryCommissions === 'string' ? categoryCommissions : JSON.stringify(categoryCommissions))
@@ -73,11 +74,13 @@ export async function POST(request: Request) {
       update: {
         defaultCommissionRate: defaultCommissionRate !== undefined ? parseFloat(defaultCommissionRate) : undefined,
         categoryCommissions: catCommStr,
+        settlementDelayDays: settlementDelayDays !== undefined ? parseInt(settlementDelayDays) : undefined,
       },
       create: {
         id: 'settings',
         defaultCommissionRate: defaultCommissionRate !== undefined ? parseFloat(defaultCommissionRate) : 10.0,
         categoryCommissions: catCommStr || '{}',
+        settlementDelayDays: settlementDelayDays !== undefined ? parseInt(settlementDelayDays) : 7,
       },
     });
 

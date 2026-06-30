@@ -27,6 +27,16 @@ const StoreSettings = () => {
     city: '',
     state: '',
     pincode: '',
+    pickup_store_name: '',
+    pickup_contact_name: '',
+    pickup_phone: '',
+    pickup_email: '',
+    address_line2: '',
+    country: 'India',
+    pickup_location_id: '',
+    pickup_verification_status: 'PENDING',
+    latitude: '',
+    longitude: '',
   });
   const [loading, setLoading] = useState(true);
   const [savingStore, setSavingStore] = useState(false);
@@ -70,6 +80,16 @@ const StoreSettings = () => {
             city: data.city || '',
             state: data.state || '',
             pincode: data.pincode || '',
+            pickup_store_name: data.pickup_store_name || '',
+            pickup_contact_name: data.pickup_contact_name || '',
+            pickup_phone: data.pickup_phone || '',
+            pickup_email: data.pickup_email || '',
+            address_line2: data.address_line2 || '',
+            country: data.country || 'India',
+            pickup_location_id: data.pickup_location_id || '',
+            pickup_verification_status: data.pickup_verification_status || 'PENDING',
+            latitude: data.latitude || '',
+            longitude: data.longitude || '',
           });
         }
       } catch (err) {
@@ -369,9 +389,17 @@ const StoreSettings = () => {
         body: JSON.stringify({
           userId: user.id,
           address: addressData.address,
+          address_line2: addressData.address_line2,
           city: addressData.city,
           state: addressData.state,
-          pincode: addressData.pincode
+          pincode: addressData.pincode,
+          country: addressData.country,
+          pickup_store_name: addressData.pickup_store_name,
+          pickup_contact_name: addressData.pickup_contact_name,
+          pickup_phone: addressData.pickup_phone,
+          pickup_email: addressData.pickup_email,
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
         })
       });
 
@@ -615,41 +643,137 @@ const StoreSettings = () => {
       </Card>
 
       <Card>
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Store Address</h2>
-        <form onSubmit={handleSaveAddress} className="space-y-4">
-          <Input
-            label="Address"
-            name="address"
-            value={addressData.address}
-            onChange={handleAddressChange}
-            placeholder="Enter street address"
-          />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-150">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Warehouse & Shipping Pickup Details</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Where our courier partner picks up your dispatches.中央集権化されたマスター発送アカウント用。</p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+              addressData.pickup_verification_status === 'VERIFIED'
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : addressData.pickup_verification_status === 'REJECTED'
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+            }`}>
+              {addressData.pickup_verification_status === 'VERIFIED' ? '✓ Verified Location' :
+               addressData.pickup_verification_status === 'REJECTED' ? '✕ Verification Rejected' :
+               '⏳ Verification Pending'}
+            </span>
+            {addressData.pickup_location_id && (
+              <span className="bg-brand-navy/10 text-brand-navy font-mono text-[10px] px-2 py-1 rounded-lg font-bold border border-brand-navy/10">
+                ID: {addressData.pickup_location_id}
+              </span>
+            )}
+          </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveAddress} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Warehouse / Store Name"
+              name="pickup_store_name"
+              value={addressData.pickup_store_name}
+              onChange={handleAddressChange}
+              placeholder="e.g. Surat Main Warehouse"
+              required
+            />
+            <Input
+              label="Contact Person Name"
+              name="pickup_contact_name"
+              value={addressData.pickup_contact_name}
+              onChange={handleAddressChange}
+              placeholder="e.g. Nilesh Gupta"
+              required
+            />
+            <Input
+              label="Mobile Number (Pickup Contact)"
+              name="pickup_phone"
+              value={addressData.pickup_phone}
+              onChange={handleAddressChange}
+              placeholder="e.g. 9099985145"
+              required
+            />
+            <Input
+              label="Warehouse Contact Email"
+              name="pickup_email"
+              value={addressData.pickup_email}
+              onChange={handleAddressChange}
+              placeholder="e.g. logistics@tantra.in"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Address Line 1"
+              name="address"
+              value={addressData.address}
+              onChange={handleAddressChange}
+              placeholder="Street Address, Building, Floor"
+              required
+            />
+            <Input
+              label="Address Line 2 (Optional)"
+              name="address_line2"
+              value={addressData.address_line2}
+              onChange={handleAddressChange}
+              placeholder="Landmark, Area Details"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Input
               label="City"
               name="city"
               value={addressData.city}
               onChange={handleAddressChange}
-              placeholder="Enter city"
+              placeholder="e.g. Surat"
+              required
             />
-
             <Input
               label="State"
               name="state"
               value={addressData.state}
               onChange={handleAddressChange}
-              placeholder="Enter state"
+              placeholder="e.g. Gujarat"
+              required
+            />
+            <Input
+              label="Country"
+              name="country"
+              value={addressData.country}
+              onChange={handleAddressChange}
+              placeholder="e.g. India"
+              required
+            />
+            <Input
+              label="Pincode"
+              name="pincode"
+              value={addressData.pincode}
+              onChange={handleAddressChange}
+              placeholder="e.g. 395002"
+              required
             />
           </div>
 
-          <Input
-            label="Pincode"
-            name="pincode"
-            value={addressData.pincode}
-            onChange={handleAddressChange}
-            placeholder="Enter pincode"
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Latitude (Optional)"
+              name="latitude"
+              value={addressData.latitude}
+              onChange={handleAddressChange}
+              placeholder="e.g. 21.1702"
+            />
+            <Input
+              label="Longitude (Optional)"
+              name="longitude"
+              value={addressData.longitude}
+              onChange={handleAddressChange}
+              placeholder="e.g. 72.8311"
+            />
+          </div>
 
           {errors.address && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -663,8 +787,8 @@ const StoreSettings = () => {
             </div>
           )}
 
-          <Button variant="primary" type="submit" loading={savingAddress}>
-            Save Address
+          <Button variant="primary" type="submit" loading={savingAddress} className="w-full md:w-auto font-bold px-6 py-2.5">
+            Save Pickup Warehouse Address
           </Button>
         </form>
       </Card>

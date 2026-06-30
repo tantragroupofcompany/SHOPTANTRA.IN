@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -30,8 +30,9 @@ export default function Checkout() {
   const [pincode, setPincode] = useState('');
   const [gstin, setGstin] = useState(''); // Optional B2B GSTIN
 
-  // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cashfree' | 'phonepe' | 'cod' | 'upi'>('razorpay');
+  // Payment & Shipping State
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cashfree' | 'phonepe' | 'cod' | 'upi'>('cod');
+  const [shippingCharges, setShippingCharges] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
@@ -52,10 +53,45 @@ export default function Checkout() {
   const gstAmount = Math.round((subtotal - discountAmount) * 0.18);
   const cgst = Math.round(gstAmount / 2);
   const sgst = Math.round(gstAmount / 2);
-  const shippingCharges = subtotal > 999 ? 0 : 99;
-  const grandTotal = subtotal - discountAmount + gstAmount + shippingCharges;
+  const [couriers, setCouriers] = useState<any[]>([]);
 
-  // Initiate real Razorpay Payment Flow
+  const calculateShipping = async () => {
+    if (pincode.length !== 6 || cart.length === 0) return;
+    try {
+      setCheckoutError('');
+      const res = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cartItems: cart.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity
+          })),
+          deliveryPincode: pincode
+        })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setShippingCharges(result.shippingCharge);
+        setCouriers(result.couriers || []);
+      } else {
+        setCheckoutError(result.error || 'Shipping serviceability check failed for this pincode.');
+        setShippingCharges(0);
+        setCouriers([]);
+      }
+    } catch (e) {
+      console.error('Shipping calculation error:', e);
+      setShippingCharges(0);
+      setCouriers([]);
+    }
+  };
+
+  useEffect(() => {
+    if (pincode.length === 6 && cart.length > 0) {
+      calculateShipping();
+    }
+  }, [pincode, cart, subtotal]);
+
   const initiateRazorpayPayment = async () => {
     try {
       setIsProcessing(true);
@@ -762,11 +798,7 @@ export default function Checkout() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { id: 'razorpay', label: 'Razorpay Secure Netbanking', desc: 'UPI, Cards, and Netbanking portal.' },
-                { id: 'cashfree', label: 'Cashfree Gateway Payments', desc: 'Supports fast refunds and digital wallets.' },
-                { id: 'phonepe', label: 'PhonePe PG Redirection', desc: 'Pay with PhonePe, UPI, GPay, or Netbanking.' },
-                { id: 'cod', label: 'Cash On Delivery (COD)', desc: 'Pay with cash upon package receipt.' },
-                { id: 'upi', label: 'Manual UPI Payment', desc: 'Pay via UPI QR Code and confirm payment.' }
+                { id: 'cod', label: 'Cash On Delivery (COD)', desc: 'Pay with cash upon package receipt.' }
               ].map((method) => (
                 <label
                   key={method.id}
@@ -812,6 +844,31 @@ export default function Checkout() {
               ))}
             </div>
 
+            {/* Courier Serviceability & EDD details */}
+            {pincode.length === 6 && couriers.length > 0 && (
+              <div className="bg-blue-50 dark:bg-brand-navy-dark border border-blue-100 dark:border-brand-navy-light/10 p-3.5 rounded-xl space-y-2">
+                <span className="font-bold text-gray-700 dark:text-gray-300 text-[10px] uppercase tracking-wide block">Available Courier Partner (Central Shipping Account)</span>
+                {couriers.map((c) => {
+                  const edd = new Date();
+                  edd.setDate(edd.getDate() + c.expectedDays);
+                  const formattedEDD = edd.toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                  });
+                  return (
+                    <div key={c.code} className="flex justify-between items-center text-xs">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-gray-800 dark:text-gray-200">{c.name}</span>
+                        <span className="text-[10px] text-gray-400 block">EDD: {formattedEDD} ({c.expectedDays} Days) • COD Supported</span>
+                      </div>
+                      <span className="font-semibold text-brand-orange">₹{c.rate}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Calculations summaries */}
             <div className="border-t border-gray-100 dark:border-brand-navy-light/10 pt-3.5 space-y-2.5 text-xs">
               <div className="flex justify-between text-gray-500">
@@ -837,18 +894,21 @@ export default function Checkout() {
               </div>
 
               <div className="border-t border-gray-100 dark:border-brand-navy-light/10 pt-3 flex justify-between items-center text-sm font-extrabold text-gray-900 dark:text-white">
-                <span>Total Amount Payable</span>
+                <span>Grand Total COD Amount</span>
                 <span className="text-base text-brand-navy dark:text-brand-orange">
                   ₹{grandTotal.toLocaleString('en-IN')}
                 </span>
               </div>
+              <p className="text-[10px] text-amber-600 font-bold bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg leading-tight">
+                ⚠️ Cash On Delivery (COD) Only. You will pay the entire COD amount of ₹{grandTotal.toLocaleString('en-IN')} to the delivery assistant when your package arrives.
+              </p>
             </div>
 
             <button
               type="submit"
               className="w-full bg-brand-orange hover:bg-brand-orange-hover text-white font-bold py-3 rounded-xl flex items-center justify-center gap-1.5 shadow transition-colors text-sm"
             >
-              Pay & Complete Order
+              Place COD Order
             </button>
 
             <div className="flex justify-center items-center gap-1.5 text-[10px] text-gray-400 text-center">

@@ -64,29 +64,37 @@ model Seller {
 
 
 model Product {
-  id               String      @id @default(uuid())
-  sellerId         String
-  seller           Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  title            String
-  price            Float
-  comparePrice     Float?
-  stock            Int         @default(0)
-  category         String
-  shortDescription String?
-  description      String?
-  sku              String?
-  barcode          String?
-  status           String      @default("draft") // draft, pending, active, suspended
-  images           String?     // JSON string
-  variants         String?     // JSON string
-  tags             String?
-  weight           Float?
-  dimensionLength  Float?
-  dimensionWidth   Float?
-  dimensionHeight  Float?
-  createdAt        DateTime    @default(now())
-  orderItems       OrderItem[]
-  reviews          Review[]
+  id                   String      @id @default(uuid())
+  sellerId             String
+  seller               Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  title                String
+  price                Float
+  comparePrice         Float?
+  stock                Int         @default(0)
+  category             String
+  shortDescription     String?
+  description          String?
+  sku                  String?
+  barcode              String?
+  status               String      @default("draft") // draft, pending, active, suspended
+  images               String?     // JSON string
+  variants             String?     // JSON string
+  tags                 String?
+  weight               Float?
+  weightUnit           String      @default("kg")
+  dimensionLength      Float?
+  dimensionWidth       Float?
+  dimensionHeight      Float?
+  packageType          String      @default("box")
+  shippingClass        String      @default("standard")
+  fragile              Boolean     @default(false)
+  dangerousGoods       Boolean     @default(false)
+  countryOfOrigin      String      @default("India")
+  hsnCode              String?
+  estimatedPackingTime Int         @default(24) // in hours
+  createdAt            DateTime    @default(now())
+  orderItems           OrderItem[]
+  reviews              Review[]
 }
 
 
@@ -201,6 +209,7 @@ model GlobalSettings {
   id                      String   @id @default("settings")
   defaultCommissionRate   Float    @default(10.0)
   categoryCommissions     String   // Stored as JSON string
+  settlementDelayDays     Int      @default(7) // configurable settlement delay days
 }
 
 model SupportTicket {
@@ -225,21 +234,25 @@ model AdminNotification {
 }
 
 model PickupAddress {
-  id            String   @id @default(uuid())
-  sellerId      String   @unique
-  seller        Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  storeName     String
-  contactName   String
-  phone         String
-  email         String
-  addressLine1  String
-  addressLine2  String?
-  city          String
-  state         String
-  pincode       String
-  country       String   @default("India")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  sellerId           String   @unique
+  seller             Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  storeName          String
+  contactName        String
+  phone              String
+  email              String
+  addressLine1       String
+  addressLine2       String?
+  city               String
+  state              String
+  pincode            String
+  country            String   @default("India")
+  pickupLocationId   String?  // Third-party service pickup ID (e.g. Shiprocket location code)
+  verificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model CourierPartner {
@@ -426,4 +439,14 @@ model PincodeServiceability {
   allowCod        Boolean  @default(true)
   deliveryDays    Int      @default(4)
   createdAt       DateTime @default(now())
+}
+
+model ShippingAuditLog {
+  id          String   @id @default(uuid())
+  shipmentId  String?
+  action      String   // e.g. AWB_GENERATED, PICKUP_SCHEDULED, STATUS_TRACKED, CANCELLED
+  performedBy String   // e.g. user ID or "SYSTEM"
+  role        String   // e.g. ADMIN, SELLER, SYSTEM
+  details     String?  // JSON details of action
+  createdAt   DateTime @default(now())
 }

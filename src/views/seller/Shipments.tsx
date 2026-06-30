@@ -54,6 +54,8 @@ const Shipments = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [manualTrackingNo, setManualTrackingNo] = useState('');
   const [manualDispatchDate, setManualDispatchDate] = useState('');
+  const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pickupTimeSlot, setPickupTimeSlot] = useState('10:00 - 13:00');
 
   const fetchShipments = async () => {
     if (!user) return;
@@ -116,10 +118,40 @@ const Shipments = () => {
     }
   };
 
+  const handleSchedulePickup = async () => {
+    if (!selectedShipment) return;
+    try {
+      setUpdatingStatus(true);
+      const res = await fetch('/api/shipment/schedule-pickup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipmentId: selectedShipment.id,
+          pickupDate,
+          pickupTimeSlot
+        })
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        alert('Pickup scheduled successfully via ShopTantra Master Shipping account!');
+        await fetchShipments();
+        setIsModalOpen(false);
+      } else {
+        alert('Failed to schedule pickup: ' + (result.error || 'Server error'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('An error occurred while scheduling pickup.');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const handleViewDetails = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setManualTrackingNo(shipment.trackingNumber || '');
     setManualDispatchDate(shipment.dispatchDate || '');
+    setPickupDate(new Date().toISOString().split('T')[0]);
     setIsModalOpen(true);
   };
 
@@ -290,13 +322,53 @@ const Shipments = () => {
               </div>
             </div>
 
+            {/* Master Account Courier Pickup Schedule Form */}
+            {(selectedShipment.status.toUpperCase() === 'PENDING' || selectedShipment.status.toUpperCase() === 'CONFIRMED' || selectedShipment.status.toUpperCase() === 'PACKED') && (
+              <div className="border border-amber-250 bg-amber-50/50 p-4 rounded-xl space-y-3">
+                <h4 className="text-xs font-bold text-amber-900 uppercase">Schedule Courier Pickup (ShopTantra Master Shipping Account)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Pickup Date</label>
+                    <input
+                      type="date"
+                      className="w-full text-xs border border-gray-300 rounded p-1.5 bg-white"
+                      value={pickupDate}
+                      onChange={(e) => setPickupDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Time Slot Preference</label>
+                    <select
+                      className="w-full text-xs border border-gray-300 rounded p-1.5 bg-white"
+                      value={pickupTimeSlot}
+                      onChange={(e) => setPickupTimeSlot(e.target.value)}
+                    >
+                      <option value="10:00 - 13:00">10:00 AM - 01:00 PM</option>
+                      <option value="13:00 - 16:00">01:00 PM - 04:00 PM</option>
+                      <option value="16:00 - 18:00">04:00 PM - 06:00 PM</option>
+                    </select>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={updatingStatus}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                  onClick={handleSchedulePickup}
+                >
+                  Schedule Dispatch Pickup
+                </Button>
+              </div>
+            )}
+
             {/* India Post Speed Post Manual Dispatch Form */}
             {selectedShipment.status.toUpperCase() !== 'DELIVERED' && selectedShipment.status.toUpperCase() !== 'CANCELLED' && (
               <div className="border border-blue-200 bg-blue-50/50 p-4 rounded-xl space-y-3">
                 <h4 className="text-xs font-bold text-blue-900 uppercase">Update Dispatch Parameters</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">India Post AWB Tracking Number</label>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Manual AWB Tracking Override (Optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. SP987654321IN"
@@ -331,7 +403,7 @@ const Shipments = () => {
                     loading={updatingStatus}
                     onClick={() => {
                       if (!manualTrackingNo || !manualDispatchDate) {
-                        alert('India Post Speed Post tracking number and Dispatch Date are required to mark Shipped.');
+                        alert('Tracking number and Dispatch Date are required to mark Shipped.');
                         return;
                       }
                       handleUpdateStatus(selectedShipment.id, 'SHIPPED', manualTrackingNo, manualDispatchDate);

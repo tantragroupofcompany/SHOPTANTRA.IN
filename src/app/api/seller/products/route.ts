@@ -69,9 +69,17 @@ export async function GET(request: Request) {
         status: product.status,
         tags: product.tags,
         weight: product.weight,
+        weight_unit: product.weightUnit,
         dimension_length: product.dimensionLength,
         dimension_width: product.dimensionWidth,
         dimension_height: product.dimensionHeight,
+        package_type: product.packageType,
+        shipping_class: product.shippingClass,
+        fragile: product.fragile,
+        dangerous_goods: product.dangerousGoods,
+        country_of_origin: product.countryOfOrigin,
+        hsn_code: product.hsnCode,
+        estimated_packing_time: product.estimatedPackingTime,
         created_at: product.createdAt,
         product_images: productImages
       };
@@ -105,9 +113,17 @@ export async function POST(request: Request) {
       variants,
       tags,
       weight,
+      weightUnit,
       dimensionLength,
       dimensionWidth,
-      dimensionHeight
+      dimensionHeight,
+      packageType,
+      shippingClass,
+      fragile,
+      dangerousGoods,
+      countryOfOrigin,
+      hsnCode,
+      estimatedPackingTime
     } = body;
 
     const idToResolve = sellerIdParam || userId;
@@ -144,9 +160,17 @@ export async function POST(request: Request) {
         variants: variantsJson,
         tags: tags || null,
         weight: weight ? parseFloat(weight) : null,
+        weightUnit: weightUnit || 'kg',
         dimensionLength: dimensionLength ? parseFloat(dimensionLength) : null,
         dimensionWidth: dimensionWidth ? parseFloat(dimensionWidth) : null,
-        dimensionHeight: dimensionHeight ? parseFloat(dimensionHeight) : null
+        dimensionHeight: dimensionHeight ? parseFloat(dimensionHeight) : null,
+        packageType: packageType || 'box',
+        shippingClass: shippingClass || 'standard',
+        fragile: fragile === true,
+        dangerousGoods: dangerousGoods === true,
+        countryOfOrigin: countryOfOrigin || 'India',
+        hsnCode: hsnCode || null,
+        estimatedPackingTime: estimatedPackingTime ? parseInt(estimatedPackingTime) : 24
       }
     });
 
@@ -177,9 +201,17 @@ export async function PUT(request: Request) {
       variants,
       tags,
       weight,
+      weightUnit,
       dimensionLength,
       dimensionWidth,
-      dimensionHeight
+      dimensionHeight,
+      packageType,
+      shippingClass,
+      fragile,
+      dangerousGoods,
+      countryOfOrigin,
+      hsnCode,
+      estimatedPackingTime
     } = body;
 
     if (!id) {
@@ -199,9 +231,17 @@ export async function PUT(request: Request) {
     if (status !== undefined) updatePayload.status = status;
     if (tags !== undefined) updatePayload.tags = tags;
     if (weight !== undefined) updatePayload.weight = weight ? parseFloat(weight) : null;
+    if (weightUnit !== undefined) updatePayload.weightUnit = weightUnit;
     if (dimensionLength !== undefined) updatePayload.dimensionLength = dimensionLength ? parseFloat(dimensionLength) : null;
     if (dimensionWidth !== undefined) updatePayload.dimensionWidth = dimensionWidth ? parseFloat(dimensionWidth) : null;
     if (dimensionHeight !== undefined) updatePayload.dimensionHeight = dimensionHeight ? parseFloat(dimensionHeight) : null;
+    if (packageType !== undefined) updatePayload.packageType = packageType;
+    if (shippingClass !== undefined) updatePayload.shippingClass = shippingClass;
+    if (fragile !== undefined) updatePayload.fragile = fragile === true;
+    if (dangerousGoods !== undefined) updatePayload.dangerousGoods = dangerousGoods === true;
+    if (countryOfOrigin !== undefined) updatePayload.countryOfOrigin = countryOfOrigin;
+    if (hsnCode !== undefined) updatePayload.hsnCode = hsnCode;
+    if (estimatedPackingTime !== undefined) updatePayload.estimatedPackingTime = parseInt(estimatedPackingTime);
 
     if (images !== undefined) {
       updatePayload.images = typeof images === 'string' ? images : JSON.stringify(images);

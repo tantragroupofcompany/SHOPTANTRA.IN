@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { autoSelectCourier } from '../../../../lib/courierService';
+import { MasterCourierService } from '../../../../lib/masterCourierService';
 
 export async function POST(request: Request) {
   try {
@@ -93,36 +93,64 @@ export async function POST(request: Request) {
       const paymentMode = isCod ? 'COD' : 'PREPAID';
       const codAmount = isCod ? subtotal + taxAmount : 0;
 
-      // Select carrier automatically
-      const courierDetails = await autoSelectCourier({
-        pickupPincode: pickupAddress.pincode,
-        deliveryPincode,
+      // Select courier partner and generate AWB via ShopTantra Master Shipping Account
+      const courierDetails = await MasterCourierService.createShipment({
+        orderId: order.id,
+        sellerId,
+        pickupAddress: {
+          storeName: pickupAddress.storeName,
+          contactName: pickupAddress.contactName,
+          phone: pickupAddress.phone,
+          email: pickupAddress.email,
+          addressLine1: pickupAddress.addressLine1,
+          addressLine2: pickupAddress.addressLine2,
+          city: pickupAddress.city,
+          state: pickupAddress.state,
+          pincode: pickupAddress.pincode,
+          country: pickupAddress.country,
+          pickupLocationId: pickupAddress.pickupLocationId,
+        },
+        shippingAddress: {
+          fullName: shippingAddress.full_name || shippingAddress.name || 'Recipient',
+          phone: shippingAddress.phone || '9999999999',
+          email: shippingAddress.email || 'customer@example.com',
+          address: shippingAddress.address || 'Address Line 1',
+          city: shippingAddress.city || 'City',
+          state: shippingAddress.state || 'State',
+          pincode: deliveryPincode,
+          country: shippingAddress.country || 'India',
+        },
+        items: items.map(i => ({
+          productId: i.productId,
+          title: i.title,
+          quantity: i.quantity,
+          price: i.price,
+          total: i.total,
+        })),
         weight: totalWeight,
-        paymentMode,
+        isCod,
         codAmount,
       });
 
-      // Generate India Post ST-IND Tracking ID
+      const trackingId = courierDetails.awbNumber;
       const currentYear = new Date().getFullYear();
-      const randTracking = Math.floor(1000 + Math.random() * 9000); // XXXX
-      const trackingId = `ST-IND-${currentYear}${randTracking}`;
 
       // Save to database if online
       let shipment: any = null;
       try {
         shipment = await prisma.$transaction(async (tx) => {
-          // Get or create courier partner (India Post default)
+          // Get or create courier partner dynamically
           let courierPartner = await tx.courierPartner.findUnique({
-            where: { code: 'INDIA_POST' },
+            where: { code: courierDetails.courierPartnerCode },
           });
           if (!courierPartner) {
             courierPartner = await tx.courierPartner.create({
               data: {
-                name: 'India Post Speed Post',
-                code: 'INDIA_POST',
+                name: courierDetails.courierPartnerName,
+                code: courierDetails.courierPartnerCode,
                 isActive: true,
-                baseRatePrepaid: 40.0,
-                baseRateCOD: 60.0,
+                baseRatePrepaid: 45.0,
+                baseRateCOD: 65.0,
               },
             });
           }
@@ -130,15 +158,15 @@ export async function POST(request: Request) {
           // Create shipment
           const ship = await tx.shipment.create({
             data: {
-              shipmentNumber: trackingId, // Use as shipment number as well
+              shipmentNumber: `SH-${currentYear}-${Math.floor(100000 + Math.random() * 900000)}`,
               orderId: order.id,
               sellerId,
               courierPartnerId: courierPartner.id,
               status: 'PENDING',
-              awbNumber: trackingId,
-              trackingNumber: trackingId,
-              trackingLink: `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?id=${trackingId}`,
-              labelUrl: courierDetails.shippingLabelUrl,
+              awbNumber: courierDetails.awbNumber,
+              trackingNumber: courierDetails.trackingNumber,
+              trackingLink: courierDetails.trackingLink,
+              labelUrl: courierDetails.labelUrl.replace('TEMP_ID', trackingId), // dynamically map label link
               codAmount,
               shippingCost: courierDetails.shippingCost,
               weight: totalWeight,
@@ -166,13 +194,13 @@ export async function POST(request: Request) {
                 shipmentId: ship.id,
                 status: 'CONFIRMED',
                 location: pickupAddress.city,
-                message: `Shipment confirmed. Assigned to India Post Speed Post (Manual Mode). Print label and visit nearest post office.`,
+                message: `Shipment confirmed and registered on Master Account. AWB generated: ${courierDetails.awbNumber} via ${courierDetails.courierPartnerName}.`,
               },
               {
                 shipmentId: ship.id,
                 status: 'PENDING_PICKUP',
                 location: pickupAddress.city,
-                message: `Awaiting seller dispatch from ${pickupAddress.storeName}. Seller will ship via India Post Speed Post.`,
+                message: `Awaiting seller dispatch from ${pickupAddress.storeName} (${pickupAddress.city}).`,
               },
             ],
           });
@@ -187,6 +215,15 @@ export async function POST(request: Request) {
               taxAmount,
               totalAmount: subtotal + taxAmount,
             },
+          });
+
+          // Audit log transaction
+          await MasterCourierService.logAction(tx, ship.id, 'AWB_GENERATED', sellerId, 'SELLER', {
+            orderId: order.id,
+            awbNumber: courierDetails.awbNumber,
+            pickupLocationId: pickupAddress.pickupLocationId,
+            carrier: courierDetails.courierPartnerName,
+            cost: courierDetails.shippingCost,
           });
 
           return ship;

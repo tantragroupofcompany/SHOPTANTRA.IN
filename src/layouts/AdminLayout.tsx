@@ -31,12 +31,14 @@ const navGroups = [
       { label: 'Products', to: '/admin/products', icon: Package },
       { label: 'Orders', to: '/admin/orders', icon: ShoppingBag },
       { label: 'Shipments', to: '/admin/shipments', icon: Truck },
+      { label: 'Pickup Locations', to: '/admin/pickup-locations', icon: Store },
       { label: 'Categories', to: '/admin/categories', icon: Tag },
     ],
   },
   {
     label: 'Business',
     items: [
+      { label: 'Settlements', to: '/admin/settlements', icon: DollarSign },
       { label: 'Leads', to: '/admin/leads', icon: ClipboardList },
       { label: 'Subscriptions', to: '/admin/subscriptions', icon: FileText },
     ],

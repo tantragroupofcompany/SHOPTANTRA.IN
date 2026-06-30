@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Truck, Printer, FileDown, Search } from 'lucide-react';
+import { Eye, Truck, Printer, FileDown, Search, DollarSign, TrendingUp } from 'lucide-react';
 import { Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Table } from '../../components/ui/Table';
 import { Modal } from '../../components/ui/Modal';
+import { useAuth } from '../../context/AuthContext';
 
 interface Shipment {
   id: string;
@@ -45,6 +46,7 @@ interface Shipment {
 }
 
 const Shipments = () => {
+  const { user } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -54,6 +56,7 @@ const Shipments = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [manualTrackingNo, setManualTrackingNo] = useState('');
   const [manualDispatchDate, setManualDispatchDate] = useState('');
+  const [selectedCourier, setSelectedCourier] = useState('DELHIVERY_EXPRESS');
 
   const fetchShipments = async () => {
     try {
@@ -117,12 +120,7 @@ const Shipments = () => {
     }
   };
 
-  const handleViewDetails = (shipment: Shipment) => {
-    setSelectedShipment(shipment);
-    setManualTrackingNo(shipment.trackingNumber || '');
-    setManualDispatchDate(shipment.dispatchDate || '');
-    setIsModalOpen(true);
-  };
+
 
   const filteredShipments = shipments.filter(ship => {
     if (statusFilter !== 'all' && ship.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
@@ -137,6 +135,43 @@ const Shipments = () => {
     }
     return true;
   });
+
+  const handleCancelShipment = async (shipmentId: string) => {
+    if (!window.confirm('Are you sure you want to cancel this shipment? This will void the AWB and restock the items.')) return;
+    try {
+      setUpdatingStatus(true);
+      const res = await fetch('/api/shipment/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipmentId,
+          userId: user?.id,
+          role: 'ADMIN'
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('Shipment cancelled successfully!');
+        await fetchShipments();
+        setIsModalOpen(false);
+      } else {
+        alert('Failed to cancel shipment: ' + result.error);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('An error occurred while cancelling the shipment.');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleViewDetails = (shipment: Shipment) => {
+    setSelectedShipment(shipment);
+    setManualTrackingNo(shipment.trackingNumber || '');
+    setManualDispatchDate(shipment.dispatchDate || '');
+    setSelectedCourier(shipment.courierPartner?.name || 'DELHIVERY_EXPRESS');
+    setIsModalOpen(true);
+  };
 
   const getStatusVariant = (status: string) => {
     const s = status.toUpperCase();
@@ -206,26 +241,30 @@ const Shipments = () => {
 
   const stats = {
     total: shipments.length,
-    pending: shipments.filter(s => s.status.toUpperCase() === 'PENDING' || s.status.toUpperCase() === 'CONFIRMED').length,
+    pending: shipments.filter(s => s.status.toUpperCase() === 'PENDING' || s.status.toUpperCase() === 'CONFIRMED' || s.status.toUpperCase() === 'PICKUP_SCHEDULED').length,
     packed: shipments.filter(s => s.status.toUpperCase() === 'PACKED').length,
     shipped: shipments.filter(s => s.status.toUpperCase() === 'SHIPPED' || s.status.toUpperCase() === 'OUT_FOR_DELIVERY').length,
     delivered: shipments.filter(s => s.status.toUpperCase() === 'DELIVERED').length,
   };
 
+  const shippingExpenses = shipments.reduce((acc, s) => acc + s.shippingCost, 0);
+  const shippingRevenue = shipments.reduce((acc, s) => acc + (s.order?.shippingAmount || 60), 0);
+  const deliveryRate = shipments.length ? Math.round((stats.delivered / shipments.length) * 100) : 100;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Shipments Console</h1>
-        <p className="text-gray-500 mt-1">Monitor, print labels, and track marketplace shipments (India Post Speed Post & Manual Courier Workflow)</p>
+        <p className="text-gray-500 mt-1">Monitor, print labels, and track marketplace shipments via centralized ShopTantra Master Account.</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard title="Total Shipments" value={stats.total} icon={<Truck className="w-5 h-5 text-orange-500" />} />
-        <StatCard title="Pending Pickup" value={stats.pending} icon={<Truck className="w-5 h-5 text-yellow-500" />} />
-        <StatCard title="Packed" value={stats.packed} icon={<Truck className="w-5 h-5 text-gray-500" />} />
-        <StatCard title="In Transit" value={stats.shipped} icon={<Truck className="w-5 h-5 text-blue-500" />} />
-        <StatCard title="Delivered" value={stats.delivered} icon={<Truck className="w-5 h-5 text-green-500" />} />
+        <StatCard title="Shipping Expenses" value={`₹${shippingExpenses.toLocaleString('en-IN')}`} icon={<DollarSign className="w-5 h-5 text-red-500" />} />
+        <StatCard title="Shipping Revenue" value={`₹${shippingRevenue.toLocaleString('en-IN')}`} icon={<DollarSign className="w-5 h-5 text-green-500" />} />
+        <StatCard title="Delivery Success" value={`${deliveryRate}%`} icon={<TrendingUp className="w-5 h-5 text-blue-500" />} />
+        <StatCard title="In Transit" value={stats.shipped} icon={<Truck className="w-5 h-5 text-indigo-500" />} />
       </div>
 
       {/* Filters & Search */}
@@ -325,6 +364,18 @@ const Shipments = () => {
                       onChange={(e) => setManualDispatchDate(e.target.value)}
                     />
                   </div>
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Override Carrier Selection (ShopTantra Master Account)</label>
+                    <select
+                      className="w-full text-xs border border-gray-300 rounded p-1.5 bg-white"
+                      value={selectedCourier}
+                      onChange={(e) => setSelectedCourier(e.target.value)}
+                    >
+                      <option value="DELHIVERY_EXPRESS">Delhivery Express (Auto Route)</option>
+                      <option value="BLUEDART_AIR">Blue Dart Air Priority</option>
+                      <option value="INDIA_POST">India Post Speed Post</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -342,7 +393,7 @@ const Shipments = () => {
                     loading={updatingStatus}
                     onClick={() => {
                       if (!manualTrackingNo || !manualDispatchDate) {
-                        alert('India Post Speed Post tracking number and Dispatch Date are required to mark Shipped.');
+                        alert('Tracking number and Dispatch Date are required to mark Shipped.');
                         return;
                       }
                       handleUpdateStatus(selectedShipment.id, 'SHIPPED', manualTrackingNo, manualDispatchDate);
@@ -372,7 +423,7 @@ const Shipments = () => {
                     size="sm"
                     loading={updatingStatus}
                     className="text-red-650 hover:bg-red-50"
-                    onClick={() => handleUpdateStatus(selectedShipment.id, 'CANCELLED')}
+                    onClick={() => handleCancelShipment(selectedShipment.id)}
                   >
                     Cancel Shipment
                   </Button>

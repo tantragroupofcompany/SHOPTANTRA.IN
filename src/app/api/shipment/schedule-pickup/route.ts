@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { MasterCourierService } from '../../../../lib/masterCourierService';
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +27,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
+    const pickupDateVal = pickupDate || new Date().toISOString().split('T')[0];
+
+    // Call MasterCourierService to schedule the pickup under ShopTantra's Master account
+    const pickupResponse = await MasterCourierService.schedulePickup(
+      shipment.awbNumber || shipment.shipmentNumber,
+      shipment.seller?.pickupAddress?.pickupLocationId || null,
+      pickupDateVal
+    );
+
     // 2. Perform updates inside a transaction to ensure atomic consistency
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = {
@@ -33,8 +43,8 @@ export async function POST(request: Request) {
         updatedAt: new Date(),
       };
 
-      if (pickupDate) {
-        updateData.dispatchDate = pickupDate;
+      if (pickupDateVal) {
+        updateData.dispatchDate = pickupDateVal;
       }
 
       // Update shipment
@@ -60,11 +70,7 @@ export async function POST(request: Request) {
 
       // Build tracking message
       const messageParts: string[] = [];
-      if (pickupDate) {
-        messageParts.push(`Pickup scheduled for ${pickupDate}`);
-      } else {
-        messageParts.push('Pickup scheduled');
-      }
+      messageParts.push(`Pickup scheduled for ${pickupDateVal}`);
       if (pickupTimeSlot) {
         messageParts.push(`Time slot: ${pickupTimeSlot}`);
       }
@@ -86,6 +92,15 @@ export async function POST(request: Request) {
           message: statusMessage,
           timestamp: new Date(),
         },
+      });
+
+      // Log shipment audit log
+      await MasterCourierService.logAction(tx, shipment.id, 'PICKUP_SCHEDULED', shipment.sellerId, 'SELLER', {
+        awbNumber: shipment.awbNumber,
+        pickupLocationId: pickupAddress?.pickupLocationId,
+        date: pickupDateVal,
+        timeSlot: pickupTimeSlot,
+        response: pickupResponse.message,
       });
 
       return { shipment: updatedShipment, trackingUpdate };

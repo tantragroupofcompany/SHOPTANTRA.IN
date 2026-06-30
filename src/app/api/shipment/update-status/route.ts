@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { MasterCourierService } from '../../../../lib/masterCourierService';
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
+    // Fetch realistic courier tracking updates if they exist
+    const awb = trackingNumber || shipment.awbNumber || shipment.shipmentNumber;
+    const trackingHistory = await MasterCourierService.trackShipment(awb, status.toUpperCase());
+
     // 2. Perform updates inside a transaction to ensure atomic consistency
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = {
@@ -30,7 +35,7 @@ export async function POST(request: Request) {
 
       if (trackingNumber) {
         updateData.trackingNumber = trackingNumber;
-        updateData.awbNumber = trackingNumber; // Align AWB with tracking number for manual shipping
+        updateData.awbNumber = trackingNumber;
         updateData.trackingLink = `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${trackingNumber}`;
       }
 
@@ -45,13 +50,30 @@ export async function POST(request: Request) {
       });
 
       // Update Order Status to sync with shipment
+      const finalPaymentStatus = status.toUpperCase() === 'DELIVERED' ? 'COD_COLLECTED' : shipment.order.paymentStatus;
+      
       await tx.order.update({
         where: { id: shipment.orderId },
         data: {
           status: status.toUpperCase(),
+          paymentStatus: finalPaymentStatus,
           updatedAt: new Date()
         }
       });
+
+      if (status.toUpperCase() === 'DELIVERED') {
+        // Set Payment to COD_COLLECTED
+        await tx.payment.updateMany({
+          where: { orderId: shipment.orderId },
+          data: { status: 'COD_COLLECTED' }
+        });
+
+        // Set Commission to SETTLEMENT_PENDING
+        await tx.commission.updateMany({
+          where: { orderId: shipment.orderId },
+          data: { status: 'SETTLEMENT_PENDING' }
+        });
+      }
 
       // Construct update message
       let statusMessage = message;
@@ -60,9 +82,9 @@ export async function POST(request: Request) {
           statusMessage = 'Parcel successfully packed and ready for dispatch.';
         } else if (status.toUpperCase() === 'SHIPPED') {
           const formattedDate = dispatchDate ? new Date(dispatchDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-          statusMessage = `Dispatched via India Post Speed Post on ${formattedDate}. Tracking Number: ${trackingNumber || 'N/A'}`;
+          statusMessage = `Dispatched via courier partner on ${formattedDate}. AWB: ${awb}`;
         } else if (status.toUpperCase() === 'OUT_FOR_DELIVERY') {
-          statusMessage = 'Parcel is out for delivery with the local postman.';
+          statusMessage = 'Parcel is out for delivery with the local courier associate.';
         } else if (status.toUpperCase() === 'DELIVERED') {
           statusMessage = 'Parcel successfully delivered to the recipient.';
         } else if (status.toUpperCase() === 'CANCELLED') {
@@ -77,10 +99,23 @@ export async function POST(request: Request) {
         data: {
           shipmentId,
           status: status.toUpperCase(),
-          location: location || 'Warehouse',
+          location: location || 'Transit Hub',
           message: statusMessage,
           timestamp: new Date()
         }
+      });
+
+      // Create tracking history updates from API mock if not already present
+      if (trackingHistory && trackingHistory.length > 0) {
+        // Log them as historical updates if they match
+      }
+
+      // Log shipment audit log
+      await MasterCourierService.logAction(tx, shipment.id, `STATUS_${status.toUpperCase()}`, shipment.sellerId, 'SELLER', {
+        awbNumber: awb,
+        status: status.toUpperCase(),
+        location: location || 'Transit Hub',
+        message: statusMessage
       });
 
       return { shipment: updatedShipment, trackingUpdate };

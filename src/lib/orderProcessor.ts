@@ -80,18 +80,17 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         },
       });
 
-      // 2. Ensure Seller profile exists
-      const seller = await tx.seller.upsert({
+      // 2. Ensure Seller profile exists and warehouse is verified
+      const seller = await tx.seller.findUnique({
         where: { id: sellerId },
-        update: {},
-        create: {
-          id: sellerId,
-          userId: user.id,
-          storeName: 'Partner Merchant',
-          commissionRate: 10.0,
-          status: 'ACTIVE',
-        },
+        include: { pickupAddress: true }
       });
+      if (!seller) {
+        throw new Error(`Seller profile with ID ${sellerId} not found.`);
+      }
+      if (!seller.pickupAddress || seller.pickupAddress.verificationStatus !== 'VERIFIED') {
+        throw new Error(`Order placement failed: Seller's warehouse address for "${seller.storeName}" is not verified yet. Current status is ${seller.pickupAddress?.verificationStatus || 'PENDING'}.`);
+      }
 
       // 3. Ensure Products exist and update stock
       for (const item of items) {

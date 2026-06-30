@@ -39,9 +39,17 @@ const ProductUpload = () => {
     stock: '',
     lowStockAlert: '10',
     weight: '',
+    weightUnit: 'kg',
     dimensionLength: '',
     dimensionWidth: '',
     dimensionHeight: '',
+    packageType: 'box',
+    shippingClass: 'standard',
+    fragile: 'false',
+    dangerousGoods: 'false',
+    countryOfOrigin: 'India',
+    hsnCode: '',
+    estimatedPackingTime: '24',
     status: 'draft',
   });
 
@@ -128,6 +136,11 @@ const ProductUpload = () => {
         throw new Error('Please fill in all required fields');
       }
 
+      // Phase 13 Requirement: Prevent publishing product without shipping information
+      if (!formData.weight || !formData.dimensionLength || !formData.dimensionWidth || !formData.dimensionHeight) {
+        throw new Error('Mandatory shipping details (Product Weight, Package Length, Package Width, Package Height) are required to publish the product.');
+      }
+
       // Filter and prepare images JSON array
       const validImages = images
         .filter(img => img.url.trim() !== '')
@@ -152,10 +165,18 @@ const ProductUpload = () => {
           images: validImages,
           variants: variants,
           tags: formData.tags,
-          weight: formData.weight,
-          dimensionLength: formData.dimensionLength,
-          dimensionWidth: formData.dimensionWidth,
-          dimensionHeight: formData.dimensionHeight
+          weight: parseFloat(formData.weight),
+          weightUnit: formData.weightUnit,
+          dimensionLength: parseFloat(formData.dimensionLength),
+          dimensionWidth: parseFloat(formData.dimensionWidth),
+          dimensionHeight: parseFloat(formData.dimensionHeight),
+          packageType: formData.packageType,
+          shippingClass: formData.shippingClass,
+          fragile: formData.fragile === 'true',
+          dangerousGoods: formData.dangerousGoods === 'true',
+          countryOfOrigin: formData.countryOfOrigin,
+          hsnCode: formData.hsnCode || null,
+          estimatedPackingTime: parseInt(formData.estimatedPackingTime)
         })
       });
 
@@ -334,22 +355,37 @@ const ProductUpload = () => {
 
         {/* Shipping */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping Information</h2>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
-              <Input
-                type="number"
-                name="weight"
-                value={formData.weight}
-                onChange={handleInputChange}
-                placeholder="0.00"
-                step="0.01"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Product Weight *</label>
+                <Input
+                  type="number"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleInputChange}
+                  placeholder="0.00"
+                  step="0.01"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Weight Unit *</label>
+                <Select
+                  name="weightUnit"
+                  value={formData.weightUnit}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="g">Grams (g)</option>
+                </Select>
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Dimensions (L x W x H in cm)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Package Dimensions (L x W x H in cm) *</label>
               <div className="grid grid-cols-3 gap-2">
                 <Input
                   type="number"
@@ -358,6 +394,7 @@ const ProductUpload = () => {
                   onChange={handleInputChange}
                   placeholder="Length"
                   step="0.01"
+                  required
                 />
                 <Input
                   type="number"
@@ -366,6 +403,7 @@ const ProductUpload = () => {
                   onChange={handleInputChange}
                   placeholder="Width"
                   step="0.01"
+                  required
                 />
                 <Input
                   type="number"
@@ -374,8 +412,104 @@ const ProductUpload = () => {
                   onChange={handleInputChange}
                   placeholder="Height"
                   step="0.01"
+                  required
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Package Type *</label>
+                <Select
+                  name="packageType"
+                  value={formData.packageType}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="box">Cardboard Box</option>
+                  <option value="flyer">Courier Flyer Sleeve</option>
+                  <option value="packet">Small Packet Enclosure</option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Class *</label>
+                <Select
+                  name="shippingClass"
+                  value={formData.shippingClass}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="standard">Standard Shipping</option>
+                  <option value="heavy">Heavy Weight Package</option>
+                  <option value="express">Express Delivery Class</option>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fragile Content *</label>
+                <Select
+                  name="fragile"
+                  value={formData.fragile}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="false">No (Not Fragile)</option>
+                  <option value="true">Yes (Handle With Care)</option>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dangerous Goods (Hazmat) *</label>
+                <Select
+                  name="dangerousGoods"
+                  value={formData.dangerousGoods}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="false">No (Standard Item)</option>
+                  <option value="true">Yes (Hazmat Regulations Apply)</option>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country of Origin *</label>
+                <Input
+                  type="text"
+                  name="countryOfOrigin"
+                  value={formData.countryOfOrigin}
+                  onChange={handleInputChange}
+                  placeholder="e.g. India"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Packing Time *</label>
+                <Select
+                  name="estimatedPackingTime"
+                  value={formData.estimatedPackingTime}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="12">12 Hours</option>
+                  <option value="24">24 Hours (1 Day)</option>
+                  <option value="48">48 Hours (2 Days)</option>
+                  <option value="72">72 Hours (3 Days)</option>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">HSN Code (Optional)</label>
+              <Input
+                type="text"
+                name="hsnCode"
+                value={formData.hsnCode}
+                onChange={handleInputChange}
+                placeholder="e.g. 84713010"
+              />
             </div>
           </div>
         </Card>
