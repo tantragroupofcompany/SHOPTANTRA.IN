@@ -49,7 +49,7 @@ export default function About() {
   const team = [
     {
       name: 'Jadav Nilesh',
-      title: 'Founder & Visionary',
+      title: 'Chairman & Founder',
       image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
     },
     {

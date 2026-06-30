@@ -5,9 +5,9 @@ export default function Leadership() {
     {
       id: 'founder',
       name: 'Jadav Nilesh',
-      role: 'Founder & Visionary',
+      role: 'Chairman & Founder',
       image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
-      bio: 'Jadav Nilesh is the founder and primary visionary behind ShopTantra (shoptantra.in). With a strong commitment to empowering India\'s micro, small, and medium enterprises (MSMEs), he conceptualized the platform to bring local vendors and manufacturers into the national digital market. His strategic focus is on vendor accessibility, creating opportunities for small artisans and rural merchants to sell their products directly to consumers globally.',
+      bio: 'Jadav Nilesh is the Chairman & founder and primary visionary behind ShopTantra (shoptantra.in). With a strong commitment to empowering India\'s micro, small, and medium enterprises (MSMEs), he conceptualized the platform to bring local vendors and manufacturers into the national digital market. His strategic focus is on vendor accessibility, creating opportunities for small artisans and rural merchants to sell their products directly to consumers globally.',
       icon: Heart,
       color: 'from-orange-500 to-red-500'
     },
