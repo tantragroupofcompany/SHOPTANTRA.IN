@@ -26,7 +26,7 @@ export default function Contact() {
     {
       icon: Phone,
       title: 'Partner Helpline',
-      content: '+91 90999 85145',
+      content: '+91 9099989426',
     },
     {
       icon: Mail,
@@ -213,7 +213,7 @@ export default function Contact() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      placeholder="+91 9099985145"
+                  placeholder="+91 9099989426"
                       className="w-full bg-gray-50 dark:bg-brand-navy-dark border border-gray-200 dark:border-brand-navy-light/20 text-gray-800 dark:text-gray-200 rounded-lg px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-orange"
                     />
                   </div>

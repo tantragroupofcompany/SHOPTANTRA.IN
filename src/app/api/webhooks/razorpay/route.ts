@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Signature header missing' }, { status: 400 });
     }
 
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'razorpay_secret_placeholder';
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'MHtgyi7Gnkmdx7AoUyC8qfPb';
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(rawBody)

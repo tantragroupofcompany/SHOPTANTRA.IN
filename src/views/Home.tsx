@@ -840,7 +840,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Phone className="text-brand-orange" size={16} />
-                      <span className="text-gray-700 dark:text-gray-300">+91 90999 85145 (Mon-Sat, 9AM-6PM)</span>
+                      <span className="text-gray-700 dark:text-gray-300">+91 9099989426 (Mon-Sat, 9AM-6PM)</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Mail className="text-brand-orange" size={16} />

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     } = body;
 
     // Verify cryptographic signature
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder';
+    const secret = process.env.RAZORPAY_KEY_SECRET || 'MHtgyi7Gnkmdx7AoUyC8qfPb';
     const generated_signature = crypto
       .createHmac('sha256', secret)
       .update(razorpay_order_id + '|' + razorpay_payment_id)

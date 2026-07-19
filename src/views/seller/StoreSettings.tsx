@@ -692,7 +692,7 @@ const StoreSettings = () => {
               name="pickup_phone"
               value={addressData.pickup_phone}
               onChange={handleAddressChange}
-              placeholder="e.g. 9099985145"
+              placeholder="e.g. 9099989426"
               required
             />
             <Input

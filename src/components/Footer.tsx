@@ -118,7 +118,7 @@ export function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 gap-x-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 gap-x-4">
           
           {/* Brand Info & Socials */}
           <div className="space-y-3">
@@ -144,24 +144,6 @@ export function Footer() {
                 </a>
               ))}
             </div>
-          </div>
-
-          {/* Introduction Section */}
-          <div>
-            <FooterHeading>Introduction</FooterHeading>
-            <ul className="space-y-1.5 text-xs">
-              {[
-                { label: 'Founder (Jadav Nilesh)', to: '/introduction#founder' },
-                { label: 'Managing Director (Nayna Jadav)', to: '/introduction#md' },
-                { label: 'CEO (Jadav Jayesh)', to: '/introduction#ceo' }
-              ].map((link, idx) => (
-                <li key={idx}>
-                  <Link to={link.to} className="text-gray-300 hover:text-brand-orange transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           {/* Quick links */}
@@ -221,12 +203,12 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-brand-orange shrink-0" />
-                <a 
-                  href="tel:+919099985145" 
-                  className="text-gray-300 hover:text-brand-orange transition-colors hover:underline"
-                >
-                  +91 90999 85145
-                </a>
+                 <a 
+                   href="tel:+919099989426" 
+                   className="text-gray-300 hover:text-brand-orange transition-colors hover:underline"
+                 >
+                   +91 9099989426
+                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-brand-orange shrink-0" />
@@ -246,9 +228,9 @@ export function Footer() {
       <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <img src="/tantra-group-logo.jpg" alt="Tantra Group Logo" className="h-7 w-auto object-contain rounded" />
+            <img src="/tantra-group-logo.jpg" alt="TANTRA GROUP OF INDUSTRIES Logo" className="h-7 w-auto object-contain rounded" />
             <p className="text-gray-450 dark:text-gray-400 text-xs font-bold tracking-wide">
-              TANTRA GROUP
+              TANTRA GROUP OF INDUSTRIES
             </p>
           </div>
           
