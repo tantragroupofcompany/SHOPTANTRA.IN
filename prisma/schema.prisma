@@ -210,6 +210,7 @@ model GlobalSettings {
   defaultCommissionRate   Float    @default(10.0)
   categoryCommissions     String   // Stored as JSON string
   settlementDelayDays     Int      @default(7) // configurable settlement delay days
+  parentCompanyLogoUrl    String?  // URL for parent company logo stored in Supabase
 }
 
 model SupportTicket {

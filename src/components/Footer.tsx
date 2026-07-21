@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Mail,
@@ -10,9 +10,12 @@ import {
   Youtube,
   Send,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Upload,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 function FooterHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -24,9 +27,77 @@ function FooterHeading({ children }: { children: React.ReactNode }) {
 
 export function Footer() {
   const { addNotification } = useApp();
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('/tantra-group-logo.jpg');
+  const [uploading, setUploading] = useState(false);
+
+  // Load the parent company logo from GlobalSettings
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const res = await fetch('/api/settings/logo');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logoUrl) {
+            setLogoUrl(data.logoUrl);
+          }
+        }
+      } catch {
+        // Keep default on error
+      }
+    };
+    fetchLogo();
+  }, []);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('adminId', user.id);
+      formData.append('file', file);
+
+      const res = await fetch('/api/settings/logo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.logoUrl) {
+        setLogoUrl(data.logoUrl);
+        addNotification('Logo Updated', 'Parent company logo has been updated successfully.', 'success');
+      } else {
+        addNotification('Upload Failed', data.error || 'Failed to upload logo', 'system');
+      }
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      addNotification('Upload Failed', 'An error occurred while uploading the logo.', 'system');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLogoRemove = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/settings/logo?adminId=${user.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setLogoUrl('/tantra-group-logo.jpg');
+        addNotification('Logo Removed', 'Parent company logo has been reset to default.', 'success');
+      }
+    } catch (err) {
+      console.error('Logo remove error:', err);
+    }
+  };
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +106,6 @@ export function Footer() {
 
     if (!trimmedEmail) return;
 
-    // Check email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setSubscribeError('Please enter a valid email address');
@@ -45,9 +115,7 @@ export function Footer() {
     try {
       const response = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmedEmail }),
       });
 
@@ -228,7 +296,44 @@ export function Footer() {
       <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <img src="/tantra-group-logo.jpg" alt="TANTRA GROUP OF INDUSTRIES Logo" className="h-7 w-auto object-contain rounded" />
+            {isAdmin ? (
+              <div className="relative group">
+                <img
+                  src={logoUrl}
+                  alt="TANTRA GROUP OF INDUSTRIES Official Logo"
+                  className="h-7 w-auto object-contain rounded"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/tantra-group-logo.jpg'; }}
+                />
+                <div className="absolute -top-1 -right-1 hidden group-hover:flex gap-1">
+                  <label className="cursor-pointer bg-brand-orange text-white rounded-full p-0.5 hover:bg-brand-orange-hover transition-colors" title="Upload new logo">
+                    <Upload size={12} />
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                  {logoUrl !== '/tantra-group-logo.jpg' && (
+                    <button
+                      onClick={handleLogoRemove}
+                      className="bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors"
+                      title="Reset to default logo"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <img
+                src={logoUrl}
+                alt="TANTRA GROUP OF INDUSTRIES Official Logo"
+                className="h-7 w-auto object-contain rounded"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/tantra-group-logo.jpg'; }}
+              />
+            )}
             <p className="text-gray-450 dark:text-gray-400 text-xs font-bold tracking-wide">
               TANTRA GROUP OF INDUSTRIES
             </p>
