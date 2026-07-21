@@ -225,7 +225,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
-              src="/images/tantra-group-of-industries-logo.png"
+              src="/images/tantra-group-official-logo.png"
               alt="TANTRA GROUP OF INDUSTRIES Official Logo"
               className="w-9 h-9 md:w-12 md:h-12 object-contain rounded"
             />
