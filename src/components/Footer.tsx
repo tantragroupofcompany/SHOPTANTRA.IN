@@ -223,7 +223,12 @@ export function Footer() {
       {/* Footer base */}
       <div className="border-t border-white/10 dark:border-brand-navy-light/10 bg-brand-navy-dark/40 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
+            <img
+              src="/images/tantra-group-of-industries-logo.png"
+              alt="TANTRA GROUP OF INDUSTRIES Official Logo"
+              className="w-9 h-9 md:w-12 md:h-12 object-contain rounded"
+            />
             <p className="text-gray-450 dark:text-gray-400 text-xs font-bold tracking-wide">
               TANTRA GROUP OF INDUSTRIES
             </p>
