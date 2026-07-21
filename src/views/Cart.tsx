@@ -40,7 +40,8 @@ export default function Cart() {
   // Calculations
   const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const discountAmount = Math.round(subtotal * (couponDiscount / 100));
-  
+  const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
   // Tax (18% GST split: 9% CGST + 9% SGST)
   const gstRate = 0.18;
   const gstAmount = Math.round((subtotal - discountAmount) * gstRate);
@@ -49,7 +50,7 @@ export default function Cart() {
 
   // Shipping (Free above ₹999, else ₹99)
   const shippingCharges = subtotal > 999 || subtotal === 0 ? 0 : 99;
-  
+   
   // Grand total
   const grandTotal = subtotal - discountAmount + gstAmount + shippingCharges;
 

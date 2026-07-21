@@ -3,7 +3,13 @@ import { prisma } from '../../../../lib/prisma';
 import { verifyPassword } from '../../../../lib/authUtils';
 
 // Secret key for secure JWT token signing
-const JWT_SECRET = process.env.JWT_SECRET || 'shoptantra_secret_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is not configured');
+}
+
+import jwt from 'jsonwebtoken';
 
 export async function POST(request: Request) {
   try {
@@ -26,50 +32,13 @@ export async function POST(request: Request) {
       include: { sellerProfile: true },
     });
 
-    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!dbUser) {
+      return NextResponse.json({ error: 'No account found matching this email address.' }, { status: 404 });
+    }
 
-    if (dbUser) {
-      // If user exists in DB, check password using DB hash
-      if (!verifyPassword(password, dbUser.password)) {
-        // Fallback: If it matches configured env credentials, allow it
-        const isAdminEmail = adminEmail && cleanEmail === adminEmail;
-        if (isAdminEmail && password === adminPassword) {
-          // Allow login
-          if (dbUser.role !== 'ADMIN') {
-            dbUser = await prisma.user.update({
-              where: { email: cleanEmail },
-              data: { role: 'ADMIN' },
-              include: { sellerProfile: true },
-            });
-          }
-        } else {
-          return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
-        }
-      }
-    } else {
-      // If user does not exist in DB, check config env variables for auto-creation
-      if (adminEmail && cleanEmail === adminEmail) {
-        if (password !== adminPassword) {
-          return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
-        }
-
-        const bcrypt = await import('bcryptjs');
-        const salt = bcrypt.default.genSaltSync(10);
-        const hashedPassword = bcrypt.default.hashSync(password, salt);
-
-        dbUser = await prisma.user.create({
-          data: {
-            email: cleanEmail,
-            password: hashedPassword,
-            role: 'ADMIN',
-            fullName: 'ShopTantra Owner',
-          },
-          include: { sellerProfile: true },
-        });
-      } else {
-        return NextResponse.json({ error: 'No account found matching this email address.' }, { status: 404 });
-      }
+    // If user exists in DB, check password using DB hash
+    if (!verifyPassword(password, dbUser.password)) {
+      return NextResponse.json({ error: 'Incorrect password. Please try again.' }, { status: 401 });
     }
 
     // 4. Check status if user is a seller
@@ -82,16 +51,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Create secure JWT token simulation
-    // We construct a payload and sign it with a simple Base64/HMAC style representation
+    // 5. Create secure JWT token
     const payload = {
       id: dbUser.id,
       email: dbUser.email,
       role: dbUser.role,
+      iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour expiry
     };
 
-    const token = Buffer.from(JSON.stringify(payload)).toString('base64') + '.' + Buffer.from(JWT_SECRET).toString('base64');
+    const token = jwt.sign(payload, JWT_SECRET, { algorithm: 'HS256' });
 
     // 6. Return response
     const roles = ['buyer'];

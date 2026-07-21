@@ -11,7 +11,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Signature header missing' }, { status: 400 });
     }
 
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || 'MHtgyi7Gnkmdx7AoUyC8qfPb';
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+      return NextResponse.json({ error: 'Webhook verification failed: missing configuration' }, { status: 500 });
+    }
+
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(rawBody)

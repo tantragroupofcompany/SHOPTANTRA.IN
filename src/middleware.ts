@@ -4,9 +4,9 @@ import type { NextRequest } from 'next/server';
 // In-memory rate limiting map (IP -> timestamps)
 const rateLimitMap = new Map<string, number[]>();
 const LIMIT = 100; // max requests
-const WINDOW = 60 * 1005; // 1 minute window in ms
+const WINDOW = 60 * 1000; // 1 minute window in ms
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const ip = request.ip || request.headers.get('x-forwarded-for') || '127.0.0.1';
   const path = request.nextUrl.pathname;
   const response = NextResponse.next();
@@ -68,7 +68,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR ADMIN APIS
+    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR ADMIN APIS
   if (path.startsWith('/api/founder') || path.startsWith('/api/admin') || path.startsWith('/api/management')) {
     const token = request.cookies.get('auth_token')?.value;
     
@@ -80,9 +80,9 @@ export function middleware(request: NextRequest) {
     }
 
     try {
-      // Decode JWT payload (without verification, since Edge runtime doesn't support bcrypt/crypto natively well)
-      // Real verification happens in the actual API route.
-      const payload = JSON.parse(atob(token.split('.')[0]));
+      // Verify JWT token using jsonwebtoken
+      const jwt = await import('jsonwebtoken');
+      const payload = jwt.verify(token, process.env.JWT_SECRET!) as { role?: string };
       
       const role = payload.role?.toUpperCase();
       

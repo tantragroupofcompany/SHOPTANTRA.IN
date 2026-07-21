@@ -27,7 +27,14 @@ export async function POST(request: Request) {
     } = body;
 
     // Verify cryptographic signature
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'MHtgyi7Gnkmdx7AoUyC8qfPb';
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { error: 'Payment verification failed: missing configuration' },
+        { status: 500 }
+      );
+    }
+
     const generated_signature = crypto
       .createHmac('sha256', secret)
       .update(razorpay_order_id + '|' + razorpay_payment_id)
