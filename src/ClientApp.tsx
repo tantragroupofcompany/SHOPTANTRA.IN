@@ -46,6 +46,7 @@ import VerifyEmail from './views/auth/VerifyEmail';
 import AdminLogin from './views/auth/AdminLogin';
 import SellerVerifyEmail from './views/auth/SellerVerifyEmail';
 import PendingApproval from './views/auth/PendingApproval';
+import CorporateAccess from './views/auth/CorporateAccess';
 
 // Vendor store
 import StorePage from './views/vendor/StorePage';
@@ -98,7 +99,11 @@ import BlogManagement from './views/admin/BlogManagement';
 import AdminReports from './views/admin/Reports';
 import AdminSecurityLogs from './views/admin/SecurityLogs';
 import AdminPickupLocations from './views/admin/PickupLocations';
-import AdminSettlements from './views/admin/Settlements';
+
+// Corporate dashboards
+import FounderDashboard from './views/founder/Dashboard';
+import CEODashboard from './views/ceo/Dashboard';
+import ChairmanDashboard from './views/chairman/Dashboard';
 
 export default function ClientApp() {
   return (
@@ -143,6 +148,7 @@ export default function ClientApp() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/seller/verify-email" element={<SellerVerifyEmail />} />
             <Route path="/seller/pending-approval" element={<PendingApproval />} />
+            <Route path="/corporate-access" element={<CorporateAccess />} />
             <Route path="/about" element={<About />} />
 
             {/* Seller dashboard routes */}
@@ -212,7 +218,6 @@ export default function ClientApp() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="shipments" element={<AdminShipments />} />
               <Route path="pickup-locations" element={<AdminPickupLocations />} />
-              <Route path="settlements" element={<AdminSettlements />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="leads" element={<AdminLeads />} />
               <Route path="subscriptions" element={<AdminSubscriptions />} />
@@ -223,6 +228,11 @@ export default function ClientApp() {
               <Route path="reports" element={<AdminReports />} />
               <Route path="security-logs" element={<AdminSecurityLogs />} />
             </Route>
+
+            {/* Corporate control center */}
+            <Route path="/founder/dashboard" element={<FounderDashboard />} />
+            <Route path="/ceo/dashboard" element={<CEODashboard />} />
+            <Route path="/chairman/dashboard" element={<ChairmanDashboard />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

@@ -68,9 +68,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR ADMIN APIS
-  if (path.startsWith('/api/founder') || path.startsWith('/api/admin') || path.startsWith('/api/management')) {
-    const token = request.cookies.get('auth_token')?.value;
+    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR ADMIN AND CORPORATE APIS
+  if (path.startsWith('/api/founder') || path.startsWith('/api/admin') || path.startsWith('/api/management') || path.startsWith('/api/corporate')) {
+    const token = request.cookies.get('auth_token')?.value || request.cookies.get('corporate_auth_token')?.value;
     
     if (!token) {
       return new NextResponse(
