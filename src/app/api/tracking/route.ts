@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../../../lib/prisma';
 
 export async function GET(request: Request) {
   try {
@@ -8,7 +8,6 @@ export async function GET(request: Request) {
     const orderNumber = searchParams.get('order') || '';
     const phone = searchParams.get('phone') || '';
 
-    // 1. If AWB / tracking number is supplied, search directly
     if (awb) {
       const shipment = await prisma.shipment.findFirst({
         where: {
@@ -21,9 +20,7 @@ export async function GET(request: Request) {
         include: {
           order: true,
           courierPartner: true,
-          trackingUpdates: {
-            orderBy: { timestamp: 'desc' },
-          },
+          trackingUpdates: { orderBy: { timestamp: 'desc' } },
         },
       });
 
@@ -41,6 +38,7 @@ export async function GET(request: Request) {
             orderNumber: shipment.order?.orderNumber,
             dispatchDate: shipment.dispatchDate,
             updates: shipment.trackingUpdates,
+            estimatedDelivery: shipment.estimatedDelivery,
           },
         });
       }
@@ -48,7 +46,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Shipment tracking information not found' }, { status: 404 });
     }
 
-    // 2. If Order Number and Phone are supplied, verify and return
     if (orderNumber && phone) {
       const dbOrder = await prisma.order.findFirst({
         where: {
@@ -61,23 +58,17 @@ export async function GET(request: Request) {
           shipments: {
             include: {
               courierPartner: true,
-              trackingUpdates: {
-                orderBy: { timestamp: 'desc' },
-              },
+              trackingUpdates: { orderBy: { timestamp: 'desc' } },
             },
           },
         },
       });
 
       if (dbOrder) {
-        const address = typeof dbOrder.shippingAddress === 'string'
-          ? JSON.parse(dbOrder.shippingAddress)
-          : dbOrder.shippingAddress;
-        
+        const address = typeof dbOrder.shippingAddress === 'string' ? JSON.parse(dbOrder.shippingAddress) : dbOrder.shippingAddress;
         const addrPhone = (address?.phone || '').replace(/\D/g, '');
         const searchPhone = phone.replace(/\D/g, '');
 
-        // Validate phone number — endsWith matching to ignore country codes (+91)
         if (addrPhone.endsWith(searchPhone) || searchPhone.endsWith(addrPhone)) {
           return NextResponse.json({
             success: true,
@@ -92,6 +83,7 @@ export async function GET(request: Request) {
               courierName: ship.courierPartner?.name || 'India Post Speed Post',
               trackingLink: ship.trackingLink || `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${ship.trackingNumber}`,
               dispatchDate: ship.dispatchDate,
+              estimatedDelivery: ship.estimatedDelivery,
               updates: ship.trackingUpdates,
             })),
           });
