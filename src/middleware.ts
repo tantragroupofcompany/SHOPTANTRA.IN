@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { requireRole } from './middleware/index';
 
 // In-memory rate limiting map (IP -> timestamps)
 const rateLimitMap = new Map<string, number[]>();
@@ -68,53 +69,30 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR ADMIN AND CORPORATE APIS
-  if (path.startsWith('/api/founder') || path.startsWith('/api/admin') || path.startsWith('/api/management') || path.startsWith('/api/corporate')) {
-    const token = request.cookies.get('auth_token')?.value || request.cookies.get('corporate_auth_token')?.value;
-    
-    if (!token) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Unauthorized access. Please login.' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    try {
-      // Verify JWT token using jsonwebtoken
-      const jwt = await import('jsonwebtoken');
-      const payload = jwt.verify(token, process.env.JWT_SECRET!) as { role?: string };
-      
-      const role = payload.role?.toUpperCase();
-      
-      // Founder routes -> ONLY FOUNDER
-      if (path.startsWith('/api/founder') && role !== 'FOUNDER') {
-        return new NextResponse(
-          JSON.stringify({ error: '403 Forbidden: Founder access required.' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Admin routes -> FOUNDER, MD, CEO
-      if (path.startsWith('/api/admin') && !['FOUNDER', 'MD', 'CEO', 'ADMIN'].includes(role)) {
-        return new NextResponse(
-          JSON.stringify({ error: '403 Forbidden: Executive access required.' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Management routes -> FOUNDER, MD, CEO, MANAGER
-      if (path.startsWith('/api/management') && !['FOUNDER', 'MD', 'CEO', 'MANAGER', 'ADMIN'].includes(role)) {
-        return new NextResponse(
-          JSON.stringify({ error: '403 Forbidden: Management access required.' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-
-    } catch (e) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Invalid authentication token.' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
+    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR PROTECTED APIS
+  if (
+    path.startsWith('/api/founder') ||
+    path.startsWith('/api/admin') ||
+    path.startsWith('/api/management') ||
+    path.startsWith('/api/corporate') ||
+    path.startsWith('/api/seller') ||
+    path.startsWith('/api/buyer')
+  ) {
+    if (path.startsWith('/api/founder')) {
+      const guard = await requireRole(request, ['FOUNDER']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/admin') || path.startsWith('/api/management')) {
+      const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'ADMIN']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/corporate')) {
+      const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/seller')) {
+      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/buyer')) {
+      const guard = await requireRole(request, ['BUYER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      if (guard instanceof NextResponse) return guard;
     }
   }
 
