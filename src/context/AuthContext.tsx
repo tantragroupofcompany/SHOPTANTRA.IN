@@ -171,7 +171,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resData = await response.json();
 
       if (response.ok && resData.success) {
-        // Auto-login after successful registration
+        // For sellers, do NOT auto-login. Redirect to email verification first.
+        const isSeller = (resData.user?.role || role).toLowerCase() === 'seller';
+        if (isSeller) {
+          setLoading(false);
+          return { error: null };
+        }
+
+        // Auto-login after successful registration for non-sellers
         try {
           const loginResult = await signIn(email, password);
           return loginResult;

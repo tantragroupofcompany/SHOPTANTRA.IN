@@ -7,8 +7,6 @@ import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 function SellerDashboard() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  
-  // Simulated/Real Seller Store Data
   const [stats, setStats] = useState({
     totalSales: 0,
     totalOrders: 0,

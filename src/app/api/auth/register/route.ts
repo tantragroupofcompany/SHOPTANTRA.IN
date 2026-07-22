@@ -97,6 +97,16 @@ export async function POST(request: Request) {
       }
     }
 
+    // 3b. Prevent duplicate seller profile
+    if (uppercaseRole === 'SELLER') {
+      const existingSeller = await prisma.seller.findFirst({
+        where: { user: { email: cleanEmail } }
+      });
+      if (existingSeller) {
+        return NextResponse.json({ error: 'A seller account with this email already exists. Please log in.' }, { status: 400 });
+      }
+    }
+
     const hashedPassword = hashPassword(password);
     
     // Generate 7-digit OTP if seller

@@ -96,23 +96,7 @@ async function main() {
     console.log(`ℹ️ Subscription plans already exist (${planCount} plans)`);
   }
 
-  // 3. Seed Super-Admin Account
-  const adminEmail = 'jadavnileshbhai2006@gmail.com';
-  const adminExists = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!adminExists) {
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        password: hashPassword('Niles@2006'),
-        role: 'ADMIN',
-        fullName: 'ShopTantra Founder',
-        phone: '+919099985145',
-      },
-    });
-    console.log(`✅ Super-Admin account created: ${adminEmail}`);
-  } else {
-    console.log(`ℹ️ Super-Admin account already exists: ${adminExists.email}`);
-  }
+  // Admin creation removed for production safety. Create admins via secure migration/setup only.
 
   // 4. Seed Courier Partners
   const courierCount = await prisma.courierPartner.count();

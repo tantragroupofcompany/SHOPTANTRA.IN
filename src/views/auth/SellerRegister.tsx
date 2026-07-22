@@ -220,8 +220,8 @@ export default function SellerRegister() {
         return;
       }
 
-      // Redirect to OTP verification page after successful registration
-      navigate(`/seller/verify-email?email=${encodeURIComponent(personalInfo.email.trim())}`);
+      // Redirect to pending approval page after successful registration
+      navigate(`/seller/pending-approval?email=${encodeURIComponent(personalInfo.email.trim())}`);
     } catch (err: any) {
       setError(err instanceof Error ? err.message : 'An error occurred during registration');
       scrollToErrorAndFocus();

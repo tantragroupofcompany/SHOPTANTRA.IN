@@ -44,6 +44,8 @@ import ForgotPassword from './views/auth/ForgotPassword';
 import ResetPassword from './views/auth/ResetPassword';
 import VerifyEmail from './views/auth/VerifyEmail';
 import AdminLogin from './views/auth/AdminLogin';
+import SellerVerifyEmail from './views/auth/SellerVerifyEmail';
+import PendingApproval from './views/auth/PendingApproval';
 
 // Vendor store
 import StorePage from './views/vendor/StorePage';
@@ -139,7 +141,8 @@ export default function ClientApp() {
             <Route path="register/seller" element={<SellerRegister />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/seller/verify-email" element={<VerifyEmail />} />
+            <Route path="/seller/verify-email" element={<SellerVerifyEmail />} />
+            <Route path="/seller/pending-approval" element={<PendingApproval />} />
             <Route path="/about" element={<About />} />
 
             {/* Seller dashboard routes */}
