@@ -1,52 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { hashPassword, verifyPassword } from '../../../../lib/authUtils';
+import { verifyPassword } from '../../../../lib/authUtils';
 import { SignJWT } from 'jose';
-
-const CORPORATE_CODES: Record<string, string> = {
-  FOUNDER: process.env.CORPORATE_ACCESS_CODE_FOUNDER || 'ST_2026_FOUNDER',
-  CEO_MD: process.env.CORPORATE_ACCESS_CODE_CEO || 'ST_2026_CEO',
-  CHAIRMAN: process.env.CORPORATE_ACCESS_CODE_CHAIRMAN || 'ST_2026_CHAIRMAN',
-};
-
-const ALLOWED_CORPORATE_ROLES = ['FOUNDER', 'CEO_MD', 'CHAIRMAN'];
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { accessCode, email, password } = body;
+    const { username, password } = body;
 
-    if (!accessCode || !email || !password) {
-      return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 401 });
+    if (!username || !password) {
+      return NextResponse.json({ error: 'Username and password are required.' }, { status: 401 });
     }
 
-    // Match access code to role
-    const matchedRole = Object.keys(CORPORATE_CODES).find(
-      (role) => CORPORATE_CODES[role] === accessCode
-    );
-
-    if (!matchedRole) {
-      return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 401 });
-    }
-
-    // Find user by email
+    // Find user by username
     const dbUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { username: username.toLowerCase().trim() },
     });
 
     if (!dbUser) {
-      return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
     }
 
     // Verify password
     const passwordValid = verifyPassword(password, dbUser.password);
     if (!passwordValid) {
-      return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
     }
 
-    // Verify role match
-    if (dbUser.role !== matchedRole) {
-      return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 403 });
+    // Verify corporate role
+    const allowedCorporateRoles = ['FOUNDER', 'CEO_MD', 'CHAIRMAN'];
+    if (!allowedCorporateRoles.includes(dbUser.role)) {
+      return NextResponse.json({ error: 'Access Denied. This account does not have executive privileges.' }, { status: 403 });
     }
 
     // Create session JWT
@@ -54,6 +38,7 @@ export async function POST(request: Request) {
     const token = await new SignJWT({
       userId: dbUser.id,
       email: dbUser.email,
+      username: dbUser.username,
       role: dbUser.role,
       type: 'corporate',
     })
@@ -66,6 +51,7 @@ export async function POST(request: Request) {
       user: {
         id: dbUser.id,
         email: dbUser.email,
+        username: dbUser.username,
         role: dbUser.role,
         fullName: dbUser.fullName,
       },
@@ -81,9 +67,18 @@ export async function POST(request: Request) {
       path: '/',
     });
 
+    // Also set regular auth_token for middleware compatibility
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 8 * 60 * 60,
+      path: '/',
+    });
+
     return response;
   } catch (error: any) {
     console.error('Corporate login error:', error);
-    return NextResponse.json({ error: 'Invalid Corporate Access Code or credentials.' }, { status: 500 });
+    return NextResponse.json({ error: 'Invalid username or password.' }, { status: 500 });
   }
 }

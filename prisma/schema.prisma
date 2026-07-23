@@ -9,9 +9,10 @@ generator client {
 
 model User {
   id            String          @id @default(uuid())
+  username      String?         @unique
   email         String          @unique
   password      String
-  role          String          @default("BUYER") // BUYER, SELLER, ADMIN
+  role          String          @default("BUYER") // BUYER, SELLER, FOUNDER, CEO_MD, CHAIRMAN, ADMIN
   fullName      String?
   phone         String?
   createdAt     DateTime        @default(now())
@@ -20,7 +21,6 @@ model User {
   sellerProfile Seller?
   reviews       Review[]
 }
-
 
 model Seller {
   id                String          @id @default(uuid())
@@ -34,7 +34,7 @@ model Seller {
   bankIfsc          String?
   bankAccountName   String?
   upiId             String?
-  commissionRate    Float           @default(10.0) // Vendor-specific commission override
+  commissionRate    Float           @default(10.0)
   status            String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
   logoUrl           String?
   bannerUrl         String?
@@ -49,7 +49,7 @@ model Seller {
   otpExpiresAt      DateTime?
   otpResendCount    Int             @default(0)
   lastOtpSentAt     DateTime?
-  verificationStatus String         @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, VERIFIED
+  verificationStatus String         @default("PENDING_VERIFICATION")
   products          Product[]
   orders            Order[]         @relation("SellerOrders")
   wallet            VendorWallet?
@@ -61,7 +61,6 @@ model Seller {
   coupons           Coupon[]
   settings          SellerSettings?
 }
-
 
 model Product {
   id                   String      @id @default(uuid())
@@ -76,9 +75,9 @@ model Product {
   description          String?
   sku                  String?
   barcode              String?
-  status               String      @default("draft") // draft, pending, active, suspended
-  images               String?     // JSON string
-  variants             String?     // JSON string
+  status               String      @default("draft")
+  images               String?
+  variants             String?
   tags                 String?
   weight               Float?
   weightUnit           String      @default("kg")
@@ -91,12 +90,11 @@ model Product {
   dangerousGoods       Boolean     @default(false)
   countryOfOrigin      String      @default("India")
   hsnCode              String?
-  estimatedPackingTime Int         @default(24) // in hours
+  estimatedPackingTime Int         @default(24)
   createdAt            DateTime    @default(now())
   orderItems           OrderItem[]
   reviews              Review[]
 }
-
 
 model Order {
   id              String        @id @default(uuid())
@@ -105,8 +103,8 @@ model Order {
   buyer           User          @relation("BuyerOrders", fields: [buyerId], references: [id])
   sellerId        String?
   seller          Seller?       @relation("SellerOrders", fields: [sellerId], references: [id])
-  status          String        @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED
-  paymentStatus   String        @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  status          String        @default("PENDING")
+  paymentStatus   String        @default("PENDING")
   paymentMethod   String?
   subtotal        Float
   discountAmount  Float         @default(0)
@@ -114,7 +112,7 @@ model Order {
   taxAmount       Float         @default(0)
   totalAmount     Float
   isCod           Boolean       @default(false)
-  shippingAddress String        // Stored as JSON string
+  shippingAddress String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   items           OrderItem[]
@@ -141,13 +139,13 @@ model Payment {
   id                String        @id @default(uuid())
   orderId           String
   order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  gateway           String        @default("RAZORPAY") // RAZORPAY, CASHFREE, PHONEPE
+  gateway           String        @default("RAZORPAY")
   amount            Float
-  status            String        @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  status            String        @default("PENDING")
   method            String?
-  gatewayLogs       String?       // Stored as JSON string
+  gatewayLogs       String?
   webhookVerified   Boolean       @default(false)
-  transactionReference String?     @unique // Gateway reference/transaction ID
+  transactionReference String?     @unique
   razorpayOrderId   String?       @unique
   razorpayPaymentId String?       @unique
   razorpaySignature String?
@@ -163,9 +161,9 @@ model Commission {
   seller            Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   orderAmount       Float
   commissionRate    Float
-  commissionAmount  Float       // calculated platform fee
-  sellerPayout      Float       // calculated net vendor earnings
-  status            String      @default("PENDING") // PENDING, PROCESSED
+  commissionAmount  Float
+  sellerPayout      Float
+  status            String      @default("PENDING")
   createdAt         DateTime    @default(now())
 }
 
@@ -173,8 +171,8 @@ model VendorWallet {
   id                String              @id @default(uuid())
   sellerId          String              @unique
   seller            Seller              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  balance           Float               @default(0.0) // withdrawable balance
-  pendingEarnings   Float               @default(0.0) // locked earnings (e.g. return window active)
+  balance           Float               @default(0.0)
+  pendingEarnings   Float               @default(0.0)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   transactions      WalletTransaction[]
@@ -185,7 +183,7 @@ model WalletTransaction {
   walletId      String
   wallet        VendorWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
   amount        Float
-  type          String       // CREDIT (earnings), DEBIT (withdrawal)
+  type          String
   description   String
   createdAt     DateTime     @default(now())
 }
@@ -195,11 +193,11 @@ model PayoutRequest {
   sellerId      String
   seller        Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   amount        Float
-  status        String       @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
-  paymentMethod String       // BANK_TRANSFER, UPI
-  bankDetails   String?      // encrypted account number, ifsc, etc. (Stored as JSON string)
+  status        String       @default("PENDING")
+  paymentMethod String
+  bankDetails   String?
   upiId         String?
-  transactionId String?      // bank/razorpay ref number
+  transactionId String?
   notes         String?
   requestedAt   DateTime     @default(now())
   processedAt   DateTime?
@@ -208,9 +206,9 @@ model PayoutRequest {
 model GlobalSettings {
   id                      String   @id @default("settings")
   defaultCommissionRate   Float    @default(10.0)
-  categoryCommissions     String   // Stored as JSON string
-  settlementDelayDays     Int      @default(7) // configurable settlement delay days
-  parentCompanyLogoUrl    String?  // URL for parent company logo stored in Supabase
+  categoryCommissions     String
+  settlementDelayDays     Int      @default(7)
+  parentCompanyLogoUrl    String?
 }
 
 model SupportTicket {
@@ -219,8 +217,8 @@ model SupportTicket {
   orderId     String?
   subject     String
   description String
-  type        String   // RETURN, REFUND, CANCEL, GENERAL
-  status      String   @default("OPEN") // OPEN, RESOLVED, CLOSED
+  type        String
+  status      String   @default("OPEN")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -229,7 +227,7 @@ model AdminNotification {
   id          String   @id @default(uuid())
   title       String
   message     String
-  type        String   // ORDER, SYSTEM, SELLER, PAYOUT
+  type        String
   read        Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
@@ -248,8 +246,8 @@ model PickupAddress {
   state              String
   pincode            String
   country            String   @default("India")
-  pickupLocationId   String?  // Third-party service pickup ID (e.g. Shiprocket location code)
-  verificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  pickupLocationId   String?
+  verificationStatus String   @default("PENDING")
   latitude           Float?
   longitude          Float?
   createdAt          DateTime @default(now())
@@ -259,7 +257,7 @@ model PickupAddress {
 model CourierPartner {
   id                 String     @id @default(uuid())
   name               String     @unique
-  code               String     @unique // e.g. SHIPROCKET, DELHIVERY, DTDC, BLUEDART, XPRESSBEES, ECOM_EXPRESS
+  code               String     @unique
   isActive           Boolean    @default(true)
   baseRatePrepaid    Float      @default(40.0)
   baseRateCOD        Float      @default(60.0)
@@ -278,7 +276,7 @@ model Shipment {
   seller           Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   courierPartnerId String?
   courierPartner   CourierPartner? @relation(fields: [courierPartnerId], references: [id])
-  status           String          @default("PENDING") // PENDING, PACKED, SHIPPED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED, RETURNED
+  status           String          @default("PENDING")
   awbNumber        String?         @unique
   trackingNumber   String?         @unique
   trackingLink     String?
@@ -348,7 +346,7 @@ model Review {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating         Int
   comment        String
-  status         String   @default("pending") // pending, approved, rejected
+  status         String   @default("pending")
   sellerResponse String?
   createdAt      DateTime @default(now())
 }
@@ -359,9 +357,9 @@ model Lead {
   email        String
   phone        String
   company      String?
-  source       String    @default("other") // website, email, referral, social, other
-  status       String    @default("new") // new, contacted, qualified, won, lost
-  priority     String    @default("medium") // low, medium, high
+  source       String    @default("other")
+  status       String    @default("new")
+  priority     String    @default("medium")
   assignedTo   String?
   followUpDate DateTime?
   notes        String?
@@ -374,7 +372,7 @@ model SubscriptionPlan {
   name          String
   description   String?
   price         Float
-  features      String         // JSON string array
+  features      String
   durationDays  Int            @default(30)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -387,8 +385,8 @@ model Subscription {
   seller       Seller           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   planId       String
   plan         SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  billingCycle String           @default("monthly") // monthly, yearly
-  status       String           @default("active") // active, trial, expired, cancelled
+  billingCycle String           @default("monthly")
+  status       String           @default("active")
   startDate    DateTime         @default(now())
   endDate      DateTime
   amount       Float
@@ -401,11 +399,11 @@ model Coupon {
   sellerId      String
   seller        Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   code          String   @unique
-  discountType  String   // percentage, flat
+  discountType  String
   discountValue Float
   minSpend      Float    @default(0.0)
   expiryDate    String
-  status        String   @default("active") // active, inactive
+  status        String   @default("active")
   usageCount    Int      @default(0)
   totalSavings  Float    @default(0.0)
   createdAt     DateTime @default(now())
@@ -415,7 +413,7 @@ model SellerSettings {
   id                  String   @id @default(uuid())
   sellerId            String   @unique
   seller              Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  notificationPrefs   String   // JSON string
+  notificationPrefs   String
   twoFaEnabled        Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -445,9 +443,9 @@ model PincodeServiceability {
 model ShippingAuditLog {
   id          String   @id @default(uuid())
   shipmentId  String?
-  action      String   // e.g. AWB_GENERATED, PICKUP_SCHEDULED, STATUS_TRACKED, CANCELLED
-  performedBy String   // e.g. user ID or "SYSTEM"
-  role        String   // e.g. ADMIN, SELLER, SYSTEM
-  details     String?  // JSON details of action
+  action      String
+  performedBy String
+  role        String
+  details     String?
   createdAt   DateTime @default(now())
 }
