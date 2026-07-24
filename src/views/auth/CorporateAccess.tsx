@@ -62,12 +62,7 @@ export default function CorporateAccess() {
         return;
       }
 
-      const roleConfig = ROLE_CONFIGS.find((r) => r.role === data.user.role);
-      if (roleConfig) {
-        navigate(roleConfig.dashboard);
-      } else {
-        navigate('/');
-      }
+      navigate(data.redirectTo || '/corporate/dashboard');
     } catch (err: any) {
       setError('Invalid username or password.');
       setLoading(false);

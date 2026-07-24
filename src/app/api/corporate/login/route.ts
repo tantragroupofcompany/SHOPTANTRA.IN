@@ -243,12 +243,7 @@ export async function POST(request: Request) {
       .sign(secret);
 
     // Step 6: Determine redirect based on role
-    const dashboardMap: Record<string, string> = {
-      FOUNDER: '/founder/dashboard',
-      CEO_MD: '/ceo/dashboard',
-      CHAIRMAN: '/chairman/dashboard',
-    };
-    const redirectTo = dashboardMap[dbUser.role] || '/';
+    const redirectTo = '/corporate/dashboard';
 
     const response = NextResponse.json({
       success: true,

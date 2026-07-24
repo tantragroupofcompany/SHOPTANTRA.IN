@@ -109,6 +109,8 @@ import ChairmanDashboard from './views/chairman/Dashboard';
 import FounderGuard from './views/corporate/FounderGuard';
 import CEOGuard from './views/corporate/CEOGuard';
 import ChairmanGuard from './views/corporate/ChairmanGuard';
+import CorporateDashboard from './views/corporate/CorporateDashboard';
+import CorporateGuard from './views/corporate/CorporateGuard';
 
 export default function ClientApp() {
   return (
@@ -235,6 +237,7 @@ export default function ClientApp() {
             </Route>
 
             {/* Corporate control center */}
+            <Route path="/corporate/dashboard" element={<CorporateGuard><CorporateDashboard /></CorporateGuard>} />
             <Route path="/founder/dashboard" element={<FounderGuard><FounderDashboard /></FounderGuard>} />
             <Route path="/ceo/dashboard" element={<CEOGuard><CEODashboard /></CEOGuard>} />
             <Route path="/chairman/dashboard" element={<ChairmanGuard><ChairmanDashboard /></ChairmanGuard>} />
