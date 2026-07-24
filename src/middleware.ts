@@ -79,7 +79,8 @@ export async function middleware(request: NextRequest) {
     '/api/auth/resend-otp',
     '/api/auth/admin/request-otp',
     '/api/auth/admin/verify-otp',
-    '/api/corporate/login',  // <-- CRITICAL: Must be public for login to work
+    '/api/corporate/login',
+    '/api/corporate/verify',  // Must be public to verify JWT cookie
     '/api/contact/submit',
     '/api/newsletter/subscribe',
     '/api/checkout/verify',
