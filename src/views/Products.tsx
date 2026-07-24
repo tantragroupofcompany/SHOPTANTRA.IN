@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Heart, Star, Search, ChevronDown, Sparkles } from 'lucide-react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { mockProducts, CATEGORIES_LIST, Product } from '../data/products';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toggleWishlist, isInWishlist } = useApp();
 
@@ -254,80 +255,9 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
-        {/* Left Column: Filter Sidebar */}
-        <div className="space-y-6 lg:col-span-1">
-          <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-2xl p-5 shadow-sm space-y-5">
-            <div className="flex justify-between items-center pb-3 border-b border-gray-50 dark:border-brand-navy-light/5">
-              <span className="font-bold text-sm text-gray-800 dark:text-gray-200">Catalog Filters</span>
-              <button
-                onClick={clearAllFilters}
-                className="text-xs text-brand-orange font-bold hover:underline"
-              >
-                Clear All
-              </button>
-            </div>
-
-            {/* Category selection */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Category</span>
-              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 text-sm">
-                <button
-                  onClick={() => setSearchParams({ category: 'All' })}
-                  className={`text-left px-2 py-1 rounded-lg text-xs font-semibold ${selectedCategory === 'All' ? 'bg-brand-orange/10 text-brand-orange' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brand-navy-light/30'}`}
-                >
-                  All Categories
-                </button>
-                {CATEGORIES_LIST.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSearchParams({ category: cat })}
-                    className={`text-left px-2 py-1 rounded-lg text-xs font-semibold truncate ${selectedCategory === cat ? 'bg-brand-orange/10 text-brand-orange' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brand-navy-light/30'}`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Price Ranges selection */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Price range</span>
-              <div className="flex flex-col gap-1.5 text-xs font-semibold">
-                {priceRanges.map((range, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedPrice(selectedPrice === range ? null : range)}
-                    className={`text-left px-2 py-1.5 rounded-lg ${selectedPrice === range ? 'bg-brand-orange/10 text-brand-orange' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brand-navy-light/30'}`}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Rating Filter selection */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">Rating filter</span>
-              <div className="flex flex-col gap-1.5 text-xs font-semibold">
-                {ratingFilters.map((filter) => (
-                  <button
-                    key={filter.rating}
-                    onClick={() => setSelectedRating(selectedRating === filter.rating ? null : filter.rating)}
-                    className={`text-left px-2 py-1.5 rounded-lg ${selectedRating === filter.rating ? 'bg-brand-orange/10 text-brand-orange' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-brand-navy-light/30'}`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Right Column: Products Grids */}
-        <div className="lg:col-span-3 space-y-6">
+      <div className="grid grid-cols-1">
+        {/* Products Grid - Full Width */}
+        <div className="space-y-6">
           {paginatedProducts.length === 0 ? (
             <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-2xl p-12 text-center shadow-sm">
               <p className="text-base text-gray-500 dark:text-gray-400 font-bold">No Products Match Your Filters</p>
@@ -344,12 +274,13 @@ export default function ProductsPage() {
                 {paginatedProducts.map((p) => (
                   <div
                     key={p.id}
-                    className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between h-full relative"
+                    onClick={() => navigate(`/product/${p.id}`)}
+                    className="group bg-white dark:bg-brand-navy rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col justify-between h-full relative cursor-pointer"
                   >
                     
                     {/* Wishlist toggle */}
                     <button
-                      onClick={() => toggleWishlist(p)}
+                      onClick={(e) => { e.stopPropagation(); toggleWishlist(p); }}
                       className={`absolute top-3 right-3 z-10 p-2 rounded-full shadow-md bg-white/90 dark:bg-brand-navy/85 hover:scale-110 active:scale-90 transition-all ${isInWishlist(p.id) ? 'text-brand-orange' : 'text-gray-400'}`}
                     >
                       <Heart size={16} className={isInWishlist(p.id) ? 'fill-brand-orange' : ''} />
@@ -360,7 +291,7 @@ export default function ProductsPage() {
                       <img
                         src={p.images[0]}
                         alt={p.title}
-                        className="w-full h-full object-cover group-hover:scale-103 transition-transform"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       {p.discount > 0 && (
                         <span className="absolute bottom-2 left-2 bg-brand-orange text-white text-[9px] font-black px-1.5 py-0.5 rounded">
@@ -372,12 +303,9 @@ export default function ProductsPage() {
                     {/* Meta info */}
                     <div className="p-3.5 sm:p-5 flex-grow flex flex-col justify-between space-y-3">
                       <div className="space-y-1">
-                        <Link
-                          to={`/product/${p.id}`}
-                          className="font-extrabold text-gray-800 dark:text-gray-100 text-xs sm:text-sm hover:text-brand-orange line-clamp-2 leading-tight block"
-                        >
+                        <span className="font-extrabold text-gray-800 dark:text-gray-100 text-xs sm:text-sm line-clamp-2 leading-tight block">
                           {p.title}
-                        </Link>
+                        </span>
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 block">Seller: {p.seller}</span>
                         <div className="flex items-center gap-1.5 mt-1">
                           {ratingStars(p.rating)}

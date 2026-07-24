@@ -94,7 +94,7 @@ export default function Cart() {
                   
                   {/* Image & Title */}
                   <div className="col-span-6 flex gap-4">
-                    <img src={item.product.images[0]} alt={item.product.title} className="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-brand-navy-light/10" />
+                    <img src={item.product.images?.[0]} alt={item.product.title} className="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-brand-navy-light/10 bg-gray-100" />
                     <div className="flex-grow min-w-0">
                       <Link to={`/product/${item.product.id}`} className="font-bold text-gray-900 dark:text-gray-100 text-sm hover:text-brand-orange line-clamp-2 leading-tight">
                         {item.product.title}
