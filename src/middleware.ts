@@ -13,7 +13,6 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   // 1. SECURITY HEADERS
-  // Content Security Policy (CSP)
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com;
@@ -37,7 +36,6 @@ export async function middleware(request: NextRequest) {
     const now = Date.now();
     let timestamps = rateLimitMap.get(ip) || [];
     
-    // Filter timestamps outside current window
     timestamps = timestamps.filter(t => now - t < WINDOW);
     
     if (timestamps.length >= LIMIT) {
@@ -54,22 +52,47 @@ export async function middleware(request: NextRequest) {
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
       const origin = request.headers.get('origin');
       const host = request.headers.get('host');
-      const referer = request.headers.get('referer');
       
-      // Basic domain validation
       if (origin && host) {
-        const originUrl = new URL(origin);
-        if (originUrl.host !== host) {
-          return new NextResponse(
-            JSON.stringify({ error: 'CSRF validation failed. Invalid Origin.' }),
-            { status: 403, headers: { 'Content-Type': 'application/json' } }
-          );
+        try {
+          const originUrl = new URL(origin);
+          if (originUrl.host !== host) {
+            return new NextResponse(
+              JSON.stringify({ error: 'CSRF validation failed. Invalid Origin.' }),
+              { status: 403, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch (e) {
+          // Invalid origin URL, skip check
         }
       }
     }
   }
 
-    // 4. ROLE-BASED ACCESS CONTROL (RBAC) FOR PROTECTED APIS
+  // 4. EXEMPT PUBLIC ROUTES FROM RBAC
+  const publicApiPaths = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/auth/verify-otp',
+    '/api/auth/resend-otp',
+    '/api/auth/admin/request-otp',
+    '/api/auth/admin/verify-otp',
+    '/api/corporate/login',  // <-- CRITICAL: Must be public for login to work
+    '/api/contact/submit',
+    '/api/newsletter/subscribe',
+    '/api/checkout/verify',
+    '/api/supabase-polyfill',
+  ];
+
+  // Skip RBAC for public API paths
+  const isPublicApi = publicApiPaths.some(p => path.startsWith(p));
+  if (isPublicApi) {
+    return response;
+  }
+
+  // 5. ROLE-BASED ACCESS CONTROL (RBAC) FOR PROTECTED APIS
   if (
     path.startsWith('/api/founder') ||
     path.startsWith('/api/admin') ||
