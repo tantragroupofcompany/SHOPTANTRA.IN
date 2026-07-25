@@ -34,6 +34,7 @@ import Introduction from './views/Introduction';
 import Categories from './views/Categories';
 import Deals from './views/Deals';
 import Tracking from './views/Tracking';
+import DownloadApp from './views/DownloadApp';
 
 // Auth pages
 import Login from './views/auth/Login';
@@ -144,6 +145,7 @@ export default function ClientApp() {
               <Route path="deals" element={<Deals />} />
               <Route path="tracking" element={<Tracking />} />
             </Route>
+            <Route path="download-app" element={<DownloadApp />} />
 
             {/* Auth routes */}
             <Route path="login" element={<Login />} />

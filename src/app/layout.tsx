@@ -6,7 +6,7 @@ export const metadata = {
   description: 'ShopTantra is India\'s #1 multi-vendor marketplace to buy and sell products online. Connect with verified sellers, get the best deals, and start your own online store today.',
   keywords: 'buy and sell online, best marketplace india, multi vendor store, online shopping india, sell products online, shoptantra',
   icons: {
-    icon: '/favicon.svg',
+    icon: '/SHOPTANTRA.png',
   },
   alternates: {
     canonical: 'https://shoptantra.in',
@@ -43,6 +43,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#FF6B00" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="SHOPTANTRA" />
+        <link rel="apple-touch-icon" href="/SHOPTANTRA.png" />
         {/* Razorpay Script */}
         <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
         {/* Load Inter and Outfit fonts */}
