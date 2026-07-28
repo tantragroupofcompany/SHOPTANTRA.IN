@@ -22,6 +22,14 @@ model User {
   reviews       Review[]
 }
 
+model DownloadAnalytics {
+  id           String   @id @default(uuid())
+  platform     String
+  url          String
+  userAgent    String
+  downloadedAt DateTime @default(now())
+}
+
 model Seller {
   id                String          @id @default(uuid())
   userId            String          @unique

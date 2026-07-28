@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Download, Smartphone, Shield, Zap, Clock, Package, Headphones, Gift, BarChart3, Users, Globe, QrCode, ChevronRight } from 'lucide-react';
+import { Download, Smartphone, Laptop, Monitor, QrCode, ChevronRight, Package, Shield, Zap, Clock, Headphones, Gift, BarChart3, Users, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Feature {
@@ -21,6 +21,13 @@ const features: Feature[] = [
   { icon: Headphones, title: 'Customer Support', desc: '24x7 chat and call support for all queries.' },
 ];
 
+const platforms = [
+  { name: 'Android', icon: Smartphone, download: '/downloads/SHOPTANTRA.apk', comingSoon: false, size: '~24 MB', version: '2.4.1', date: 'July 2026' },
+  { name: 'Windows', icon: Laptop, download: '#', comingSoon: true, size: 'Coming Soon', version: '—', date: '—' },
+  { name: 'macOS', icon: Monitor, download: '#', comingSoon: true, size: 'Coming Soon', version: '—', date: '—' },
+  { name: 'Linux', icon: Monitor, download: '#', comingSoon: true, size: 'Coming Soon', version: '—', date: '—' },
+];
+
 const stats = [
   { label: 'Total Downloads', value: '500,000+' },
   { label: 'Current Version', value: '2.4.1' },
@@ -32,9 +39,7 @@ export default function DownloadApp() {
   const [qrSize, setQrSize] = useState(220);
 
   useEffect(() => {
-    const handleResize = () => {
-      setQrSize(window.innerWidth < 640 ? 180 : 220);
-    };
+    const handleResize = () => setQrSize(window.innerWidth < 640 ? 180 : 220);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -42,20 +47,32 @@ export default function DownloadApp() {
 
   const qrData = typeof window !== 'undefined' ? `${window.location.origin}/download-app` : 'https://shoptantra.in/download-app';
 
+  const handleDownloadClick = async (platform: string, url: string) => {
+    if (url === '#') return;
+    try {
+      await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, url, userAgent: navigator.userAgent }),
+      });
+    } catch (e) { /* silent */ }
+    window.open(url, '_blank');
+  };
+
   return (
     <>
       <Helmet>
         <title>Download SHOPTANTRA App | Shop Smarter, Sell Faster</title>
-        <meta name="description" content="Download the official SHOPTANTRA app for Android. Shop smarter, sell faster, and manage your business from anywhere. Secure checkout, live tracking, exclusive offers." />
-        <meta name="keywords" content="SHOPTANTRA app, download app, android app, online shopping, seller app, buyer app, marketplace India" />
+        <meta name="description" content="Download the official SHOPTANTRA app for Android. Shop smarter, sell faster, and manage your business from anywhere. Windows, macOS, and Linux coming soon." />
+        <meta name="keywords" content="SHOPTANTRA app, download app, android app, windows app, macos app, linux app, online shopping, seller app, buyer app, marketplace India" />
         <link rel="canonical" href="https://shoptantra.in/download-app" />
         <meta property="og:title" content="Download SHOPTANTRA App | Shop Smarter, Sell Faster" />
-        <meta property="og:description" content="Get the official SHOPTANTRA app. Secure shopping, live tracking, exclusive offers, and more." />
+        <meta property="og:description" content="Get the official SHOPTANTRA app for Android. Windows, macOS, and Linux versions coming soon." />
         <meta property="og:url" content="https://shoptantra.in/download-app" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Download SHOPTANTRA App" />
-        <meta name="twitter:description" content="Shop smarter, sell faster with the official SHOPTANTRA mobile app." />
+        <meta name="twitter:description" content="Shop smarter, sell faster with the official SHOPTANTRA mobile and desktop apps." />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white text-gray-900">
@@ -83,11 +100,11 @@ export default function DownloadApp() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div className="text-white space-y-6">
                 <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight">Download the Official SHOPTANTRA App</h1>
-                <p className="text-base sm:text-lg text-gray-200 max-w-xl">Shop smarter, sell faster and manage your business from anywhere.</p>
+                <p className="text-base sm:text-lg text-gray-200 max-w-xl">Shop smarter, sell faster and manage your business from anywhere. Available on Android now. Windows, macOS, and Linux coming soon.</p>
                 <div className="flex flex-wrap gap-4">
-                  <a href="/downloads/SHOPTANTRA.apk" download className="inline-flex items-center gap-2 bg-white text-brand-navy font-bold px-6 py-3 rounded-xl hover:bg-gray-100 transition shadow-lg">
+                  <button onClick={() => handleDownloadClick('android', '/downloads/SHOPTANTRA.apk')} className="inline-flex items-center gap-2 bg-white text-brand-navy font-bold px-6 py-3 rounded-xl hover:bg-gray-100 transition shadow-lg">
                     <Download size={20} /> Download APK
-                  </a>
+                  </button>
                   <button disabled className="inline-flex items-center gap-2 bg-gray-700 text-white font-bold px-6 py-3 rounded-xl opacity-70 cursor-not-allowed">
                     <Smartphone size={20} /> Google Play (Coming Soon)
                   </button>
@@ -117,15 +134,36 @@ export default function DownloadApp() {
           </div>
         </section>
 
+        {/* Platforms */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-10">Available Platforms</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {platforms.map((p) => (
+              <div key={p.name} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition flex flex-col items-center text-center">
+                <div className="w-12 h-12 rounded-xl bg-brand-orange/10 text-brand-orange flex items-center justify-center mb-3"><p.icon size={24} /></div>
+                <h3 className="font-bold text-sm">{p.name}</h3>
+                <p className="text-xs text-gray-500 mt-1">{p.version}</p>
+                <p className="text-xs text-gray-500">{p.size}</p>
+                <p className="text-xs text-gray-400">{p.date}</p>
+                {!p.comingSoon ? (
+                  <button onClick={() => handleDownloadClick(p.name.toLowerCase(), p.download)} className="mt-3 inline-flex items-center gap-2 bg-brand-navy text-white font-bold px-4 py-2 rounded-lg text-xs hover:bg-brand-navy-light transition">
+                    <Download size={14} /> Download
+                  </button>
+                ) : (
+                  <button disabled className="mt-3 inline-flex items-center gap-2 bg-gray-200 text-gray-500 font-bold px-4 py-2 rounded-lg text-xs cursor-not-allowed">Coming Soon</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Features */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-center mb-10">App Features</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f) => (
               <div key={f.title} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition">
-                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 text-brand-orange flex items-center justify-center mb-3">
-                  <f.icon size={20} />
-                </div>
+                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 text-brand-orange flex items-center justify-center mb-3"><f.icon size={20} /></div>
                 <h3 className="font-bold text-sm mb-1">{f.title}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
@@ -188,7 +226,7 @@ export default function DownloadApp() {
               <div>
                 <h4 className="font-bold text-sm mb-3">Downloads</h4>
                 <ul className="space-y-2 text-xs">
-                  <li><a href="/downloads/SHOPTANTRA.apk" download className="hover:text-white">Download APK</a></li>
+                  <li><button onClick={() => handleDownloadClick('android', '/downloads/SHOPTANTRA.apk')} className="hover:text-white">Download APK</button></li>
                   <li><span className="text-gray-500">Google Play (Coming Soon)</span></li>
                   <li><span className="text-gray-500">App Store (Coming Soon)</span></li>
                 </ul>
