@@ -18,7 +18,8 @@ import {
   Moon,
   Store,
   Check,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
