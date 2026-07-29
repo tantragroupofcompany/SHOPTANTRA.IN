@@ -422,6 +422,13 @@ export function Navbar() {
             ) : (
               <div className="hidden sm:flex items-center gap-1.5">
                 <Link
+                  to="/download-app"
+                  className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-brand-orange to-orange-500 text-white rounded-lg hover:from-brand-orange-hover hover:to-orange-600 transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <Download size={16} />
+                  Download App
+                </Link>
+                <Link
                   to="/login"
                   className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-brand-orange dark:hover:text-brand-orange transition-colors"
                 >
@@ -561,6 +568,10 @@ export function Navbar() {
               </>
             ) : (
               <>
+                <Link to="/download-app" className="block px-3 py-2 text-sm font-semibold text-brand-orange hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg flex items-center gap-2" onClick={() => setMenuOpen(false)}>
+                  <Download size={16} />
+                  Download App
+                </Link>
                 <Link to="/login" className="block px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg" onClick={() => setMenuOpen(false)}>Login</Link>
                 <Link to="/register" className="block px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-brand-navy-light rounded-lg" onClick={() => setMenuOpen(false)}>Register</Link>
               </>
