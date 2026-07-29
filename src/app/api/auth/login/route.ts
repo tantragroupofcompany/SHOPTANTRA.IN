@@ -2,17 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { verifyPassword } from '../../../../lib/authUtils';
 
+import jwt from 'jsonwebtoken';
+
 // Secret key for secure JWT token signing
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET is not configured');
-}
-
-import jwt from 'jsonwebtoken';
-
 export async function POST(request: Request) {
   try {
+    if (!JWT_SECRET) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
