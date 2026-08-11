@@ -21,6 +21,11 @@ interface DashboardData {
   visitors: { today: number; weekly: number; monthly: number };
   business: { totalBranches: number; totalEmployees: number; totalAdvertisements: number; totalCoupons: number; totalReviews: number };
   security: { failedLogins: number; blockedAccounts: number; corporateSessions: number; recentLogins: number; jwtStatus: string };
+  recentOrders: any[];
+  recentSellers: any[];
+  recentProducts: any[];
+  pendingApprovals: { sellers: number; products: number; total: number };
+  customers: { total: number; newToday: number; active: number; inactive: number };
 }
 
 const navItems = [
@@ -163,14 +168,14 @@ export default function CorporateDashboard() {
           {data && activeTab === 'dashboard' && (
             <>
               {/* KPI Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 {[
-                  { label: "Today Revenue", value: formatCurrency(data.today.revenue), icon: IndianRupee, color: 'text-green-400 bg-green-500/10' },
-                  { label: 'Total Orders', value: data.company.totalOrders, icon: ShoppingCart, color: 'text-blue-400 bg-blue-500/10' },
-                  { label: 'Total Sellers', value: data.sellers.total, icon: Users, color: 'text-orange-400 bg-orange-500/10' },
-                  { label: 'Pending Sellers', value: data.sellers.pending, icon: UserCheck, color: 'text-yellow-400 bg-yellow-500/10' },
-                  { label: 'Total Products', value: data.marketplace.totalProducts, icon: Package, color: 'text-cyan-400 bg-cyan-500/10' },
-                  { label: 'Open Tickets', value: data.support.open, icon: Ticket, color: 'text-red-400 bg-red-500/10' },
+                  { label: 'Revenue', value: formatCurrency(data.company.totalRevenue), icon: IndianRupee, color: 'text-green-400 bg-green-500/10' },
+                  { label: 'Orders', value: data.company.totalOrders, icon: ShoppingCart, color: 'text-blue-400 bg-blue-500/10' },
+                  { label: 'Products', value: data.marketplace.totalProducts, icon: Package, color: 'text-cyan-400 bg-cyan-500/10' },
+                  { label: 'Sellers', value: data.sellers.total, icon: Users, color: 'text-orange-400 bg-orange-500/10' },
+                  { label: 'Customers', value: data.customers?.total ?? data.buyers.total, icon: UserCog, color: 'text-purple-400 bg-purple-500/10' },
+                  { label: 'Pending Approvals', value: data.sellers.pending + data.marketplace.pendingProducts, icon: UserCheck, color: 'text-yellow-400 bg-yellow-500/10' },
                 ].map((card, i) => (
                   <div key={i} className="bg-gray-800 rounded-xl p-3 border border-gray-700">
                     <div className={`inline-flex p-1.5 rounded-lg ${card.color} mb-1.5`}><card.icon size={14} /></div>
@@ -316,6 +321,63 @@ export default function CorporateDashboard() {
                     <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.today}</p><p className="text-gray-400">Today</p></div>
                     <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.weekly}</p><p className="text-gray-400">Weekly</p></div>
                     <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.monthly}</p><p className="text-gray-400">Monthly</p></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {/* Recent Orders */}
+                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><ShoppingCart size={14} className="inline mr-1 text-orange-500" /> Recent Orders</h2>
+                  <div className="space-y-2">
+                    {data.recentOrders && data.recentOrders.length > 0 ? data.recentOrders.slice(0, 5).map((o: any) => (
+                      <div key={o.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="font-bold text-xs truncate">{o.orderNumber}</span>
+                          <span className="font-bold text-xs text-green-400 whitespace-nowrap">{formatCurrency(o.totalAmount)}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 mt-1">
+                          <span className="text-[10px] text-gray-400 truncate">{o.buyer?.fullName || o.buyer?.email || 'Customer'}{o.seller?.storeName ? ` · ${o.seller.storeName}` : ''}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">{o.status}</span>
+                        </div>
+                      </div>
+                    )) : <p className="text-xs text-gray-500">No orders yet.</p>}
+                  </div>
+                </div>
+
+                {/* Recent Sellers */}
+                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                  <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Building2 size={14} className="inline mr-1 text-orange-500" /> Recent Sellers</h2>
+                  <div className="space-y-2">
+                    {data.recentSellers && data.recentSellers.length > 0 ? data.recentSellers.slice(0, 5).map((s: any) => (
+                      <div key={s.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="font-bold text-xs truncate">{s.storeName}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${s.status === 'ACTIVE' || s.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' : s.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700 text-gray-300'}`}>{s.status}</span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-1 truncate">{s.user?.fullName || s.user?.email || '—'}{s.city ? ` · ${s.city}` : ''} · {s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '—'}</div>
+                      </div>
+                    )) : <p className="text-xs text-gray-500">No sellers yet.</p>}
+                  </div>
+                </div>
+
+                {/* Recent Products */}
+                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 md:col-span-2 xl:col-span-1">
+                  <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Package size={14} className="inline mr-1 text-orange-500" /> Recent Products</h2>
+                  <div className="space-y-2">
+                    {data.recentProducts && data.recentProducts.length > 0 ? data.recentProducts.slice(0, 5).map((p: any) => (
+                      <div key={p.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="font-bold text-xs truncate">{p.title}</span>
+                          <span className="font-bold text-xs text-cyan-400 whitespace-nowrap">{formatCurrency(p.price)}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2 mt-1">
+                          <span className="text-[10px] text-gray-400 truncate">{p.category || 'General'}{p.seller?.storeName ? ` · ${p.seller.storeName}` : ''}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">{p.status} · {p.stock} left</span>
+                        </div>
+                      </div>
+                    )) : <p className="text-xs text-gray-500">No products yet.</p>}
                   </div>
                 </div>
               </div>
