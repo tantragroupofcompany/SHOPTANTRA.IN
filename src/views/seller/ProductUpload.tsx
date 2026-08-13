@@ -50,7 +50,7 @@ const ProductUpload = () => {
     countryOfOrigin: 'India',
     hsnCode: '',
     estimatedPackingTime: '24',
-    status: 'draft',
+    status: 'DRAFT',
   });
 
   const [images, setImages] = useState<Image[]>([

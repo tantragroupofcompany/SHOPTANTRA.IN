@@ -15,7 +15,7 @@ interface ProductWithImage extends Product {
   product_images?: Array<{ url: string; is_primary: boolean }>;
 }
 
-type ProductStatus = 'all' | 'active' | 'draft' | 'pending';
+type ProductStatus = 'all' | 'ACTIVE' | 'DRAFT' | 'PENDING' | 'REJECTED';
 
 const Products = () => {
   const navigate = useNavigate();
@@ -107,9 +107,10 @@ const Products = () => {
 
   const statusCounts = {
     all: products.length,
-    active: products.filter((p) => p.status === 'active').length,
-    draft: products.filter((p) => p.status === 'draft').length,
-    pending: products.filter((p) => p.status === 'pending').length,
+    ACTIVE: products.filter((p) => p.status === 'ACTIVE').length,
+    DRAFT: products.filter((p) => p.status === 'DRAFT').length,
+    PENDING: products.filter((p) => p.status === 'PENDING').length,
+    REJECTED: products.filter((p) => p.status === 'REJECTED').length,
   };
 
   return (
@@ -142,7 +143,7 @@ const Products = () => {
           </div>
 
           <div className="flex gap-2 border-b border-gray-100 pb-4">
-            {(['all', 'active', 'draft', 'pending'] as const).map((status) => (
+            {(['all', 'ACTIVE', 'DRAFT', 'PENDING', 'REJECTED'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}

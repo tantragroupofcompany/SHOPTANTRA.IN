@@ -31,10 +31,10 @@ export async function GET(request: NextRequest) {
       prisma.order.count(),
       prisma.order.aggregate({ _sum: { totalAmount: true } }),
       prisma.seller.count({ where: { status: 'PENDING' } }),
-      prisma.product.count({ where: { status: 'pending' } }),
+      prisma.product.count({ where: { status: 'PENDING' } }),
       prisma.order.count({ where: { createdAt: { gte: today } } }),
       prisma.order.aggregate({ where: { createdAt: { gte: today } }, _sum: { totalAmount: true } }),
-      prisma.product.count({ where: { status: 'active' } }),
+      prisma.product.count({ where: { status: 'ACTIVE' } }),
       prisma.seller.count({ where: { status: 'ACTIVE' } }),
     ]);
 

@@ -83,7 +83,7 @@ model Product {
   description          String?
   sku                  String?
   barcode              String?
-  status               String      @default("draft")
+  status               String      @default("DRAFT")
   images               String?
   variants             String?
   tags                 String?

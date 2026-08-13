@@ -130,8 +130,15 @@ export default function CorporateDashboard() {
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
-            <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${activeTab === item.id ? 'bg-orange-500/20 text-orange-400' : 'text-gray-300 hover:bg-gray-700'}`}>
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id === 'sellers') { navigate('/corporate/sellers'); return; }
+                if (item.id === 'products') { navigate('/corporate/products'); return; }
+                setActiveTab(item.id);
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition cursor-pointer ${activeTab === item.id ? 'bg-orange-500/20 text-orange-400' : 'text-gray-300 hover:bg-gray-700'}`}>
               <item.icon size={18} /> {item.label}
               {item.id === 'sellers' && data?.sellers.pending ? <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{data.sellers.pending}</span> : null}
               {item.id === 'products' && data?.marketplace.pendingProducts ? <span className="ml-auto bg-yellow-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{data.marketplace.pendingProducts}</span> : null}
@@ -170,18 +177,24 @@ export default function CorporateDashboard() {
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                 {[
-                  { label: 'Revenue', value: formatCurrency(data.company.totalRevenue), icon: IndianRupee, color: 'text-green-400 bg-green-500/10' },
-                  { label: 'Orders', value: data.company.totalOrders, icon: ShoppingCart, color: 'text-blue-400 bg-blue-500/10' },
-                  { label: 'Products', value: data.marketplace.totalProducts, icon: Package, color: 'text-cyan-400 bg-cyan-500/10' },
-                  { label: 'Sellers', value: data.sellers.total, icon: Users, color: 'text-orange-400 bg-orange-500/10' },
-                  { label: 'Customers', value: data.customers?.total ?? data.buyers.total, icon: UserCog, color: 'text-purple-400 bg-purple-500/10' },
-                  { label: 'Pending Approvals', value: data.sellers.pending + data.marketplace.pendingProducts, icon: UserCheck, color: 'text-yellow-400 bg-yellow-500/10' },
+                  { label: 'Revenue', value: formatCurrency(data.company.totalRevenue), icon: IndianRupee, color: 'text-green-400 bg-green-500/10', to: '/corporate/orders' },
+                  { label: 'Orders', value: data.company.totalOrders, icon: ShoppingCart, color: 'text-blue-400 bg-blue-500/10', to: '/corporate/orders' },
+                  { label: 'Products', value: data.marketplace.totalProducts, icon: Package, color: 'text-cyan-400 bg-cyan-500/10', to: '/corporate/products' },
+                  { label: 'Sellers', value: data.sellers.total, icon: Users, color: 'text-orange-400 bg-orange-500/10', to: '/corporate/sellers' },
+                  { label: 'Customers', value: data.customers?.total ?? data.buyers.total, icon: UserCog, color: 'text-purple-400 bg-purple-500/10', to: '/corporate/customers' },
+                  { label: 'Pending Approvals', value: data.sellers.pending + data.marketplace.pendingProducts, icon: UserCheck, color: 'text-yellow-400 bg-yellow-500/10', to: '/corporate/products?status=pending' },
                 ].map((card, i) => (
-                  <div key={i} className="bg-gray-800 rounded-xl p-3 border border-gray-700">
+                  <button
+                    key={i}
+                    onClick={() => navigate(card.to)}
+                    className="group bg-gray-800 rounded-xl p-3 border border-gray-700 hover:border-orange-500/70 hover:bg-gray-700/60 hover:shadow-lg hover:shadow-orange-500/10 transition-all cursor-pointer text-left relative"
+                    title={`View ${card.label}`}
+                  >
+                    <span className="absolute top-2 right-2 text-gray-600 group-hover:text-orange-400 transition">›</span>
                     <div className={`inline-flex p-1.5 rounded-lg ${card.color} mb-1.5`}><card.icon size={14} /></div>
                     <p className="text-lg font-extrabold">{card.value}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{card.label}</p>
-                  </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5 group-hover:text-orange-400 transition">{card.label}</p>
+                  </button>
                 ))}
               </div>
 
@@ -208,12 +221,15 @@ export default function CorporateDashboard() {
                   <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><ShoppingCart size={16} className="text-orange-500" /> Orders</h2>
                   <div className="space-y-2 text-xs">
                     {[
-                      { label: 'Completed', value: data.company.completedOrders },
-                      { label: 'Pending', value: data.company.pendingOrders },
-                      { label: 'Cancelled', value: data.company.cancelledOrders },
-                      { label: 'Refunded', value: data.company.refundOrders },
+                      { label: 'Completed', value: data.company.completedOrders, to: '/corporate/orders?status=completed' },
+                      { label: 'Pending', value: data.company.pendingOrders, to: '/corporate/orders?status=pending' },
+                      { label: 'Cancelled', value: data.company.cancelledOrders, to: '/corporate/orders?status=cancelled' },
+                      { label: 'Refunded', value: data.company.refundOrders, to: '/corporate/orders?status=refunded' },
                     ].map((o, i) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-300">{o.label}</span><span className="font-bold">{o.value}</span></div>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(o.to)} title="View orders">
+                        <span className="text-gray-300 group-hover:text-white">{o.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{o.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -225,14 +241,17 @@ export default function CorporateDashboard() {
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Package size={14} className="inline mr-1 text-orange-500" /> Products</h2>
                   <div className="space-y-2 text-xs">
                     {[
-                      { label: 'Total', value: data.marketplace.totalProducts },
-                      { label: 'Approved', value: data.marketplace.approvedProducts },
-                      { label: 'Pending', value: data.marketplace.pendingProducts },
-                      { label: 'Rejected', value: data.marketplace.rejectedProducts },
-                      { label: 'Draft', value: data.marketplace.draftProducts },
-                      { label: 'Out of Stock', value: data.marketplace.outOfStockProducts },
+                      { label: 'Total', value: data.marketplace.totalProducts, to: '/corporate/products' },
+                      { label: 'Approved', value: data.marketplace.approvedProducts, to: '/corporate/products?status=approved' },
+                      { label: 'Pending', value: data.marketplace.pendingProducts, to: '/corporate/products?status=pending' },
+                      { label: 'Rejected', value: data.marketplace.rejectedProducts, to: '/corporate/products?status=rejected' },
+                      { label: 'Draft', value: data.marketplace.draftProducts, to: '/corporate/products?status=draft' },
+                      { label: 'Out of Stock', value: data.marketplace.outOfStockProducts, to: '/corporate/products?status=outofstock' },
                     ].map((p, i) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-400">{p.label}</span><span className="font-bold">{p.value}</span></div>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(p.to)} title="View products">
+                        <span className="text-gray-400 group-hover:text-white">{p.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{p.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -241,29 +260,35 @@ export default function CorporateDashboard() {
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Users size={14} className="inline mr-1 text-orange-500" /> Sellers</h2>
                   <div className="space-y-2 text-xs">
                     {[
-                      { label: 'Total', value: data.sellers.total },
-                      { label: 'Approved', value: data.sellers.approved },
-                      { label: 'Pending', value: data.sellers.pending },
-                      { label: 'Rejected', value: data.sellers.rejected },
-                      { label: 'Suspended', value: data.sellers.suspended },
-                      { label: 'Blocked', value: data.sellers.blocked },
+                      { label: 'Total', value: data.sellers.total, to: '/corporate/sellers' },
+                      { label: 'Approved', value: data.sellers.approved, to: '/corporate/sellers?status=approved' },
+                      { label: 'Pending', value: data.sellers.pending, to: '/corporate/sellers?status=pending' },
+                      { label: 'Rejected', value: data.sellers.rejected, to: '/corporate/sellers?status=rejected' },
+                      { label: 'Suspended', value: data.sellers.suspended, to: '/corporate/sellers?status=suspended' },
+                      { label: 'Blocked', value: data.sellers.blocked, to: '/corporate/sellers?status=blocked' },
                     ].map((s, i) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-400">{s.label}</span><span className="font-bold">{s.value}</span></div>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(s.to)} title="View sellers">
+                        <span className="text-gray-400 group-hover:text-white">{s.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{s.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      </div>
                     ))}
                     {data.sellers.newToday > 0 && <div className="mt-2 pt-2 border-t border-gray-700 text-green-400">+{data.sellers.newToday} today, +{data.sellers.newThisWeek} this week</div>}
                   </div>
                 </div>
 
                 <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><UserCog size={14} className="inline mr-1 text-orange-500" /> Buyers</h2>
+                  <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><UserCog size={14} className="inline mr-1 text-orange-500" /> Customers</h2>
                   <div className="space-y-2 text-xs">
                     {[
-                      { label: 'Total', value: data.buyers.total },
-                      { label: 'New Today', value: data.buyers.newToday },
-                      { label: 'Active', value: data.buyers.active },
-                      { label: 'Inactive', value: data.buyers.inactive },
+                      { label: 'Total', value: data.buyers.total, to: '/corporate/customers' },
+                      { label: 'New Today', value: data.buyers.newToday, to: '/corporate/customers' },
+                      { label: 'Active', value: data.buyers.active, to: '/corporate/customers?status=active' },
+                      { label: 'Inactive', value: data.buyers.inactive, to: '/corporate/customers?status=inactive' },
                     ].map((b, i) => (
-                      <div key={i} className="flex justify-between"><span className="text-gray-400">{b.label}</span><span className="font-bold">{b.value}</span></div>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(b.to)} title="View customers">
+                        <span className="text-gray-400 group-hover:text-white">{b.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{b.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      </div>
                     ))}
                   </div>
                 </div>

@@ -72,7 +72,7 @@ export interface Product {
   low_stock_alert: number;
   weight: number | null;
   dimensions: string | null;
-  status: 'draft' | 'pending' | 'active' | 'rejected' | 'archived';
+  status: 'DRAFT' | 'PENDING' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED';
   is_approved: boolean;
   is_featured: boolean;
   tags: string[] | null;

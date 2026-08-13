@@ -480,6 +480,12 @@ export async function POST(request: Request) {
           if (rawData.price) data.price = parseFloat(rawData.price);
           if (rawData.comparePrice) data.comparePrice = parseFloat(rawData.comparePrice);
           if (rawData.stock) data.stock = parseInt(rawData.stock);
+          if (data.status && typeof data.status === 'string') {
+            data.status = data.status.toUpperCase();
+          }
+          if (rawData.price) data.price = parseFloat(rawData.price);
+          if (rawData.comparePrice) data.comparePrice = parseFloat(rawData.comparePrice);
+          if (rawData.stock) data.stock = parseInt(rawData.stock);
         } else if (table === 'subscription_plans' && rawData.features) {
           data.features = JSON.stringify(rawData.features);
         }
@@ -563,6 +569,14 @@ export async function POST(request: Request) {
         data.features = JSON.stringify(updateData.features);
       }
 
+      // Convert update parameters to match exact types
+      if (data.status && typeof data.status === 'string') {
+        if (table === 'sellers') {
+          data.status = data.status.toUpperCase();
+        } else if (table === 'products') {
+          data.status = data.status.toUpperCase();
+        }
+      }
       // Convert update parameters to match exact types
       if (data.status && typeof data.status === 'string' && table === 'sellers') {
         data.status = data.status.toUpperCase();

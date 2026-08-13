@@ -16,8 +16,8 @@ interface Product {
   category: string;
   price: number;
   stock: number;
-  status: 'active' | 'inactive';
-  approval_status: 'pending' | 'approved' | 'rejected';
+  status: 'ACTIVE' | 'REJECTED';
+  approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
   image_url?: string;
   is_featured: boolean;
   description?: string;
@@ -89,13 +89,13 @@ const Products = () => {
     }
 
     if (approvalFilter === 'Pending Approval') {
-      filtered = filtered.filter((product) => product.approval_status === 'pending');
+      filtered = filtered.filter((product) => product.approval_status === 'PENDING');
     } else if (approvalFilter === 'All') {
       // No filter
     } else if (approvalFilter === 'Active') {
-      filtered = filtered.filter((product) => product.status === 'active');
+      filtered = filtered.filter((product) => product.status === 'ACTIVE');
     } else if (approvalFilter === 'Rejected') {
-      filtered = filtered.filter((product) => product.approval_status === 'rejected');
+      filtered = filtered.filter((product) => product.approval_status === 'REJECTED');
     }
 
     setFilteredProducts(filtered);
@@ -105,7 +105,7 @@ const Products = () => {
     try {
       const { error } = await supabase
         .from('products')
-        .update({ approval_status: 'approved', status: 'active' })
+        .update({ approval_status: 'APPROVED', status: 'ACTIVE' })
         .eq('id', productId);
 
       if (error) throw error;
@@ -113,7 +113,7 @@ const Products = () => {
       setProducts(
         products.map((p) =>
           p.id === productId
-            ? { ...p, approval_status: 'approved', status: 'active' }
+            ? { ...p, approval_status: 'APPROVED', status: 'ACTIVE' }
             : p
         )
       );
@@ -126,7 +126,7 @@ const Products = () => {
     try {
       const { error } = await supabase
         .from('products')
-        .update({ approval_status: 'rejected', status: 'inactive' })
+        .update({ approval_status: 'REJECTED', status: 'REJECTED' })
         .eq('id', productId);
 
       if (error) throw error;
@@ -134,7 +134,7 @@ const Products = () => {
       setProducts(
         products.map((p) =>
           p.id === productId
-            ? { ...p, approval_status: 'rejected', status: 'inactive' }
+            ? { ...p, approval_status: 'REJECTED', status: 'REJECTED' }
             : p
         )
       );
@@ -166,7 +166,7 @@ const Products = () => {
     try {
       const { error } = await supabase
         .from('products')
-        .update({ approval_status: 'approved', status: 'active' })
+        .update({ approval_status: 'APPROVED', status: 'ACTIVE' })
         .in('id', selectedProducts);
 
       if (error) throw error;
@@ -174,7 +174,7 @@ const Products = () => {
       setProducts(
         products.map((p) =>
           selectedProducts.includes(p.id)
-            ? { ...p, approval_status: 'approved', status: 'active' }
+            ? { ...p, approval_status: 'APPROVED', status: 'ACTIVE' }
             : p
         )
       );

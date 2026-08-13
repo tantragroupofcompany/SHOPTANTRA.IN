@@ -112,6 +112,10 @@ import CEOGuard from './views/corporate/CEOGuard';
 import ChairmanGuard from './views/corporate/ChairmanGuard';
 import CorporateDashboard from './views/corporate/CorporateDashboard';
 import CorporateGuard from './views/corporate/CorporateGuard';
+import CorporateProducts from './views/corporate/Products';
+import CorporateSellers from './views/corporate/Sellers';
+import CorporateOrders from './views/corporate/Orders';
+import CorporateCustomers from './views/corporate/Customers';
 
 export default function ClientApp() {
   return (
@@ -240,6 +244,10 @@ export default function ClientApp() {
 
             {/* Corporate control center */}
             <Route path="/corporate/dashboard" element={<CorporateGuard><CorporateDashboard /></CorporateGuard>} />
+            <Route path="/corporate/products" element={<CorporateGuard><CorporateProducts /></CorporateGuard>} />
+            <Route path="/corporate/sellers" element={<CorporateGuard><CorporateSellers /></CorporateGuard>} />
+            <Route path="/corporate/orders" element={<CorporateGuard><CorporateOrders /></CorporateGuard>} />
+            <Route path="/corporate/customers" element={<CorporateGuard><CorporateCustomers /></CorporateGuard>} />
             <Route path="/founder/dashboard" element={<FounderGuard><FounderDashboard /></FounderGuard>} />
             <Route path="/ceo/dashboard" element={<CEOGuard><CEODashboard /></CEOGuard>} />
             <Route path="/chairman/dashboard" element={<ChairmanGuard><ChairmanDashboard /></ChairmanGuard>} />

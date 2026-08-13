@@ -24,16 +24,16 @@ export async function POST(request: any) {
       case 'approve':
       case 'restore':
       case 'unblock':
-        status = 'active';
+        status = 'ACTIVE';
         break;
       case 'reject':
-        status = 'rejected';
+        status = 'REJECTED';
         break;
       case 'block':
-        status = 'blocked';
+        status = 'BLOCKED';
         break;
       case 'unpublish':
-        status = 'draft';
+        status = 'DRAFT';
         break;
       default:
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });

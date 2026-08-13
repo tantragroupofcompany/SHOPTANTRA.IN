@@ -155,7 +155,7 @@ export async function POST(request: Request) {
         description: description || null,
         sku: sku || null,
         barcode: barcode || null,
-        status: status || 'draft',
+        status: status || 'DRAFT',
         images: imagesJson,
         variants: variantsJson,
         tags: tags || null,
