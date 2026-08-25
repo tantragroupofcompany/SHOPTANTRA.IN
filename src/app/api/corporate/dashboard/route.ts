@@ -63,6 +63,7 @@ export async function GET(request: any) {
       totalCoupons,
       totalReviews,
       corporateSessions,
+      settlementStatusRaw,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.seller.count(),
@@ -177,6 +178,7 @@ export async function GET(request: any) {
       prisma.coupon.count(),
       prisma.review.count(),
       prisma.user.count({ where: { role: { in: ['FOUNDER', 'CEO_MD', 'CHAIRMAN'] } } }),
+      prisma.sellerSettlement.groupBy({ by: ['status'], _sum: { sellerAmount: true, commissionAmount: true, grossAmount: true } }),
     ]);
 // ---- Normalize grouping results into lookup maps ----
     const byStatus = (rows: any[]) => {
@@ -211,6 +213,19 @@ export async function GET(request: any) {
       else gatewaySums.other += amount;
     });
     const totalCollected = Object.values(gatewaySums).reduce((acc, v) => acc + v, 0);
+
+    // Seller settlement ledger aggregates (from SellerSettlement records)
+    const settlementAmounts: Record<string, number> = {};
+    const settlementCommission: Record<string, number> = {};
+    (settlementStatusRaw || []).forEach((s: any) => {
+      const st = s.status || 'PENDING';
+      settlementAmounts[st] = (settlementAmounts[st] || 0) + (s._sum.sellerAmount || 0);
+      settlementCommission[st] = (settlementCommission[st] || 0) + (s._sum.commissionAmount || 0);
+    });
+    const pendingSettlementTotal = (settlementAmounts['PENDING'] || 0) + (settlementAmounts['PROCESSING'] || 0);
+    const settledTotal = settlementAmounts['TRANSFERRED'] || 0;
+    const failedTransferTotal = settlementAmounts['FAILED'] || 0;
+    const cancelledSettlementTotal = settlementAmounts['CANCELLED'] || 0;
 
     const approvedProducts = productCounts['active'] || 0;
     const pendingProducts = productCounts['pending'] || 0;
@@ -345,6 +360,21 @@ const data = {
         cod: gatewaySums.cod,
         commissionCollected: Number(commissionCollected._sum.commissionAmount || 0),
         totalPayments,
+        sellerPayable: settledTotal + pendingSettlementTotal + failedTransferTotal + cancelledSettlementTotal,
+        sellerSettled: settledTotal,
+        pendingSettlementTotal,
+        failedTransferTotal,
+      },
+      finance: {
+        grossSales: Number(totalRevenue._sum.totalAmount || 0),
+        platformCommission: Number(commissionCollected._sum.commissionAmount || 0) + (settlementCommission['PENDING'] || 0) + (settlementCommission['TRANSFERRED'] || 0),
+        sellerPayable: settledTotal + pendingSettlementTotal + failedTransferTotal + cancelledSettlementTotal,
+        sellerSettled: settledTotal,
+        pendingSettlement: pendingSettlementTotal,
+        failedTransfers: failedTransferTotal,
+        refunds: paymentStatusAmounts['REFUNDED'] || 0,
+        paymentGatewayFees: 0, // available only from Razorpay dashboard settlement statements
+        commissionCollected: Number(commissionCollected._sum.commissionAmount || 0),
       },
       shipping: {
         ready: readyOrders,

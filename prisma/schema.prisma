@@ -42,6 +42,7 @@ model Seller {
   bankIfsc          String?
   bankAccountName   String?
   upiId             String?
+  razorpayLinkedAccountId String?
   commissionRate    Float           @default(10.0)
   status            String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
   logoUrl           String?
@@ -63,6 +64,7 @@ model Seller {
   wallet            VendorWallet?
   payouts           PayoutRequest[]
   commissions       Commission[]
+  settlements       SellerSettlement[]
   pickupAddress     PickupAddress?
   shipments         Shipment[]
   subscriptions     Subscription[]
@@ -98,6 +100,7 @@ model Product {
   dangerousGoods       Boolean     @default(false)
   countryOfOrigin      String      @default("India")
   hsnCode              String?
+  commissionPercent    Float?
   estimatedPackingTime Int         @default(24)
   createdAt            DateTime    @default(now())
   orderItems           OrderItem[]
@@ -121,11 +124,14 @@ model Order {
   totalAmount     Float
   isCod           Boolean       @default(false)
   shippingAddress String
+  refundAmount    Float         @default(0)
+  refundStatus    String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   items           OrderItem[]
   payments        Payment[]
   commission      Commission?
+  settlement      SellerSettlement?
   shipments       Shipment[]
 }
 
@@ -147,12 +153,15 @@ model Payment {
   id                String        @id @default(uuid())
   orderId           String
   order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  settlement        SellerSettlement?
   gateway           String        @default("RAZORPAY")
   amount            Float
   status            String        @default("PENDING")
   method            String?
   gatewayLogs       String?
   webhookVerified   Boolean       @default(false)
+  platformAmount    Float         @default(0)
+  sellerTransferAmount Float      @default(0)
   transactionReference String?     @unique
   razorpayOrderId   String?       @unique
   razorpayPaymentId String?       @unique
@@ -168,11 +177,49 @@ model Commission {
   sellerId          String
   seller            Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   orderAmount       Float
+  grossAmount       Float?
   commissionRate    Float
   commissionAmount  Float
   sellerPayout      Float
-  status            String      @default("PENDING")
+  status            String      @default("PENDING") // PENDING, PROCESSED, CANCELLED
+  transferId        String?
+  failureReason     String?
   createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+}
+
+// Configurable commission rule table.
+// Priority: PRODUCT (commissionPercent on Product) -> CATEGORY -> GLOBAL -> default.
+model CommissionRule {
+  id             String   @id @default(uuid())
+  scope          String   @default("GLOBAL") // GLOBAL, CATEGORY, PRODUCT
+  category       String?
+  productId      String?
+  sellerId       String?
+  rate           Float
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Automatic seller settlement / transfer ledger (Razorpay Route / linked accounts).
+model SellerSettlement {
+  id               String   @id @default(uuid())
+  orderId          String   @unique
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerId         String
+  seller           Seller   @relation(fields: [sellerId], references: [id])
+  paymentId        String?      @unique
+  payment          Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  grossAmount      Float
+  commissionPercent Float
+  commissionAmount Float
+  sellerAmount     Float
+  transferId       String?
+  status           String   @default("PENDING") // PENDING, PROCESSING, TRANSFERRED, FAILED, CANCELLED
+  failureReason    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model VendorWallet {

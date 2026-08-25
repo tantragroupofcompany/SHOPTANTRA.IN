@@ -97,17 +97,40 @@ export default function Checkout() {
       setIsProcessing(true);
       setCheckoutError('');
 
-      // 1. Create order on backend
+      // 1. Create order on backend (server computes the amount from the catalogue)
       const res = await fetch('/api/checkout/razorpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: grandTotal, currency: 'INR' }),
+        body: JSON.stringify({
+          currency: 'INR',
+          orderData: {
+            buyerId: profile?.id || user?.id || 'guest_buyer',
+            buyerName: fullName,
+            buyerEmail: email,
+            buyerPhone: phone,
+            sellerId: cart[0]?.product?.sellerId || 'seller_placeholder',
+            subtotal,
+            shippingAmount: shippingCharges,
+            taxAmount: gstAmount,
+            discountAmount,
+            items: cart.map((item) => ({
+              productId: item.product.id,
+              title: item.product.title,
+              price: item.product.price,
+              quantity: item.quantity,
+              category: item.product.category || 'General',
+            })),
+            shippingAddress: { address, city, state: deliveryState, pincode },
+          },
+        }),
       });
       
       const orderDataResponse = await res.json();
       if (!res.ok || orderDataResponse.error) {
         throw new Error(orderDataResponse.error || 'Failed to create payment order');
       }
+      // Use the server-computed total for payment + verification (never the client total).
+      const serverTotalAmount = Number(orderDataResponse.totalAmount) || grandTotal;
 
       // 2. Setup Razorpay options
       const options = {
@@ -136,7 +159,7 @@ export default function Checkout() {
                   shippingAmount: shippingCharges,
                   taxAmount: gstAmount,
                   discountAmount,
-                  totalAmount: grandTotal,
+                  totalAmount: serverTotalAmount,
                   items: cart.map((item) => ({
                     productId: item.product.id,
                     title: item.product.title,

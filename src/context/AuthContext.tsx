@@ -50,6 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (sbSession) {
         setSession(sbSession);
         setUser(sbSession.user);
+        // Restore the profile from local storage immediately so dashboards render
+        // before the network profile refresh completes (and as a fallback if the
+        // refresh is blocked by RBAC on cold reload).
+        try {
+          const storedProfile = localStorage.getItem('st_local_profile');
+          if (storedProfile) {
+            setProfile(JSON.parse(storedProfile) as Profile);
+          }
+        } catch (profileError) {
+          console.warn('Failed to restore stored profile:', profileError);
+        }
         fetchProfile(sbSession.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
@@ -114,7 +125,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(resData.session);
         setUser(resData.session.user);
         setProfile(resData.profile as Profile);
-        
+
+        // Persist session + profile for SPA page-reload restoration
+        try {
+          localStorage.setItem('st_local_session', JSON.stringify(resData.session));
+          localStorage.setItem('st_local_profile', JSON.stringify(resData.profile));
+          localStorage.setItem('st_local_user', JSON.stringify(resData.session.user));
+        } catch (storageError) {
+          console.warn('Failed to persist local session:', storageError);
+        }
+
         setLoading(false);
         return { error: null, profile: resData.profile as Profile, roles: resData.roles || [] };
       } else {
@@ -206,7 +226,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn('Supabase signOut failed:', e);
     }
-    
+
+    // Clear the shared HttpOnly auth cookie(s) used by middleware RBAC
+    document.cookie = 'auth_token=; path=/; max-age=0';
+    document.cookie = 'auth_role=; path=/; max-age=0';
+    document.cookie = 'corporate_auth_token=; path=/; max-age=0';
+
+    try {
+      localStorage.removeItem('st_local_session');
+      localStorage.removeItem('st_local_profile');
+      localStorage.removeItem('st_local_user');
+    } catch (storageError) {
+      console.warn('Failed to clear local session storage:', storageError);
+    }
+
     setSession(null);
     setUser(null);
     setProfile(null);
@@ -231,10 +264,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resData = await response.json();
 
       if (response.ok && resData.success) {
-        const apiLink = `${window.location.origin}/reset-password?token=${resData.token}`;
-        console.log(`[PASSWORD RESET API LINK]: ${apiLink}`);
+        // SECURITY: the reset link is sent ONLY by email. It is never returned in
+        // the API response nor displayed on the page (protection against exposure).
         setLoading(false);
-        return { error: null, link: apiLink };
+        return { error: null, link: null };
       } else {
         setLoading(false);
         return { error: new Error(resData.error || 'Failed to request password reset link.') };

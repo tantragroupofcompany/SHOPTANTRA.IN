@@ -10,13 +10,11 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [resetLink, setResetLink] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setResetLink(null);
 
     if (!email.trim()) {
       setError('Email address is required');
@@ -25,15 +23,12 @@ export default function ForgotPassword() {
     }
 
     try {
-      const { error: resetError, link } = await forgotPassword(email.trim());
+      const { error: resetError } = await forgotPassword(email.trim());
       if (resetError) {
         setError(resetError.message);
         scrollToErrorAndFocus();
       } else {
-        setSuccess('A password reset link has been successfully generated.');
-        if (link) {
-          setResetLink(link);
-        }
+        setSuccess('If an account is linked to this email address, a secure password reset link has been sent. Please check your inbox (and spam folder).');
         setEmail('');
       }
     } catch (err) {
@@ -78,19 +73,9 @@ export default function ForgotPassword() {
                 <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-green-700 font-medium">{success}</p>
               </div>
-              
-              {resetLink && (
-                <div className="mt-2 p-3 bg-white border border-green-150 rounded-lg text-xs">
-                  <p className="text-gray-500 font-semibold mb-1">Password Reset Link:</p>
-                  <a 
-                    href={resetLink} 
-                    className="text-orange-500 hover:text-orange-600 hover:underline font-mono break-all"
-                  >
-                    {resetLink}
-                  </a>
-                  <p className="text-gray-400 mt-1.5">Click the link above to reset your password. This link expires in 10 minutes.</p>
-                </div>
-              )}
+              <p className="text-xs text-gray-500">
+                For security, the reset link is sent only to your registered email address and expires in 10 minutes.
+              </p>
             </div>
           )}
 

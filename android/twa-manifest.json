@@ -1,0 +1,37 @@
+{
+  "packageId": "in.shoptantra.app",
+  "host": "shoptantra.in",
+  "name": "SHOPTANTRA",
+  "launcherName": "SHOPTANTRA",
+  "display": "standalone",
+  "themeColor": "#FF6B00",
+  "navigationColor": "#1B3A6B",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "https://shoptantra.in/",
+  "iconUrl": "https://shoptantra.in/SHOPTANTRA.png",
+  "maskableIconUrl": "https://shoptantra.in/SHOPTANTRA.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "",
+    "alias": ""
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Buyer Dashboard",
+      "shortName": "My Orders",
+      "url": "https://shoptantra.in/buyer",
+      "chosenIconUrl": "https://shoptantra.in/SHOPTANTRA.png"
+    },
+    {
+      "name": "Seller Dashboard",
+      "shortName": "Sell",
+      "url": "https://shoptantra.in/seller",
+      "chosenIconUrl": "https://shoptantra.in/SHOPTANTRA.png"
+    }
+  ],
+  "generatorApp": "shoptantra-android-wrapper",
+  "webManifestUrl": "https://shoptantra.in/manifest.json"
+}

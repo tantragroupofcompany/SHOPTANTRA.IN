@@ -93,15 +93,12 @@ export default function Login() {
       const profile = result.profile;
       
       if (roles.length > 1) {
-        const lastSelected = localStorage.getItem('st_last_selected_role');
-        if (lastSelected && roles.includes(lastSelected)) {
-          setProfile({ ...profile, role: lastSelected });
-          navigate(lastSelected === 'seller' ? '/seller' : lastSelected === 'admin' ? '/admin' : '/buyer');
-        } else {
-          setAvailableRoles(roles);
-          setTempProfile(profile);
-          setShowRoleSelector(true);
-        }
+        // Both BUYER and SELLER (and/or ADMIN) accounts exist for this email.
+        // Per the marketplace spec we must NEVER auto-select a dashboard for a
+        // multi-account identity — always present the account selection screen.
+        setAvailableRoles(roles);
+        setTempProfile(profile);
+        setShowRoleSelector(true);
       } else {
         // Navigate based on user role profile
         if (profile?.role === 'seller') {
@@ -224,32 +221,52 @@ export default function Login() {
           )}
 
           {showRoleSelector ? (
-            /* Role Selector Screen */
+            /* Account Selection Screen — shown when the same email has multiple account types */
             <div className="space-y-6 text-center">
-              <h2 className="text-xl font-bold text-gray-800">Continue As</h2>
-              <p className="text-sm text-gray-500">Please select a dashboard to proceed</p>
+              <h2 className="text-2xl font-bold text-gray-800">Select Account</h2>
+              <p className="text-sm text-gray-500">Which account would you like to access?</p>
               
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 {availableRoles.includes('buyer') && (
                   <button
                     onClick={() => handleSelectRole('buyer')}
-                    className="flex flex-col items-center gap-3 p-5 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
+                    className="flex flex-col items-center gap-3 p-6 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
                   >
                     <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-brand-orange group-hover:scale-110 transition-transform">
                       <ShoppingBag className="w-6 h-6" />
                     </div>
-                    <span className="font-bold text-sm text-gray-700">Buyer Dashboard</span>
+                    <div>
+                      <div className="font-bold text-sm text-gray-800">Buyer Account</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Shop and track your orders</div>
+                    </div>
                   </button>
                 )}
                 {availableRoles.includes('seller') && (
                   <button
                     onClick={() => handleSelectRole('seller')}
-                    className="flex flex-col items-center gap-3 p-5 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
+                    className="flex flex-col items-center gap-3 p-6 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
                   >
                     <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                       <Store className="w-6 h-6" />
                     </div>
-                    <span className="font-bold text-sm text-gray-700">Seller Dashboard</span>
+                    <div>
+                      <div className="font-bold text-sm text-gray-800">Seller Account</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Manage your store and earnings</div>
+                    </div>
+                  </button>
+                )}
+                {availableRoles.includes('admin') && (
+                  <button
+                    onClick={() => handleSelectRole('admin')}
+                    className="flex flex-col items-center gap-3 p-6 border-2 border-gray-150 hover:border-brand-orange hover:bg-orange-50/50 rounded-2xl transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-gray-800">Admin Account</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Platform administration</div>
+                    </div>
                   </button>
                 )}
               </div>

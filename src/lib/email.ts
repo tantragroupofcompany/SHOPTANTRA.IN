@@ -13,6 +13,58 @@ const createTransporter = () => {
   });
 };
 
+export const sendPasswordResetEmail = async (email: string, name: string, resetUrl: string) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"${process.env.SMTP_FROM_NAME || 'ShopTantra'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: email,
+      subject: 'Reset Your ShopTantra Password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #1B3A6B; margin: 0;">ShopTantra</h1>
+          </div>
+
+          <h2 style="color: #333;">Hello${name ? ' ' + name : ''}!</h2>
+          <p style="color: #555; font-size: 16px; line-height: 1.5;">
+            We received a request to reset the password for your ShopTantra account associated with <strong>${email}</strong>.
+            Please click the button below to choose a new password.
+          </p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #1B3A6B; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+
+          <p style="color: #888; font-size: 13px; text-align: center; line-height: 1.6;">
+            This link is valid for <strong>10 minutes</strong> and can only be used once.<br/>
+            If you did not request this, you can safely ignore this email. Your password will not change.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+          <p style="color: #888; font-size: 12px; text-align: center;">
+            &copy; ${new Date().getFullYear()} ShopTantra. All rights reserved.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Password reset email sent: %s', info.messageId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    if (!process.env.SMTP_HOST) {
+      console.warn('⚠️ SMTP credentials not found. Password reset email delivery skipped.');
+      return { success: false, error: new Error('SMTP credentials not configured') };
+    }
+    return { success: false, error };
+  }
+};
+
 export const sendVerificationEmail = async (email: string, name: string, otp: string) => {
   try {
     const transporter = createTransporter();

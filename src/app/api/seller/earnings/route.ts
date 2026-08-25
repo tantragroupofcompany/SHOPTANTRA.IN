@@ -46,6 +46,20 @@ export async function GET(request: Request) {
       orderBy: { requestedAt: 'desc' }
     });
 
+    // Aggregated sales/commission from the immutable Commission ledger
+    const [commissionAgg, settlementRows, sellerProfile] = await Promise.all([
+      prisma.commission.aggregate({
+        where: { sellerId },
+        _sum: { commissionAmount: true, orderAmount: true, sellerPayout: true },
+      }),
+      prisma.sellerSettlement.findMany({
+        where: { sellerId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      prisma.seller.findUnique({ where: { id: sellerId }, select: { commissionRate: true, storeName: true } }),
+    ]);
+
     const formattedPayouts = payouts.map(p => ({
       id: p.id,
       amount: p.amount,
@@ -54,12 +68,30 @@ export async function GET(request: Request) {
       created_at: p.requestedAt
     }));
 
+    const pendingSettlementAmount = settlementRows
+      .filter(s => s.status === 'PENDING' || s.status === 'PROCESSING')
+      .reduce((sum, s) => sum + s.sellerAmount, 0);
+
     const formattedData = {
+      total_sales: Number(commissionAgg._sum.orderAmount || 0),
       total_earned: wallet?.pendingEarnings || 0.0,
       available_balance: wallet?.balance || 0.0,
       pending_payout: payouts.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0),
       withdrawn: payouts.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0),
-      commission_rate: 15, // default
+      commission_deducted: Number(commissionAgg._sum.commissionAmount || 0),
+      commission_rate: sellerProfile?.commissionRate ?? 10, // never hardcoded - real seller commission
+      pending_settlement: pendingSettlementAmount,
+      settlement_history: settlementRows.map(s => ({
+        id: s.id,
+        orderId: s.orderId,
+        grossAmount: s.grossAmount,
+        commissionAmount: s.commissionAmount,
+        sellerAmount: s.sellerAmount,
+        status: s.status.toLowerCase(),
+        transferId: s.transferId || null,
+        failureReason: s.failureReason || null,
+        createdAt: s.createdAt,
+      })),
       payouts: formattedPayouts
     };
 

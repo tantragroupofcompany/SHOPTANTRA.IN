@@ -45,3 +45,9 @@ export function hashPasswordBcrypt(password: string): string {
   const salt = bcrypt.genSaltSync(12);
   return bcrypt.hashSync(password, salt);
 }
+
+// Hash a password-reset token before storing/looking it up.
+// Tokens are stored hashed (SHA-256) so a DB leak never reveals usable reset tokens.
+export function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}

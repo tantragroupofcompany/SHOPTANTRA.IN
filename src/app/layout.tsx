@@ -49,6 +49,21 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="SHOPTANTRA" />
         <link rel="apple-touch-icon" href="/SHOPTANTRA.png" />
+        <link rel="icon" type="image/png" href="/SHOPTANTRA.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                  navigator.serviceWorker.register('/sw.js').catch(function (err) {
+                    console.warn('SW registration failed:', err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
         {/* Razorpay Script */}
         <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
         {/* Load Inter and Outfit fonts */}
