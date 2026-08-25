@@ -1,6 +1,7 @@
 -- SHOPTANTRA marketplace migration (Supabase PostgreSQL)
 -- Date: 2026-08-25
 -- Additive/backwards-compatible only. No columns or tables are dropped.
+-- Fully IDEMPOTENT: safe to execute repeatedly.
 
 ALTER TABLE "Seller" ADD COLUMN IF NOT EXISTS "razorpayLinkedAccountId" TEXT;
 ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "commissionPercent" DOUBLE PRECISION;
@@ -48,9 +49,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS "SellerSettlement_paymentId_key" ON "SellerSet
 CREATE INDEX IF NOT EXISTS "SellerSettlement_sellerId_idx" ON "SellerSettlement"("sellerId");
 CREATE INDEX IF NOT EXISTS "SellerSettlement_status_idx" ON "SellerSettlement"("status");
 
-ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_orderId_fkey"
-    FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_sellerId_fkey"
-    FOREIGN KEY ("sellerId") REFERENCES "Seller"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_paymentId_fkey"
-    FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SellerSettlement_orderId_fkey') THEN
+        ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_orderId_fkey"
+            FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SellerSettlement_sellerId_fkey') THEN
+        ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_sellerId_fkey"
+            FOREIGN KEY ("sellerId") REFERENCES "Seller"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SellerSettlement_paymentId_fkey') THEN
+        ALTER TABLE "SellerSettlement" ADD CONSTRAINT "SellerSettlement_paymentId_fkey"
+            FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
