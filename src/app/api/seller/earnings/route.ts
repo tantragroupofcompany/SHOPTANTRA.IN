@@ -23,6 +23,10 @@ async function resolveSellerId(id: string | null): Promise<string | null> {
 // GET /api/seller/earnings
 export async function GET(request: Request) {
   try {
+    // Ensure additive marketplace schema (SellerSettlement etc.) exists
+    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+    await ensureSchema();
+
     const { searchParams } = new URL(request.url);
     const sellerIdParam = searchParams.get('sellerId') || searchParams.get('userId');
 

@@ -10,6 +10,10 @@ export async function GET(request: any) {
   if (guard instanceof NextResponse) return guard;
 
   try {
+    // Ensure additive marketplace schema exists before aggregations
+    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+    await ensureSchema();
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

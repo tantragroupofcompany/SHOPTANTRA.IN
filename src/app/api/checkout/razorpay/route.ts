@@ -20,7 +20,11 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { currency = 'INR', orderData } = body;
+    // Ensure additive marketplace schema exists (Seller columns etc.)
+    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+    await ensureSchema();
+
+    const { amount, currency = 'INR', orderData } = body;
 
     // SECURITY: compute the payable amount server-side from the product catalogue.
     // Never accept a client-supplied total directly.

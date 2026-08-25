@@ -80,6 +80,10 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
   const { gateway, transactionReference, amount, orderData, method, gatewayLogs } = params;
 
   try {
+    // Make sure the marketplace schema (settlement ledger etc.) exists
+    const { ensureSchema } = await import('./dbBootstrap');
+    await ensureSchema();
+
     // 1. Check for duplicate payments in the DB
     const existingPayment = await prisma.payment.findUnique({
       where: { transactionReference },

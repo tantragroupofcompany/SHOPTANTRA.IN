@@ -153,6 +153,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
     }
 
+    // Ensure additive marketplace schema exists (Seller columns etc.)
+    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+    await ensureSchema();
+
     const trimmedUsername = username.toLowerCase().trim();
 
     // Step 1: Auto-seed executive accounts if they don't exist

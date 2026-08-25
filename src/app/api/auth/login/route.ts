@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { verifyPassword } from '../../../../lib/authUtils';
+import { ensureSchema } from '../../../../lib/dbBootstrap';
 
 import jwt from 'jsonwebtoken';
 
@@ -11,6 +12,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
+    // Make sure additive marketplace schema exists before querying Seller relations
+    await ensureSchema();
+
     if (!JWT_SECRET) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }

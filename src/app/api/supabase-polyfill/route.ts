@@ -52,6 +52,10 @@ async function ensureSeeded() {
 // Main polyfill POST handler
 export async function POST(request: Request) {
   try {
+    // Make sure additive marketplace schema exists before client queries run
+    const { ensureSchema } = await import('../../../lib/dbBootstrap');
+    await ensureSchema();
+
     // Run auto-seed check
     await ensureSeeded();
 

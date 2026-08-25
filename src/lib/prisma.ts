@@ -26,3 +26,13 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Self-healing schema bootstrap (see src/lib/dbBootstrap.ts).
+// Kicked off once per server process so the additive marketplace tables/columns
+// exist before application queries need them. Fire-and-forget: critical routes
+// additionally await ensureSchema() directly.
+import('./dbBootstrap')
+  .then((m) => m.ensureSchema())
+  .catch(() => {
+    /* never block module load */
+  });

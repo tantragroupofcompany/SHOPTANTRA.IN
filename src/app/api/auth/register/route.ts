@@ -22,6 +22,10 @@ const PHONE_REGEX = /^\+?[0-9\s-]{10,15}$/;
 
 export async function POST(request: Request) {
   try {
+    // Ensure additive marketplace schema exists before creating Seller rows
+    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+    await ensureSchema();
+
     const body = await request.json();
     const { email, password, fullName, role, businessInfo } = body;
 
