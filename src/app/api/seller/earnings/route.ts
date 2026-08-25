@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         where: { sellerId },
         orderBy: { createdAt: 'desc' },
         take: 100,
-      }),
+      }).catch(() => []),
       prisma.seller.findUnique({ where: { id: sellerId }, select: { commissionRate: true, storeName: true } }),
     ]);
 

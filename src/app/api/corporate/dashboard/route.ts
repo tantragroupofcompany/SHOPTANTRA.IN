@@ -178,7 +178,7 @@ export async function GET(request: any) {
       prisma.coupon.count(),
       prisma.review.count(),
       prisma.user.count({ where: { role: { in: ['FOUNDER', 'CEO_MD', 'CHAIRMAN'] } } }),
-      prisma.sellerSettlement.groupBy({ by: ['status'], _sum: { sellerAmount: true, commissionAmount: true, grossAmount: true } }),
+      prisma.sellerSettlement.groupBy({ by: ['status'], _sum: { sellerAmount: true, commissionAmount: true, grossAmount: true } }).catch(() => []),
     ]);
 // ---- Normalize grouping results into lookup maps ----
     const byStatus = (rows: any[]) => {
