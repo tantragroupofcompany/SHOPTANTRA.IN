@@ -118,7 +118,7 @@ export function Footer() {
           
           {/* Brand Info & Socials */}
           <div className="space-y-3">
-            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-9 w-auto" />
+            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-12 w-auto object-contain" />
             <p className="text-gray-300 text-xs leading-relaxed">
               SHOPTANTRA (shoptantra.in) is India's premium multi-vendor marketplace, connecting authentic local brands and sellers with buyers nationwide. 
             </p>

@@ -86,7 +86,7 @@ export function AdminLayout() {
       `}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div>
-            <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-8 w-auto" />
+            <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-10 w-auto object-contain" />
             <p className="text-xs text-orange-400 mt-0.5 font-medium">Admin Panel</p>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded hover:bg-white/10">

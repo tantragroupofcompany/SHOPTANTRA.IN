@@ -120,7 +120,7 @@ export default function CorporateDashboard() {
       <aside className={`fixed top-0 left-0 h-full w-64 bg-gray-800 z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
         <div className="p-5 border-b border-gray-700">
           <div className="flex items-center gap-3">
-            <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-8 object-contain brightness-0 invert" />
+            <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-10 w-auto object-contain" />
             <span className="font-bold text-sm">Corporate ERP</span>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">

@@ -565,7 +565,7 @@ export default function Checkout() {
           {/* Invoice Header */}
           <div className="flex justify-between items-start border-b border-gray-200 pb-5">
             <div>
-              <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-10 w-auto mb-2" />
+              <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-12 w-auto object-contain mb-2" />
               <p className="text-xs text-gray-400">shoptantra.in • Premium Marketplace</p>
             </div>
             <div className="text-right">
@@ -951,7 +951,7 @@ export default function Checkout() {
             {/* Modal Header */}
             <div className="bg-brand-navy dark:bg-brand-navy-dark text-white p-5 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <img src="/SHOPTANTRA.png" alt="Logo" className="h-6 w-auto" />
+                <img src="/SHOPTANTRA.png" alt="Logo" className="h-8 w-auto object-contain" />
                 <span className="text-xs text-gray-300 font-bold">Secure Gateway</span>
               </div>
               <span className="text-[10px] bg-brand-orange font-extrabold uppercase px-1.5 py-0.5 rounded">

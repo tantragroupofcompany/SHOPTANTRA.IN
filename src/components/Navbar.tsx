@@ -189,7 +189,7 @@ export function Navbar() {
           
           {/* Brand Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center">
-            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-9 w-auto object-contain max-w-[130px] xs:max-w-[160px] sm:max-w-none sm:h-12 max-h-12" />
+            <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-10 sm:h-14 w-auto object-contain py-0.5" />
           </Link>
 
           {/* Categories Dropdown & AI Smart Search Bar */}

@@ -53,7 +53,7 @@ export function BuyerLayout() {
         flex flex-col
       `}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-8 w-auto" />
+          <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-10 w-auto object-contain" />
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded hover:bg-white/10">
             <X className="w-5 h-5" />
           </button>

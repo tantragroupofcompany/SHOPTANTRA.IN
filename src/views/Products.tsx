@@ -83,6 +83,10 @@ export default function ProductsPage() {
             const comparePrice = Number(item.comparePrice || item.compare_price || price * 1.3);
             const discount = comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
 
+            if (item.title && (item.title.toUpperCase().includes('FOREVER FACE WASH') || item.title.toUpperCase().includes('SPREY DUBAI'))) {
+              continue;
+            }
+
             formatted.push({
               id: item.id,
               title: item.title,

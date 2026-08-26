@@ -211,7 +211,7 @@ export default function DownloadApp() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               <div>
-                <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-8 object-contain mb-4 brightness-0 invert" />
+                <img src="/SHOPTANTRA.png" alt="SHOPTANTRA" className="h-10 w-auto object-contain mb-4" />
                 <p className="text-xs text-gray-400">Shop smarter, sell faster with India's trusted multi-vendor marketplace.</p>
               </div>
               <div>
