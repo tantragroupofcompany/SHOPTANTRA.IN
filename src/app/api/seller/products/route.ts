@@ -20,6 +20,56 @@ async function resolveSellerId(id: string | null): Promise<string | null> {
   return seller ? seller.id : null;
 }
 
+/**
+ * Normalize an `images` value into a canonical JSON array of
+ * `{ url, is_primary }` entries. Accepts: a JSON string, an array of URL
+ * strings, an array of `{url}` / `{image}` objects, a single URL string, or an
+ * object with a `.url` / `.image` field. Any value that is undefined / null /
+ * empty / malformed is reduced to a safe `[]` so the database never stores an
+ * invalid image value (no undefined, no bare null, no junk JSON).
+ */
+function normalizeImages(images: unknown): string {
+  let parsed: unknown = images;
+
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch {
+        parsed = null;
+      }
+    } else if (trimmed) {
+      parsed = [trimmed]; // plain single URL string
+    } else {
+      parsed = null;
+    }
+  }
+
+  const entries: { url: string; is_primary: boolean }[] = [];
+  const push = (value: unknown) => {
+    let url = '';
+    if (typeof value === 'string') {
+      url = value.trim();
+    } else if (value && typeof value === 'object') {
+      const candidate =
+        (value as { url?: unknown }).url ?? (value as { image?: unknown }).image;
+      if (typeof candidate === 'string') url = candidate.trim();
+    }
+    if (url && !entries.some((e) => e.url === url)) {
+      entries.push({ url, is_primary: entries.length === 0 });
+    }
+  };
+
+  if (Array.isArray(parsed)) {
+    parsed.forEach(push);
+  } else if (parsed && typeof parsed === 'object') {
+    push((parsed as { url?: unknown }).url);
+  }
+
+  return JSON.stringify(entries);
+}
+
 // GET /api/seller/products
 export async function GET(request: Request) {
   try {
@@ -140,7 +190,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: title, price, category' }, { status: 400 });
     }
 
-    const imagesJson = typeof images === 'string' ? images : JSON.stringify(images || []);
+    const imagesJson = normalizeImages(images);
     const variantsJson = typeof variants === 'string' ? variants : JSON.stringify(variants || []);
 
     const newProduct = await prisma.product.create({
@@ -244,7 +294,7 @@ export async function PUT(request: Request) {
     if (estimatedPackingTime !== undefined) updatePayload.estimatedPackingTime = parseInt(estimatedPackingTime);
 
     if (images !== undefined) {
-      updatePayload.images = typeof images === 'string' ? images : JSON.stringify(images);
+      updatePayload.images = normalizeImages(images);
     }
     if (variants !== undefined) {
       updatePayload.variants = typeof variants === 'string' ? variants : JSON.stringify(variants);

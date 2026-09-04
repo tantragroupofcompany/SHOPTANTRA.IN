@@ -39,13 +39,16 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (product) {
+      const productImages = Array.isArray(product.images) ? product.images : [];
       addToCart({
         id: product.id,
         title: product.title,
         price: product.price,
-        image: product.images[0],
+        image: productImages[0] || '',
+        images: productImages,
         seller: product.seller,
-        sellerId: product.sellerId
+        sellerId: product.sellerId,
+        category: product.category
       }, quantity, selectedColor, selectedSize);
       addNotification('Added to Cart', `${product.title} has been added to your cart.`, 'success');
     }
@@ -53,13 +56,16 @@ export default function ProductDetail() {
 
   const handleBuyNow = () => {
     if (product) {
+      const productImages = Array.isArray(product.images) ? product.images : [];
       addToCart({
         id: product.id,
         title: product.title,
         price: product.price,
-        image: product.images[0],
+        image: productImages[0] || '',
+        images: productImages,
         seller: product.seller,
-        sellerId: product.sellerId
+        sellerId: product.sellerId,
+        category: product.category
       }, quantity, selectedColor, selectedSize);
       navigate('/cart');
     }

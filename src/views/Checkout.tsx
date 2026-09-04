@@ -15,6 +15,48 @@ import {
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Graceful fallback image used when a product (or legacy cart item) has no
+ * usable image. It is an inline SVG data URI so it never 404s and never needs
+ * a server asset, mirroring the historical "/placeholder.jpg" convention.
+ */
+const FALLBACK_PRODUCT_IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">' +
+      '<rect width="100%" height="100%" fill="#e5e7eb"/>' +
+      '<text x="50%" y="55%" fill="#9ca3af" font-size="14" text-anchor="middle" font-family="sans-serif">SHOPTANTRA</text>' +
+      '</svg>'
+  );
+
+/** Structural shape of a product that can supply an image. */
+interface ProductImageSource {
+  images?: string[] | null;
+  image?: string | null;
+  product_images?: Array<{ url?: string | null } | string | null> | null;
+}
+
+/**
+ * Safely resolve the primary image for a product (or legacy cart item).
+ * Handles: images = undefined / null / [] / ["url"], singular `image`,
+ * and DB-style `product_images` array of objects/strings.
+ */
+function primaryImageOf(product: ProductImageSource | null | undefined): string {
+  if (product) {
+    const images = Array.isArray(product.images) ? product.images : [];
+    for (const img of images) {
+      if (typeof img === 'string' && img.trim()) return img;
+    }
+    if (typeof product.image === 'string' && product.image.trim()) return product.image;
+    if (Array.isArray(product.product_images) && product.product_images.length > 0) {
+      const first = product.product_images[0];
+      const url = typeof first === 'string' ? first : first?.url;
+      if (typeof url === 'string' && url.trim()) return url;
+    }
+  }
+  return FALLBACK_PRODUCT_IMAGE;
+}
+
 export default function Checkout() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -53,6 +95,7 @@ export default function Checkout() {
   const gstAmount = Math.round((subtotal - discountAmount) * 0.18);
   const cgst = Math.round(gstAmount / 2);
   const sgst = Math.round(gstAmount / 2);
+  const grandTotal = subtotal - discountAmount + gstAmount + shippingCharges;
   const [couriers, setCouriers] = useState<any[]>([]);
 
   const calculateShipping = async () => {
@@ -857,7 +900,7 @@ export default function Checkout() {
               {cart.map((item) => (
                 <div key={item.product.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={item.product.images[0]} alt={item.product.title} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                    <img src={primaryImageOf(item.product)} alt={item.product.title} className="w-8 h-8 rounded object-cover flex-shrink-0" />
                     <span className="font-semibold text-gray-700 dark:text-gray-300 truncate">{item.product.title}</span>
                   </div>
                   <span className="font-bold text-gray-800 dark:text-gray-200 flex-shrink-0">
