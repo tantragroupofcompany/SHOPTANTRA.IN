@@ -20,6 +20,15 @@ const STATUS_STYLES: Record<string, string> = {
   BLOCKED: 'bg-gray-600/30 text-gray-300',
 };
 
+// Verification is driven by the authoritative Seller.verificationStatus field
+// (VERIFIED / PENDING_VERIFICATION), NOT by the redundant emailVerified boolean.
+// This prevents an approved/active seller from being mislabelled "Unverified"
+// simply because their email OTP flag was never switched on.
+const VERIFICATION_OF = (s: any) =>
+  s?.verificationStatus === 'VERIFIED'
+    ? { label: 'Verified', cls: 'bg-green-500/20 text-green-400' }
+    : { label: 'Unverified', cls: 'bg-yellow-500/20 text-yellow-400' };
+
 export default function CorporateSellers() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -125,6 +134,7 @@ export default function CorporateSellers() {
                     <th className="px-4 py-3 text-center">Products</th>
                     <th className="px-4 py-3 text-center">Orders</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Verification</th>
                     <th className="px-4 py-3">Joined</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
@@ -145,7 +155,9 @@ export default function CorporateSellers() {
                       <td className="px-4 py-3 text-center font-bold">{s._count?.orders ?? 0}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${STATUS_STYLES[s.status] || 'bg-gray-700 text-gray-300'}`}>{s.status}</span>
-                        {!s.emailVerified && <span className="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">Unverified</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${VERIFICATION_OF(s).cls}`}>{VERIFICATION_OF(s).label}</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400">{s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '—'}</td>
                       <td className="px-4 py-3">

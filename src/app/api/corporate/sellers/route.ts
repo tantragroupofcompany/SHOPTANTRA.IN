@@ -46,6 +46,7 @@ export async function GET(request: any) {
           storeName: true,
           storeDescription: true,
           status: true,
+          verificationStatus: true,
           city: true,
           state: true,
           createdAt: true,

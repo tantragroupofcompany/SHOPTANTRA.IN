@@ -38,15 +38,26 @@ export async function POST(request: any) {
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
 
-    await prisma.seller.update({
+    const updatedSeller = await prisma.seller.update({
       where: { id: sellerId },
       data: {
         status,
         ...(status === 'ACTIVE' ? { verificationStatus: 'VERIFIED' } : {}),
       },
+      select: {
+        id: true,
+        storeName: true,
+        status: true,
+        verificationStatus: true,
+        updatedAt: true,
+      },
     });
 
-    return NextResponse.json({ success: true, message: `Seller ${status.toLowerCase()} successfully` });
+    return NextResponse.json({
+      success: true,
+      message: `Seller ${status.toLowerCase()} successfully`,
+      data: updatedSeller,
+    });
   } catch (error: any) {
     console.error('Seller action error:', error);
     return NextResponse.json({ success: false, error: error.message || 'Failed to update seller' }, { status: 500 });
