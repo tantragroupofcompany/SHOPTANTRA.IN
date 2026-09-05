@@ -586,6 +586,31 @@ export async function POST(request: Request) {
         data.status = data.status.toUpperCase();
       }
 
+      // ---------------------------------------------------------------------
+      // STATUS CONSISTENCY GUARD (sellers table):
+      //
+      // Business rule (single status model):
+      //  * Account/approval status  = Seller.status  (PENDING → ACTIVE/APPROVED →
+      //    REJECTED / SUSPENDED / BLOCKED)
+      //  * Verification status      = Seller.verificationStatus (PENDING_VERIFICATION → VERIFIED)
+      //  * Approving/activating a seller COMPLETES verification (corporate/seller-action
+      //    already does this; this guard makes the invariant hold for ANY writer,
+      //    including the Admin panel toggle, seeds and legacy clients).
+      //
+      // Without this guard, a writer that only sets `status=ACTIVE` leaves
+      // `verificationStatus=PENDING_VERIFICATION`, producing contradictory rows
+      // that the Corporate Approval Center shows as “ACTIVE + Unverified”.
+      // ---------------------------------------------------------------------
+      if (table === 'sellers') {
+        if (data.verificationStatus !== undefined) {
+          if (data.verificationStatus === true) data.verificationStatus = 'VERIFIED';
+          else if (data.verificationStatus === false) data.verificationStatus = 'PENDING_VERIFICATION';
+          else if (typeof data.verificationStatus === 'string') data.verificationStatus = data.verificationStatus.toUpperCase();
+        } else if (data.status === 'ACTIVE' || data.status === 'APPROVED') {
+          data.verificationStatus = 'VERIFIED';
+        }
+      }
+
       // Perform updates
       const updatedRows = await delegate.updateMany({
         where,

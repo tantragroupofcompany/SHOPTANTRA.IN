@@ -98,7 +98,9 @@ const Sellers = () => {
   };
 
   const handleToggleVerification = async (sellerId: string, currentVerification: boolean) => {
-    const nextStatus = currentVerification ? 'PENDING' : 'ACTIVE';
+    const activating = !currentVerification;
+    const nextStatus = activating ? 'ACTIVE' : 'PENDING';
+    const nextVerification = activating ? 'VERIFIED' : 'PENDING_VERIFICATION';
     try {
       const response = await fetch('/api/supabase-polyfill', {
         method: 'POST',
@@ -107,7 +109,7 @@ const Sellers = () => {
           table: 'sellers',
           action: 'update',
           filters: [{ column: 'id', operator: 'eq', value: sellerId }],
-          updateData: { status: nextStatus }
+          updateData: { status: nextStatus, verificationStatus: nextVerification }
         })
       });
       const resData = await response.json();
@@ -115,8 +117,9 @@ const Sellers = () => {
 
       setSellers(sellers.map((s) => (s.id === sellerId ? { 
         ...s, 
-        status: nextStatus.toLowerCase() as any, 
-        isVerified: !currentVerification 
+        status: nextStatus.toLowerCase() as any,
+        verificationStatus: nextVerification as any,
+        isVerified: nextVerification === 'VERIFIED',
       } : s)));
     } catch (error) {
       console.error('Error updating verification status:', error);

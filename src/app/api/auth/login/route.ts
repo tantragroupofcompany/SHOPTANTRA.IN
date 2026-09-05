@@ -66,8 +66,11 @@ export async function POST(request: Request) {
       if (dbUser.sellerProfile.verificationStatus === 'PENDING_VERIFICATION') {
         return NextResponse.json({ error: 'Please verify your email before accessing your seller account.' }, { status: 403 });
       }
-      if (dbUser.sellerProfile.status === 'SUSPENDED') {
-        return NextResponse.json({ error: 'This seller account has been suspended. Contact support.' }, { status: 403 });
+      // Blocked / rejected / suspended sellers cannot access their seller account.
+      // (Pending sellers may log in to see their pending-approval screen, but all
+      //  protected seller APIs still independently check status === 'ACTIVE'.)
+      if (['REJECTED', 'SUSPENDED', 'BLOCKED'].includes(dbUser.sellerProfile.status)) {
+        return NextResponse.json({ error: 'This seller account is not active. Contact support for assistance.' }, { status: 403 });
       }
     }
 
