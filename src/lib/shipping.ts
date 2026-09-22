@@ -7,6 +7,19 @@ export interface ShippingDetails {
   expectedDeliveryDate: string;
 }
 
+// Re-export the real shipping module (src/lib/shipping/). NOTE: this file shadows
+// the directory for the specifier `@/lib/shipping`, so anything consumed from
+// '@/lib/shipping' MUST be re-exported here explicitly — otherwise the bundler
+// reports "The export X was not found in module [project]/src/lib/shipping.ts".
+export {
+  getShippingConfig,
+  getShippingProvider,
+  isShippingEnabled,
+  ShippingXpressProvider,
+  SHIPPING_XPRESS_CONTRACT,
+} from './shipping/index';
+export type { ProviderName } from './shipping/index';
+
 export function generateShippingData(carrier: 'SHIPROCKET' | 'DELHIVERY' | 'BLUEDART' = 'DELHIVERY'): ShippingDetails {
   const randomAWB = Math.floor(1000000000 + Math.random() * 9000000000);
   const expectedDate = new Date();

@@ -436,6 +436,18 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
       console.error('Failed to trigger customer alerts:', e);
     }
 
+    // 14b. Auto-create marketplace shipments (Shipping Xpress when enabled).
+    //      Fire-and-forget: never block order confirmation on carrier availability.
+    //      Stocks were already decremented inside this transaction; shipment
+    //      creation only books a label / creates the carrier order.
+    try {
+      const { triggerAutoShipment } = await import('./shipping/shipmentService');
+      const paymentMode = (gateway === 'COD' || method === 'COD') ? 'COD' : 'PREPAID';
+      void triggerAutoShipment(result.order.id, paymentMode);
+    } catch (shipError: any) {
+      console.warn('Auto-shipment trigger could not be scheduled:', shipError?.message || shipError);
+    }
+
     return {
       success: true,
       message: 'Payment verified and transaction logged successfully',

@@ -5,6 +5,12 @@ import { prisma } from './prisma';
  * indexes/constraints. Idempotent and safe to run on every cold start.
  */
 export async function ensureMarketplaceTables(): Promise<void> {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url || !/^postgres(?:ql)?:\/\//i.test(url)) {
+    console.warn('[db-bootstrap] Skipping marketplace table bootstrap: DATABASE_URL is missing or invalid in this environment.');
+    return;
+  }
+
   const statements: string[] = [
     `CREATE TABLE IF NOT EXISTS "CommissionRule" (
         "id" TEXT NOT NULL,

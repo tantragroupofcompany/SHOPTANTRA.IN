@@ -14,6 +14,12 @@ import { prisma } from './prisma';
 
 const globalForSchema = global as unknown as { __shoptantraSchemaReady?: Promise<void> };
 
+function hasValidDatabaseUrl(): boolean {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) return false;
+  return /^postgres(?:ql)?:\/\//i.test(url);
+}
+
 const STATEMENTS: string[] = [
   `ALTER TABLE "Seller" ADD COLUMN IF NOT EXISTS "razorpayLinkedAccountId" TEXT`,
   `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "commissionPercent" DOUBLE PRECISION`,
@@ -25,9 +31,34 @@ const STATEMENTS: string[] = [
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "transferId" TEXT`,
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "failureReason" TEXT`,
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  // --- Shipping Xpress integration (Phase 8/9) — supplier pickup → carrier ---
+  // Applied at runtime because production runs behind Supabase's pooler where
+  // `prisma migrate deploy` cannot take its advisory locks. Every statement is
+  // additive + idempotent, so re-running on each cold start is safe.
+  `ALTER TABLE "PickupAddress" ADD COLUMN IF NOT EXISTS "pickupLocationId" TEXT`,
+  `ALTER TABLE "PickupAddress" ADD COLUMN IF NOT EXISTS "verificationStatus" TEXT NOT NULL DEFAULT 'PENDING'`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "length" DOUBLE PRECISION`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "width" DOUBLE PRECISION`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "height" DOUBLE PRECISION`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "declaredValue" DOUBLE PRECISION`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "provider" TEXT NOT NULL DEFAULT 'MASTER_ACCOUNT'`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "providerShipmentId" TEXT`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "providerOrderId" TEXT`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "paymentMode" TEXT`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "clientRef" TEXT`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "failureReason" TEXT`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "rawResponse" JSONB`,
+  `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "lastProviderSyncAt" TIMESTAMP(3)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Shipment_providerShipmentId_key" ON "Shipment" ("providerShipmentId") WHERE "providerShipmentId" IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Shipment_clientRef_key" ON "Shipment" ("clientRef") WHERE "clientRef" IS NOT NULL AND "clientRef" <> ''`,
 ];
 
 export async function applyStatements(): Promise<void> {
+  if (!hasValidDatabaseUrl()) {
+    console.warn('[db-bootstrap] Skipping schema bootstrap: DATABASE_URL is missing or invalid in this environment.');
+    return;
+  }
+
   let applied = 0;
   for (const sql of STATEMENTS) {
     try {

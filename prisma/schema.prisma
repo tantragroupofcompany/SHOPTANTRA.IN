@@ -339,9 +339,22 @@ model Shipment {
   codAmount        Float           @default(0.0)
   shippingCost     Float           @default(0.0)
   weight           Float           @default(0.5)
+  length           Float?
+  width            Float?
+  height           Float?
+  declaredValue    Float?
   dispatchDate     String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  // --- Shipping Xpress / multi-provider integration (Phase 8/9) ---
+  provider           String          @default("MASTER_ACCOUNT")
+  providerShipmentId String?
+  providerOrderId    String?
+  paymentMode        String?
+  clientRef          String?
+  failureReason      String?
+  rawResponse        Json?
+  lastProviderSyncAt DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   items            OrderItem[]
   trackingUpdates  TrackingUpdate[]
   invoice          Invoice?
