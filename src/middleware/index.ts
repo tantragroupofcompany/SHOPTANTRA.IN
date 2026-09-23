@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getJwtSecret, normalizeCorporateRole } from '../lib/corporateAuth';
 
 const CORPORATE_COOKIE = 'corporate_auth_token';
 const AUTH_COOKIE = 'auth_token';
@@ -14,7 +15,7 @@ function getToken(request: NextRequest) {
 // jsonwebtoken relies on Node-only crypto and fails at the edge, which
 // caused all protected corporate/founder/admin API calls to return 401.
 async function verifyToken(token: string) {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'shoptantra_super_secret_jwt_key_2026');
+  const secret = getJwtSecret();
   const { payload } = await jwtVerify(token, secret);
   return payload as { role?: string; userId?: string };
 }
@@ -27,7 +28,7 @@ export async function requireAuth(request: NextRequest) {
 
   try {
     const payload = await verifyToken(token);
-    return { role: payload.role?.toUpperCase(), userId: payload.userId };
+    return { role: normalizeCorporateRole(payload.role) ?? payload.role?.toUpperCase(), userId: payload.userId };
   } catch (e) {
     return NextResponse.json({ error: 'Invalid authentication token.' }, { status: 401 });
   }
@@ -41,7 +42,9 @@ export async function requireRole(request: NextRequest, allowedRoles: string[]) 
 
   try {
     const payload = await verifyToken(token);
-    const role = payload.role?.toUpperCase();
+    // Canonicalise legacy CEO/MD aliases to the single stored role CEO_MD so an
+    // executive token is never rejected purely because of role-spelling drift.
+    const role = normalizeCorporateRole(payload.role) ?? payload.role?.toUpperCase();
 
     if (!role || !allowedRoles.includes(role)) {
       return NextResponse.json({ error: 'Access Denied – You do not have permission to access this area.' }, { status: 403 });

@@ -2,37 +2,61 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { verifyPassword, hashPasswordBcrypt } from '../../../../lib/authUtils';
 import { SignJWT } from 'jose';
+import {
+  getCorporateRoleDashboard,
+  getJwtSecret,
+  normalizeCorporateRole,
+  type CorporateRole,
+} from '../../../../lib/corporateAuth';
 
-const EXECUTIVE_ACCOUNTS = [
+/**
+ * Executive accounts are NOT hardcoded in this repository.
+ *
+ * The three executive logins (Founder / CEO & MD / Chairman) are ordinary rows
+ * in the `User` table carrying the roles FOUNDER / CEO_MD / CHAIRMAN. Their
+ * bootstrap passwords are supplied out-of-band through environment variables so
+ * no plaintext credential is ever committed to source control:
+ *
+ *   EXECUTIVE_FOUNDER_PASSWORD
+ *   EXECUTIVE_CEO_PASSWORD
+ *   EXECUTIVE_CHAIRMAN_PASSWORD
+ *
+ * When a variable is absent its account is left completely untouched - it is
+ * never created and never reset. That keeps this endpoint idempotent and means
+ * a missing env var can never silently overwrite an executive's password.
+ */
+interface ExecutiveSeed {
+  role: CorporateRole;
+  username: string;
+  email: string;
+  fullName: string;
+  /** Name of the environment variable holding this account's bootstrap password. */
+  passwordEnvKey: string;
+}
+
+const EXECUTIVE_SEEDS: ExecutiveSeed[] = [
   {
+    role: 'FOUNDER',
     username: 'founder_2027',
     email: 'founder@shoptantra.in',
-    passwordPlain: 'FOUNDER@2027',
-    role: 'FOUNDER',
     fullName: 'Founder',
+    passwordEnvKey: 'EXECUTIVE_FOUNDER_PASSWORD',
   },
   {
+    role: 'CEO_MD',
     username: 'ceo_2027',
     email: 'ceo@shoptantra.in',
-    passwordPlain: 'CEO@2027',
-    role: 'CEO_MD',
     fullName: 'CEO & MD',
+    passwordEnvKey: 'EXECUTIVE_CEO_PASSWORD',
   },
   {
+    role: 'CHAIRMAN',
     username: 'chairman_2027',
     email: 'chairman@shoptantra.in',
-    passwordPlain: 'CHAIRMAN@2027',
-    role: 'CHAIRMAN',
     fullName: 'Chairman',
+    passwordEnvKey: 'EXECUTIVE_CHAIRMAN_PASSWORD',
   },
 ];
-
-const HASHED_PASSWORDS: Record<string, string> = {};
-
-// Hash all passwords once at module load
-for (const exec of EXECUTIVE_ACCOUNTS) {
-  HASHED_PASSWORDS[exec.role] = hashPasswordBcrypt(exec.passwordPlain);
-}
 
 /**
  * Ensures the username column exists on the User table (production fix).
@@ -51,15 +75,20 @@ async function ensureUsernameColumn() {
 }
 
 /**
- * Creates or updates the three executive accounts if they don't exist.
+ * Creates or updates the executive accounts, but ONLY for roles whose bootstrap
+ * password is present in the environment. Never invents or resets credentials.
  */
 async function ensureExecutiveAccounts() {
   await ensureUsernameColumn();
 
-  for (const exec of EXECUTIVE_ACCOUNTS) {
-    const hashedPw = HASHED_PASSWORDS[exec.role];
+  for (const exec of EXECUTIVE_SEEDS) {
+    // No bootstrap password configured for this role -> leave it alone entirely.
+    const passwordPlain = process.env[exec.passwordEnvKey];
+    if (!passwordPlain || passwordPlain.trim().length === 0) continue;
 
-    // Check if an executive account with this email already exists (regardless of username)
+    const hashedPw = hashPasswordBcrypt(passwordPlain);
+
+    // Check if an executive account with this role already exists (regardless of username)
     const existingByRole = await prisma.user.findFirst({
       where: { role: exec.role },
     });
@@ -68,7 +97,7 @@ async function ensureExecutiveAccounts() {
       // Update with latest username + password if needed
       const needsUpdate =
         existingByRole.username !== exec.username ||
-        !verifyPassword(exec.passwordPlain, existingByRole.password);
+        !verifyPassword(passwordPlain, existingByRole.password);
 
       if (needsUpdate) {
         await prisma.user.update({
@@ -183,15 +212,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 2b: If still not found, check if they might have typed a role name
+    // Step 2b: If still not found, check if they might have typed a role name.
+    // normalizeCorporateRole() also collapses the legacy 'ceo' / 'md' spellings
+    // into the single stored role 'CEO_MD'.
     if (!dbUser) {
       const roleMap: Record<string, string> = {
         founder: 'FOUNDER',
         ceo: 'CEO_MD',
+        md: 'CEO_MD',
         'ceo & md': 'CEO_MD',
         chairman: 'CHAIRMAN',
       };
-      const possibleRole = roleMap[trimmedUsername];
+      const possibleRole = normalizeCorporateRole(roleMap[trimmedUsername] ?? trimmedUsername);
       if (possibleRole) {
         dbUser = await prisma.user.findFirst({
           where: { role: possibleRole },
@@ -223,9 +255,11 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // Step 4: Verify corporate role
-    const allowedCorporateRoles = ['FOUNDER', 'CEO_MD', 'CHAIRMAN'];
-    if (!allowedCorporateRoles.includes(dbUser.role)) {
+    // Step 4: Verify corporate role. CORPORATE_ROLES in lib/corporateAuth.ts is
+    // the single source of truth; the legacy 'ceo' / 'md' spellings collapse to
+    // the one stored role 'CEO_MD'.
+    const corporateRole = normalizeCorporateRole(dbUser.role);
+    if (!corporateRole) {
       console.log(`Login failed: role ${dbUser.role} not allowed`);
       return NextResponse.json({
         error: 'Access Denied',
@@ -234,20 +268,20 @@ export async function POST(request: Request) {
     }
 
     // Step 5: Create session JWT
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'shoptantra_super_secret_jwt_key_2026');
+    const secret = getJwtSecret();
     const token = await new SignJWT({
       userId: dbUser.id,
       email: dbUser.email,
       username: dbUser.username || trimmedUsername,
-      role: dbUser.role,
+      role: corporateRole,
       type: 'corporate',
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('8h')
       .sign(secret);
 
-    // Step 6: Determine redirect based on role
-    const redirectTo = '/corporate/dashboard';
+    // Step 6: Land each executive on their own dashboard.
+    const redirectTo = getCorporateRoleDashboard(corporateRole);
 
     const response = NextResponse.json({
       success: true,
@@ -256,7 +290,7 @@ export async function POST(request: Request) {
         id: dbUser.id,
         email: dbUser.email,
         username: dbUser.username || null,
-        role: dbUser.role,
+        role: corporateRole,
         fullName: dbUser.fullName,
       },
       token,

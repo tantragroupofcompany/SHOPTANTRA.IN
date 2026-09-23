@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getJwtSecret, normalizeCorporateRole } from '../../../../lib/corporateAuth';
 
 export async function GET(request: Request) {
   // Read cookies from the request
@@ -18,13 +19,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'shoptantra_super_secret_jwt_key_2026');
+    const secret = getJwtSecret();
     const { payload } = await jwtVerify(token, secret);
 
-    const role = (payload.role as string)?.toUpperCase();
-    const allowedRoles = ['FOUNDER', 'CEO_MD', 'CHAIRMAN'];
+    // Canonicalise legacy CEO/MD aliases to the single stored role CEO_MD and
+    // reject anyone who is not an executive. CORPORATE_ROLES in
+    // lib/corporateAuth.ts is the single source of truth for this allow-list.
+    const role = normalizeCorporateRole(payload.role);
 
-    if (!allowedRoles.includes(role)) {
+    if (!role) {
       return NextResponse.json({ authenticated: false, error: 'Access Denied' }, { status: 403 });
     }
 

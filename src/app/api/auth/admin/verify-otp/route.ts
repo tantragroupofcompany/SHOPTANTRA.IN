@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { verifyPassword } from '../../../../../lib/authUtils';
 import jwt from 'jsonwebtoken';
+import { getJwtSecretString } from '../../../../../lib/corporateAuth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'shoptantra_secret_jwt_key_2026';
+// Resolved through the shared helper so that a missing JWT_SECRET fails loudly
+// in production instead of silently falling back to a publicly-known key.
+const JWT_SECRET = getJwtSecretString();
 
 export async function POST(request: Request) {
   try {

@@ -27,5 +27,8 @@ dist-ssr
 .next
 scratch/
 
+# Local junk that must never be committed
+_tok.tmp
+
 .vercel
 .env*

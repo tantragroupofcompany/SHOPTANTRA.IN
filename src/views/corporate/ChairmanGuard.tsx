@@ -1,20 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import CorporateRoleGuard from './CorporateRoleGuard';
 
+/**
+ * Chairman dashboard gate.
+ *
+ * Chairman accounts sign in through /api/corporate/login (JWT cookie), so this
+ * must verify that cookie - NOT the Supabase useAuth() context, which is always
+ * empty for executive users and previously bounced them to /login.
+ */
 export default function ChairmanGuard({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuth();
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (!loading) setReady(true);
-  }, [loading]);
-
-  if (!ready) return null;
-
-  if (!profile || profile.role !== 'CHAIRMAN') {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return <CorporateRoleGuard allow={['CHAIRMAN']}>{children}</CorporateRoleGuard>;
 }

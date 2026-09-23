@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getJwtSecretString, normalizeCorporateRole } from '../lib/corporateAuth';
 
 const CORPORATE_COOKIE = 'corporate_auth_token';
 const AUTH_COOKIE = 'auth_token';
@@ -12,8 +13,8 @@ export async function requireCorporate(request: NextRequest, allowedRoles: strin
 
   try {
     const jwt = await import('jsonwebtoken');
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { role?: string };
-    const role = payload.role?.toUpperCase();
+    const payload = jwt.verify(token, getJwtSecretString()) as { role?: string };
+    const role = normalizeCorporateRole(payload.role) ?? payload.role?.toUpperCase();
 
     if (!role || !allowedRoles.includes(role)) {
       return NextResponse.json({ error: 'Access Denied – You do not have permission to access this area.' }, { status: 403 });

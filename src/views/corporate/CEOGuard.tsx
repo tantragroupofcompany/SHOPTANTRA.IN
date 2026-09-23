@@ -1,20 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import CorporateRoleGuard from './CorporateRoleGuard';
 
+/**
+ * CEO & MD dashboard gate.
+ *
+ * The CEO & Managing Director is a single combined role stored as CEO_MD -
+ * there is no separate CEO or MD row in the database. The legacy CEO alias is
+ * canonicalised to CEO_MD server-side by /api/corporate/verify.
+ */
 export default function CEOGuard({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuth();
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (!loading) setReady(true);
-  }, [loading]);
-
-  if (!ready) return null;
-
-  if (!profile || (profile.role !== 'CEO_MD' && profile.role !== 'CEO')) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+  return <CorporateRoleGuard allow={['CEO_MD']}>{children}</CorporateRoleGuard>;
 }
