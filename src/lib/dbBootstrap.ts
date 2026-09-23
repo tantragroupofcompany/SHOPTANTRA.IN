@@ -11,13 +11,15 @@
  */
 
 import { prisma } from './prisma';
+import { hasDatabaseUrl } from './databaseUrl';
 
 const globalForSchema = global as unknown as { __shoptantraSchemaReady?: Promise<void> };
 
+// `hasDatabaseUrl` normalises the configured value first (see lib/databaseUrl.ts),
+// so a dashboard value pasted as `DATABASE_URL="postgresql://..."` no longer
+// makes the bootstrap think the database is unconfigured.
 function hasValidDatabaseUrl(): boolean {
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) return false;
-  return /^postgres(?:ql)?:\/\//i.test(url);
+  return hasDatabaseUrl();
 }
 
 const STATEMENTS: string[] = [

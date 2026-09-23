@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { verifyPassword, hashPasswordBcrypt } from '../../../../lib/authUtils';
+import { verifyPassword, hashPasswordBcrypt, classifyDbError } from '../../../../lib/authUtils';
 import { SignJWT } from 'jose';
 import {
   getCorporateRoleDashboard,
@@ -193,12 +193,14 @@ export async function POST(request: Request) {
 
     // Step 2: Find user — try username first, then email as fallback
     let dbUser = null;
+    let dbLookupError: any = null;
 
     try {
       dbUser = await prisma.user.findUnique({
         where: { username: trimmedUsername },
       });
-    } catch {
+    } catch (lookupErr) {
+      dbLookupError = dbLookupError || lookupErr;
       // username column may not exist in production yet — fall back
     }
 
@@ -207,8 +209,9 @@ export async function POST(request: Request) {
         dbUser = await prisma.user.findUnique({
           where: { email: trimmedUsername },
         });
-      } catch {
+      } catch (lookupErr) {
         // email lookup failed
+        dbLookupError = dbLookupError || lookupErr;
       }
     }
 
@@ -232,6 +235,17 @@ export async function POST(request: Request) {
     }
 
     if (!dbUser) {
+      // A database/connection failure must never masquerade as "User not found" —
+      // that is exactly what made this outage look like missing executive accounts.
+      const classified = dbLookupError ? classifyDbError(dbLookupError) : null;
+      if (classified) {
+        console.error('[corporate/login] DB error:', dbLookupError?.code || dbLookupError?.message);
+        return NextResponse.json(
+          { error: 'Sign-in is temporarily unavailable', detail: classified },
+          { status: 503 }
+        );
+      }
+
       console.log(`Login failed: user not found for "${trimmedUsername}"`);
       return NextResponse.json({
         error: 'User not found',

@@ -1,12 +1,12 @@
 import { prisma } from './prisma';
+import { hasValidDatabaseUrl } from './databaseUrl';
 
 /**
  * Creates the marketplace tables (CommissionRule, SellerSettlement) and their
  * indexes/constraints. Idempotent and safe to run on every cold start.
  */
 export async function ensureMarketplaceTables(): Promise<void> {
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url || !/^postgres(?:ql)?:\/\//i.test(url)) {
+  if (!hasValidDatabaseUrl()) {
     console.warn('[db-bootstrap] Skipping marketplace table bootstrap: DATABASE_URL is missing or invalid in this environment.');
     return;
   }
