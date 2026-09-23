@@ -106,8 +106,8 @@ export default function Cart() {
               {cart.map((item) => {
                 const p = safeProduct(item?.product);
                 const isStale = !item?.product;
-                return (
-                  <div key={`${p.id}-${item?.selectedColor ?? ''}-${item?.selectedSize ?? ''}`} className="grid grid-cols-1 sm:grid-cols-12 gap-4 px-6 py-5 items-center">
+                const itemKey = [p.id, item?.selectedColor || "none", item?.selectedSize || "none"].join("-");
+                return (<div key={itemKey} className="grid grid-cols-1 sm:grid-cols-12 gap-4 px-6 py-5 items-center">
                   
                   {/* Image & Title */}
                   <div className="col-span-6 flex gap-4">

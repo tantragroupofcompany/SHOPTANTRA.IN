@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
     // Validate PAN format (5 letters + 4 digits + 1 letter, e.g. ABCDE1234F)
     if (uppercaseRole === 'SELLER' && businessInfo?.panCard) {
-      const cleanPan = businessInfo.panCard.trim().toUpperCase().replace(/s+/g, '');
+      const cleanPan = businessInfo.panCard.trim().toUpperCase().replace(/\s+/g, '');
       if (!PAN_REGEX.test(cleanPan)) {
         return NextResponse.json({ error: 'Please enter a valid PAN number (e.g. ABCDE1234F).' }, { status: 400 });
       }

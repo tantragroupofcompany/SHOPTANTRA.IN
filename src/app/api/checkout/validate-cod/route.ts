@@ -23,10 +23,15 @@ export async function POST(request: Request) {
       where: { pincode }
     });
 
+    // When the serviceability table has not yet been seeded, default to allowing
+    // COD so that production orders are not rejected due to missing seed data.
+    // Pincodes can be blocked explicitly once the table is populated.
     if (!serviceability) {
       return NextResponse.json({
-        isEligible: false,
-        reason: 'Delivery to this pincode is currently unavailable.'
+        isEligible: true,
+        reason: 'Cash on Delivery available.',
+        isMetro: false,
+        estimatedDays: 7
       });
     }
 

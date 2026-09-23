@@ -16,12 +16,6 @@ export async function GET(request: Request) {
     });
 
     if (!dbUser) {
-      dbUser = await prisma.user.findFirst({
-        where: { role: 'SELLER' }
-      });
-    }
-
-    if (!dbUser) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
@@ -61,12 +55,6 @@ export async function PUT(request: Request) {
     let dbUser = await prisma.user.findUnique({
       where: { id: userId }
     });
-
-    if (!dbUser) {
-      dbUser = await prisma.user.findFirst({
-        where: { role: 'SELLER' }
-      });
-    }
 
     if (!dbUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

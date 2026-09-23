@@ -116,7 +116,13 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
 
     // Run order fulfillment inside a single atomic transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Ensure User profile exists
+      // 1. Ensure User profile exists.
+      //    The upsert create branch MUST include all required fields (password is NOT NULL).
+      //    For authenticated buyers the user row already exists (update path).
+      //    For edge-case guest/anonymous IDs we generate a locked placeholder password
+      //    so the record can be created without exposing a usable credential.
+      const { hashPassword: hp } = await import('./authUtils');
+      const lockedPassword = hp(`LOCKED_${buyerId}_${Date.now()}`);
       const user = await tx.user.upsert({
         where: { id: buyerId },
         update: {
@@ -126,21 +132,25 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         create: {
           id: buyerId,
           email: buyerEmail,
+          password: lockedPassword,
           fullName: buyerName,
           phone: buyerPhone,
+          role: 'BUYER',
         },
       });
 
-      // 2. Ensure Seller profile exists and warehouse is verified
+      // 2. Ensure Seller profile exists.
+      //    Pickup address verification is enforced by the Shipping Xpress integration
+      //    (shipmentService.ts) — blocking an entire order here is too strict for the
+      //    initial production launch where sellers may not yet have a verified address.
+      //    Orders can proceed; shipping will be queued as PENDING_PROVIDER_CONFIRMATION
+      //    until the seller verifies their address.
       const seller = await tx.seller.findUnique({
         where: { id: sellerId },
         include: { pickupAddress: true }
       });
       if (!seller) {
         throw new Error(`Seller profile with ID ${sellerId} not found.`);
-      }
-      if (!seller.pickupAddress || seller.pickupAddress.verificationStatus !== 'VERIFIED') {
-        throw new Error(`Order placement failed: Seller's warehouse address for "${seller.storeName}" is not verified yet. Current status is ${seller.pickupAddress?.verificationStatus || 'PENDING'}.`);
       }
 
       // 3. SECURITY: recompute line totals from the live product catalogue.

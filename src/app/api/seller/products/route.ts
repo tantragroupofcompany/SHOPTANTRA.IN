@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
-// Helper to resolve user ID or seller profile ID to seller profile ID
+// Helper to resolve user ID or seller profile ID to seller profile ID.
+// Returns null if neither a seller row with that id nor a seller row whose
+// userId matches can be found. NEVER falls through to an arbitrary seller.
 async function resolveSellerId(id: string | null): Promise<string | null> {
   if (!id) return null;
-  let seller = await prisma.seller.findFirst({
+  const seller = await prisma.seller.findFirst({
     where: {
       OR: [
         { id: id },
@@ -12,11 +14,6 @@ async function resolveSellerId(id: string | null): Promise<string | null> {
       ]
     }
   });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
   return seller ? seller.id : null;
 }
 
