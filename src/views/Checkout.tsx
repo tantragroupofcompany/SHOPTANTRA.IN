@@ -88,7 +88,11 @@ export default function Checkout() {
   });
 
   const subtotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+    return cart.reduce((acc, item) => {
+      const p = item?.product;
+      const qty = item?.quantity || 0;
+      return acc + (p?.price || 0) * qty;
+    }, 0);
   }, [cart]);
 
   const discountAmount = Math.round(subtotal * (couponDiscount / 100));

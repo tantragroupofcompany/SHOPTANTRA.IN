@@ -26,7 +26,8 @@ export default function ProductsPage() {
       try {
         const { data, error } = await supabase
           .from('products')
-          .select('*');
+          .select('*')
+          .eq('status', 'ACTIVE');
 
         if (data && !error) {
           const formatted: Product[] = [];

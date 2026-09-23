@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { hashPassword, verifyPassword } from '../../../../lib/authUtils';
+import { hashPassword, verifyPassword, classifyDbError } from '../../../../lib/authUtils';
 
 import { sendVerificationEmail } from '../../../../lib/email';
 import crypto from 'crypto';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+// Indian PAN format: 5 uppercase letters + 4 digits + 1 uppercase letter
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\+?[0-9\s-]{10,15}$/;
 
 // Simple HTML escaping function to prevent XSS
 function sanitizeString(str: string): string {
@@ -16,9 +23,6 @@ function sanitizeString(str: string): string {
     .replace(/'/g, '&#x27;')
     .replace(/\//g, '&#x2F;');
 }
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^\+?[0-9\s-]{10,15}$/;
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +65,14 @@ export async function POST(request: Request) {
 
     if (phone && !PHONE_REGEX.test(phone.replace(/\s+/g, ''))) {
       return NextResponse.json({ error: 'Please enter a valid phone number (10-15 digits).' }, { status: 400 });
+    }
+
+    // Validate PAN format (5 letters + 4 digits + 1 letter, e.g. ABCDE1234F)
+    if (uppercaseRole === 'SELLER' && businessInfo?.panCard) {
+      const cleanPan = businessInfo.panCard.trim().toUpperCase().replace(/s+/g, '');
+      if (!PAN_REGEX.test(cleanPan)) {
+        return NextResponse.json({ error: 'Please enter a valid PAN number (e.g. ABCDE1234F).' }, { status: 400 });
+      }
     }
 
     // 2. Prevent Duplicate Email in database
@@ -191,9 +203,37 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error during registration API execution:', error);
+    // Log the full server-side error safely (no secrets printed)
+    const safeMessage = typeof error?.message === 'string' ? error.message : String(error);
+    const errorCode = error?.code;
+    console.error('[register] Unhandled error:', errorCode, safeMessage);
+
+    // Try to classify known DB / Prisma errors into safe customer messages
+    const classified = classifyDbError(error);
+    if (classified) {
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+
+    // Surface safe, actionable messages for known Prisma / DB constraint errors
+    if (safeMessage.includes('Unique constraint') || safeMessage.includes('unique constraint')) {
+      if (safeMessage.includes('email')) {
+        return NextResponse.json({ error: 'An account with this email address already exists.' }, { status: 400 });
+      }
+      if (safeMessage.includes('phone')) {
+        return NextResponse.json({ error: 'This phone number is already registered to another account.' }, { status: 400 });
+      }
+      if (safeMessage.includes('userId') || safeMessage.includes('Seller')) {
+        return NextResponse.json({ error: 'A seller account for this user already exists. Please log in.' }, { status: 400 });
+      }
+      return NextResponse.json({ error: 'An account with one of the provided details already exists.' }, { status: 400 });
+    }
+
+    if (safeMessage.toLowerCase().includes('password') && safeMessage.toLowerCase().includes('missing')) {
+      return NextResponse.json({ error: 'Password is required to create an account.' }, { status: 400 });
+    }
+
     return NextResponse.json(
-      { error: 'An internal error occurred during registration. Please try again.' },
+      { error: 'Registration could not be completed. Please check your details and try again.' },
       { status: 500 }
     );
   }

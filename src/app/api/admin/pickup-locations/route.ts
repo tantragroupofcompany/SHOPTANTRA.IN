@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { requireRole } from '../../../../middleware/index';
 
 // GET: List all pickup locations for admin console
-export async function GET(request: Request) {
+export async function GET(request: any) {
+  // Require corporate-level role — unauthenticated/buyer/seller access is rejected
+  const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN', 'ADMIN']);
+  if (guard instanceof NextResponse) return guard;
+
   try {
     const locations = await prisma.pickupAddress.findMany({
       include: {
@@ -23,16 +28,20 @@ export async function GET(request: Request) {
       data: locations
     });
   } catch (error: any) {
-    console.error('Error listing pickup locations:', error);
+    console.error('Error listing pickup locations:', error?.code || error?.message);
     return NextResponse.json(
-      { error: error.message || 'Failed to list pickup locations' },
+      { error: 'Failed to list pickup locations. Please try again.' },
       { status: 500 }
     );
   }
 }
 
 // POST: Verify pickup location and assign pickupLocationId
-export async function POST(request: Request) {
+export async function POST(request: any) {
+  // Require corporate-level role — unauthenticated/buyer/seller access is rejected
+  const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN', 'ADMIN']);
+  if (guard instanceof NextResponse) return guard;
+
   try {
     const { pickupAddressId, verificationStatus, pickupLocationId, adminUserId } = await request.json();
 
@@ -53,8 +62,9 @@ export async function POST(request: Request) {
     });
 
     // Write audit trail entry
+    const actorId = (guard as any).userId || adminUserId || 'ADMIN';
     await prisma.$transaction(async (tx) => {
-      await MasterCourierService.logAction(tx, null, `PICKUP_VERIFICATION_${verificationStatus.toUpperCase()}`, adminUserId || 'ADMIN', 'ADMIN', {
+      await MasterCourierService.logAction(tx, null, `PICKUP_VERIFICATION_${verificationStatus.toUpperCase()}`, actorId, 'ADMIN', {
         pickupAddressId,
         sellerId: updatedLocation.sellerId,
         pickupLocationId
@@ -68,9 +78,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error updating pickup location:', error);
+    console.error('Error updating pickup location:', error?.code || error?.message);
     return NextResponse.json(
-      { error: error.message || 'Failed to update pickup location' },
+      { error: 'Failed to update pickup location. Please try again.' },
       { status: 500 }
     );
   }

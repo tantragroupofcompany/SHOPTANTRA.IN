@@ -51,3 +51,41 @@ export function hashPasswordBcrypt(password: string): string {
 export function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
+
+/**
+ * Classify a Prisma/PostgreSQL error so the API can return a safe, useful
+ * customer-facing message without ever leaking internal details.
+ */
+export function classifyDbError(error: any): string | null {
+  if (!error) return null;
+  const code: string | undefined = error?.code;
+  const msg: string = error?.message || '';
+
+  // Datasource / connection problems — these occur when DATABASE_URL is
+  // missing, malformed, or the database is unreachable.
+  if (
+    code === 'P1001' ||
+    code === 'P1002' ||
+    code === 'P1003' ||
+    code === 'P1008' ||
+    /datasource/i.test(msg) ||
+    /must start with the protocol/i.test(msg) ||
+    /connect|unreachable|refused|timeout|database server/i.test(msg)
+  ) {
+    return 'Registration is temporarily unavailable. Our team has been notified. Please try again in a few minutes.';
+  }
+
+  // Unique-constraint violations
+  if (code === 'P2002') {
+    if (/email/i.test(msg)) return 'An account with this email address already exists.';
+    if (/phone/i.test(msg)) return 'This phone number is already registered to another account.';
+    return 'A duplicate account conflict was detected. Please try logging in instead.';
+  }
+
+  // Foreign-key violation
+  if (code === 'P2025' || code === 'P2003') {
+    return 'Registration temporarily unavailable. Related record not found — please try again.';
+  }
+
+  return null;
+}

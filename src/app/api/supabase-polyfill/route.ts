@@ -159,6 +159,10 @@ export async function POST(request: Request) {
         delegate = prisma.contactInquiry;
         tableMapping = { id: 'id' };
         break;
+      case 'addresses':
+        delegate = prisma.address;
+        tableMapping = { user_id: 'userId', id: 'id', is_default: 'isDefault', address_line1: 'addressLine1', address_line2: 'addressLine2', full_name: 'fullName' };
+        break;
       default:
         return NextResponse.json({ error: `Supabase table '${table}' is not supported by the polyfill.` }, { status: 400 });
     }
@@ -460,6 +464,24 @@ export async function POST(request: Request) {
           };
         }
 
+        if (table === 'addresses') {
+          return {
+            id: row.id,
+            user_id: row.userId,
+            label: row.label,
+            full_name: row.fullName || null,
+            phone: row.phone || null,
+            address_line1: row.addressLine1,
+            address_line2: row.addressLine2 || null,
+            city: row.city,
+            state: row.state,
+            country: row.country || 'India',
+            pincode: row.pincode,
+            is_default: row.isDefault,
+            created_at: row.createdAt,
+          };
+        }
+
         return row;
       });
 
@@ -492,8 +514,17 @@ export async function POST(request: Request) {
           if (rawData.stock) data.stock = parseInt(rawData.stock);
         } else if (table === 'subscription_plans' && rawData.features) {
           data.features = JSON.stringify(rawData.features);
+        } else if (table === 'addresses') {
+          // Normalise snake_case → camelCase for Address model fields
+          if (rawData.is_default !== undefined) data.isDefault = Boolean(rawData.is_default);
+          if (rawData.address_line1 !== undefined) data.addressLine1 = rawData.address_line1;
+          if (rawData.address_line2 !== undefined) data.addressLine2 = rawData.address_line2;
+          if (rawData.full_name !== undefined) data.fullName = rawData.full_name;
+          if (rawData.user_id !== undefined) data.userId = rawData.user_id;
+          // Remove leftover snake_case copies so Prisma doesn't see unknown fields
+          const snakeFields = ['address_line1', 'address_line2', 'full_name', 'user_id', 'is_default', 'isDefault'];
+          for (const f of snakeFields) { if (f !== 'isDefault') delete (data as any)[f]; }
         }
-
         const newRow = await delegate.create({ data });
         insertedRows.push(newRow);
       }
@@ -571,6 +602,16 @@ export async function POST(request: Request) {
 
       if (table === 'subscription_plans' && updateData.features) {
         data.features = JSON.stringify(updateData.features);
+      }
+
+      if (table === 'addresses') {
+        // Normalise snake_case → camelCase for Address model fields on update
+        if (updateData.is_default !== undefined) data.isDefault = Boolean(updateData.is_default);
+        if (updateData.address_line1 !== undefined) data.addressLine1 = updateData.address_line1;
+        if (updateData.address_line2 !== undefined) data.addressLine2 = updateData.address_line2;
+        if (updateData.full_name !== undefined) data.fullName = updateData.full_name;
+        const snakeFields = ['address_line1', 'address_line2', 'full_name', 'is_default'];
+        for (const f of snakeFields) delete (data as any)[f];
       }
 
       // Convert update parameters to match exact types

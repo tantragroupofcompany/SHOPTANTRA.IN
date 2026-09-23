@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+/**
+ * Lazily initialize the Supabase admin client inside the request handler so
+ * that a missing / invalid SUPABASE_URL does not crash the entire module at
+ * import time and break unrelated routes.
+ */
+function getSupabaseAdmin(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key || !/^https?:\/\/.+/.test(url)) {
+    return null;
+  }
+  return createClient(url, key);
+}
 
 export async function POST(request: Request) {
   try {
@@ -41,14 +50,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
     }
 
-    // 3. Generate unique filename
+    // 3. Resolve Supabase admin client — may be unavailable in some environments
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      console.warn('[upload-logo] Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing). Logo upload skipped.');
+      return NextResponse.json(
+        { error: 'Logo storage is not configured. Please contact support or set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },
+        { status: 503 }
+      );
+    }
+
+    // 4. Generate unique filename
     const fileExt = file.name.split('.').pop() || 'png';
     const fileName = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
 
-    // 4. Convert File to ArrayBuffer
+    // 5. Convert File to ArrayBuffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // 5. Ensure bucket exists in Supabase
+    // 6. Ensure bucket exists in Supabase
     try {
       const { data: buckets } = await supabaseAdmin.storage.listBuckets();
       if (!buckets?.some(b => b.name === 'logos')) {
@@ -58,7 +77,7 @@ export async function POST(request: Request) {
       console.warn('Bucket verification warning (logos):', e);
     }
 
-    // 6. Optionally delete old logo file if exists
+    // 7. Optionally delete old logo file if exists
     if (seller.logoUrl) {
       try {
         const oldFileName = seller.logoUrl.split('/').pop();
@@ -70,7 +89,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Upload to Supabase Storage
+    // 8. Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from('logos')
       .upload(fileName, buffer, {
@@ -82,11 +101,11 @@ export async function POST(request: Request) {
       throw new Error(uploadError.message || 'Failed to upload to storage');
     }
 
-    // 8. Get Public URL
+    // 9. Get Public URL
     const { data } = supabaseAdmin.storage.from('logos').getPublicUrl(fileName);
     const publicUrl = data.publicUrl;
 
-    // 9. Save logo URL inside Seller Profile
+    // 10. Save logo URL inside Seller Profile
     const updatedSeller = await prisma.seller.update({
       where: { id: seller.id },
       data: { logoUrl: publicUrl }

@@ -17,8 +17,7 @@
   /* 3D skeuomorphic Card style */
   .card-3d, 
   .bg-white.shadow-sm, 
-  .bg-white.shadow,
-  .dark\:bg-brand-navy.shadow-sm,
+  .dark\:bg-brand-navy.shadow-sm, 
   .dark\:bg-brand-navy {
     background: rgba(255, 255, 255, 0.65) !important;
     backdrop-filter: blur(12px);
@@ -35,7 +34,6 @@
 
   .dark .card-3d,
   .dark .bg-white.shadow-sm,
-  .dark .bg-white.shadow,
   .dark .dark\:bg-brand-navy.shadow-sm,
   .dark .dark\:bg-brand-navy {
     background: rgba(27, 58, 107, 0.45) !important;
@@ -100,4 +98,31 @@
       inset 0px 1px 0px rgba(255, 255, 255, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
   }
+}
+
+/* ─── Form input safety: eliminate unwanted blue autofill / focus states ─── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #111827;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  border-color: #d1d5db;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f3f4f6;
+  -webkit-box-shadow: 0 0 0 1000px #0b1528 inset;
+  box-shadow: 0 0 0 1000px #0b1528 inset;
+}
+
+/* Override Tailwind's default blue focus ring on form inputs */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
 }

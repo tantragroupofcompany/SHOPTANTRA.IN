@@ -3,6 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Trash2, Tag, ArrowRight, ArrowLeft, ShieldCheck, Ticket } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
+/**
+ * Safely resolve a cart product — the cart can hold stale references to
+ * products that have been deleted or are no longer published. We never want
+ * a missing product to crash the cart view.
+ */
+function safeProduct(product: any): { price: number; title: string; images?: string[]; id: string; seller?: string } {
+  if (!product) return { price: 0, title: 'Product no longer available', images: [], id: 'stale', seller: 'Unknown' };
+  return product;
+}
+
 export default function Cart() {
   const navigate = useNavigate();
   const {
@@ -38,7 +48,11 @@ export default function Cart() {
   };
 
   // Calculations
-  const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cart.reduce((acc, item) => {
+    const p = safeProduct(item?.product);
+    const qty = item?.quantity || 0;
+    return acc + (p.price || 0) * qty;
+  }, 0);
   const discountAmount = Math.round(subtotal * (couponDiscount / 100));
   const cartItemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -89,17 +103,24 @@ export default function Cart() {
             </div>
 
             <div className="divide-y divide-gray-100 dark:divide-brand-navy-light/5">
-              {cart.map((item) => (
-                <div key={`${item.product.id}-${item.selectedColor}-${item.selectedSize}`} className="grid grid-cols-1 sm:grid-cols-12 gap-4 px-6 py-5 items-center">
+              {cart.map((item) => {
+                const p = safeProduct(item?.product);
+                const isStale = !item?.product;
+                return (
+                  <div key={`${p.id}-${item?.selectedColor ?? ''}-${item?.selectedSize ?? ''}`} className="grid grid-cols-1 sm:grid-cols-12 gap-4 px-6 py-5 items-center">
                   
                   {/* Image & Title */}
                   <div className="col-span-6 flex gap-4">
-                    <img src={item.product.images?.[0]} alt={item.product.title} className="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-brand-navy-light/10 bg-gray-100" />
+                    <img src={p.images?.[0] || ''} alt={p.title} className="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-brand-navy-light/10 bg-gray-100" onError={(e) => { (e.target as any).src = 'https://placehold.co/64x64?text=NA'; }} />
                     <div className="flex-grow min-w-0">
-                      <Link to={`/product/${item.product.id}`} className="font-bold text-gray-900 dark:text-gray-100 text-sm hover:text-brand-orange line-clamp-2 leading-tight">
-                        {item.product.title}
-                      </Link>
-                      <p className="text-xs text-gray-400 mt-1">Seller: {item.product.seller}</p>
+                      {isStale ? (
+                        <span className="font-bold text-red-500 text-sm">{p.title}</span>
+                      ) : (
+                        <Link to={`/product/${p.id}`} className="font-bold text-gray-900 dark:text-gray-100 text-sm hover:text-brand-orange line-clamp-2 leading-tight">
+                          {p.title}
+                        </Link>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">Seller: {p.seller}</p>
                       
                       {/* Variants indicators */}
                       {(item.selectedColor || item.selectedSize) && (
@@ -123,14 +144,14 @@ export default function Cart() {
                   <div className="col-span-2 flex justify-center">
                     <div className="flex items-center border border-gray-200 dark:border-brand-navy-light/20 rounded-lg overflow-hidden bg-white dark:bg-brand-navy">
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity - 1, item.selectedColor, item.selectedSize)}
+                        onClick={() => updateCartQuantity(p.id, (item?.quantity || 0) - 1, item?.selectedColor, item?.selectedSize)}
                         className="w-7 h-7 font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brand-navy-light flex items-center justify-center text-xs"
                       >
                         -
                       </button>
-                      <span className="w-8 text-center text-xs font-bold text-gray-800 dark:text-gray-100">{item.quantity}</span>
+                      <span className="w-8 text-center text-xs font-bold text-gray-800 dark:text-gray-100">{item?.quantity || 0}</span>
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity + 1, item.selectedColor, item.selectedSize)}
+                        onClick={() => updateCartQuantity(p.id, (item?.quantity || 0) + 1, item?.selectedColor, item?.selectedSize)}
                         className="w-7 h-7 font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-brand-navy-light flex items-center justify-center text-xs"
                       >
                         +
@@ -141,7 +162,7 @@ export default function Cart() {
                   {/* Price */}
                   <div className="col-span-2 text-right sm:text-right flex sm:block justify-between items-center text-sm">
                     <span className="sm:hidden text-xs text-gray-400">Unit Price:</span>
-                    <span className="font-semibold text-gray-600 dark:text-gray-300">₹{item.product.price.toLocaleString('en-IN')}</span>
+                    <span className="font-semibold text-gray-600 dark:text-gray-300">₹{(p.price || 0).toLocaleString('en-IN')}</span>
                   </div>
 
                   {/* Line Total & Remove */}
@@ -149,10 +170,10 @@ export default function Cart() {
                     <span className="sm:hidden text-xs text-gray-400">Total:</span>
                     <div className="flex items-center justify-end gap-3">
                       <span className="font-extrabold text-brand-navy dark:text-brand-orange">
-                        ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                        ₹{((p.price || 0) * (item?.quantity || 0)).toLocaleString('en-IN')}
                       </span>
                       <button
-                        onClick={() => removeFromCart(item.product.id, item.selectedColor, item.selectedSize)}
+                        onClick={() => removeFromCart(p.id, item?.selectedColor, item?.selectedSize)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg transition-colors"
                         title="Remove Item"
                       >
@@ -161,7 +182,7 @@ export default function Cart() {
                     </div>
                   </div>
 
-                </div>
+                  </div>
               ))}
             </div>
           </div>

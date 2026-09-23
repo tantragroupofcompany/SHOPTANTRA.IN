@@ -20,6 +20,7 @@ model User {
   orders        Order[]         @relation("BuyerOrders")
   sellerProfile Seller?
   reviews       Review[]
+  addresses     Address[]
 }
 
 model DownloadAnalytics {
@@ -516,4 +517,22 @@ model ShippingAuditLog {
   role        String
   details     String?
   createdAt   DateTime @default(now())
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String
+  fullName     String?
+  phone        String?
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  country      String   @default("India")
+  pincode      String
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

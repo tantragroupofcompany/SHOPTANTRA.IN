@@ -51,6 +51,31 @@ const STATEMENTS: string[] = [
   `ALTER TABLE "Shipment" ADD COLUMN IF NOT EXISTS "lastProviderSyncAt" TIMESTAMP(3)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Shipment_providerShipmentId_key" ON "Shipment" ("providerShipmentId") WHERE "providerShipmentId" IS NOT NULL`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Shipment_clientRef_key" ON "Shipment" ("clientRef") WHERE "clientRef" IS NOT NULL AND "clientRef" <> ''`,
+  // --- Buyer Address table (additive, idempotent) ---
+  `CREATE TABLE IF NOT EXISTS "Address" (
+    "id"           TEXT NOT NULL,
+    "userId"       TEXT NOT NULL,
+    "label"        TEXT NOT NULL,
+    "fullName"     TEXT,
+    "phone"        TEXT,
+    "addressLine1" TEXT NOT NULL,
+    "addressLine2" TEXT,
+    "city"         TEXT NOT NULL,
+    "state"        TEXT NOT NULL,
+    "country"      TEXT NOT NULL DEFAULT 'India',
+    "pincode"      TEXT NOT NULL,
+    "isDefault"    BOOLEAN NOT NULL DEFAULT false,
+    "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
+  )`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Address_userId_fkey') THEN
+       ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey"
+         FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+     END IF;
+   END $$`,
+  `CREATE INDEX IF NOT EXISTS "Address_userId_idx" ON "Address" ("userId")`,
 ];
 
 export async function applyStatements(): Promise<void> {

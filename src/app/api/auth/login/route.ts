@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { verifyPassword } from '../../../../lib/authUtils';
+import { verifyPassword, classifyDbError } from '../../../../lib/authUtils';
 import { ensureSchema } from '../../../../lib/dbBootstrap';
 
 import jwt from 'jsonwebtoken';
@@ -155,10 +155,17 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error: any) {
-    console.error('Error during database authentication login:', error);
+    } catch (error: any) {
+    // Classify known DB / Prisma errors into safe customer-facing messages
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[login] DB error:', error?.code || error?.message);
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+
+    console.error('Error during database authentication login:', error?.code || error?.message);
     return NextResponse.json(
-      { error: 'An error occurred during authentication.' },
+      { error: 'An error occurred during authentication. Please try again.' },
       { status: 500 }
     );
   }
