@@ -12,6 +12,15 @@
 
 import { prisma } from './prisma';
 import { hasDatabaseUrl } from './databaseUrl';
+import { dbErrorReason } from './authUtils';
+
+/**
+ * Reasons that mean the database itself is unreachable (as opposed to one
+ * statement failing). Every remaining statement would fail identically, so the
+ * bootstrap aborts after the first one instead of retrying all of them — which
+ * is what made a dead database turn a login attempt into a 20s+ hang.
+ */
+const CONNECTION_FAILURE_REASONS = new Set(['pooler_tenant_unresolved', 'credentials_rejected', 'unreachable']);
 
 const globalForSchema = global as unknown as { __shoptantraSchemaReady?: Promise<void> };
 
@@ -87,14 +96,30 @@ export async function applyStatements(): Promise<void> {
   }
 
   let applied = 0;
+  let connectionFailed = false;
   for (const sql of STATEMENTS) {
     try {
       await prisma.$executeRawUnsafe(sql);
       applied += 1;
     } catch (error: any) {
+      const reason = dbErrorReason(error);
+      if (CONNECTION_FAILURE_REASONS.has(reason)) {
+        console.error(`[db-bootstrap] Aborting schema bootstrap: database not reachable (${reason}).`);
+        connectionFailed = true;
+        break;
+      }
       console.error('[db-bootstrap] Statement failed:', error?.message || error);
     }
   }
+
+  if (connectionFailed) {
+    // Clear the ready flag so the next request retries once the database is
+    // reachable again. Callers fall through to their own query, which reports
+    // the outage through the normal error classifier.
+    globalForSchema.__shoptantraSchemaReady = undefined;
+    return;
+  }
+
   await createMarketplaceTables();
   console.log(`[db-bootstrap] Marketplace schema ensured (${applied}/${STATEMENTS.length} column statements applied).`);
 }
