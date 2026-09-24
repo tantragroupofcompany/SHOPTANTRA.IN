@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { describeCredentialPlaceholders } from './databaseUrl';
 
 // Hash password with a secure salt using pbkdf2
 export function hashPassword(password: string): string {
@@ -68,9 +69,12 @@ export function dbErrorReason(error: any): string {
   if (/tenant\/user|no tenant identifier|PROJECT_REF|ENOIDENTIFIER/i.test(msg)) {
     return 'pooler_tenant_unresolved';
   }
-  // Postgres rejected the credentials (wrong/rotated password).
+  // Postgres rejected the credentials. If the connection string itself still
+  // holds a template placeholder where the password belongs, say so — that is a
+  // configuration paste problem, NOT a rotated password, and it must not send the
+  // operator off to reset a database password that was never wrong.
   if (/28P01|password authentication failed|no pg_hba/i.test(msg) || code === 'P1000') {
-    return 'credentials_rejected';
+    return describeCredentialPlaceholders().password ? 'credentials_placeholder' : 'credentials_rejected';
   }
   // Host/port/DNS/network level failure.
   if (

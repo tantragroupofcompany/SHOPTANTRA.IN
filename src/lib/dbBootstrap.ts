@@ -20,7 +20,12 @@ import { dbErrorReason } from './authUtils';
  * bootstrap aborts after the first one instead of retrying all of them — which
  * is what made a dead database turn a login attempt into a 20s+ hang.
  */
-const CONNECTION_FAILURE_REASONS = new Set(['pooler_tenant_unresolved', 'credentials_rejected', 'unreachable']);
+const CONNECTION_FAILURE_REASONS = new Set([
+  'pooler_tenant_unresolved',
+  'credentials_rejected',
+  'credentials_placeholder',
+  'unreachable',
+]);
 
 const globalForSchema = global as unknown as { __shoptantraSchemaReady?: Promise<void> };
 
