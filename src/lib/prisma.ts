@@ -51,6 +51,12 @@ function createPrismaClient(): PrismaClient {
     const sslDisabled = /[?&]sslmode=disable/i.test(dbUrl);
     const adapter = new PrismaPg({
       connectionString: dbUrl,
+      // Bound the pool so an outage can never hold a request open until the
+      // platform timeout: a failed/blocked connect now rejects instead of
+      // hanging (previously a DB-down /api/auth/login call sat for 30s+).
+      max: 5,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
       ssl: sslDisabled
         ? undefined
         : { ca: SUPABASE_ROOT_CA_2021_PEM, rejectUnauthorized: true },

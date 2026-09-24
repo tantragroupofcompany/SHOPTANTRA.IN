@@ -182,14 +182,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
     }
 
-    // Ensure additive marketplace schema exists (Seller columns etc.)
-    const { ensureSchema } = await import('../../../../lib/dbBootstrap');
-    await ensureSchema();
+    // Ensure additive marketplace schema exists (Seller columns etc.).
+    // Best-effort: a database outage must not turn a sign-in attempt into an
+    // opaque 500 before the real cause can be classified and reported below.
+    try {
+      const { ensureSchema } = await import('../../../../lib/dbBootstrap');
+      await ensureSchema();
+    } catch (schemaErr: any) {
+      console.error('[corporate/login] ensureSchema failed:', schemaErr?.code || schemaErr?.message);
+    }
 
     const trimmedUsername = username.toLowerCase().trim();
 
-    // Step 1: Auto-seed executive accounts if they don't exist
-    await ensureExecutiveAccounts();
+    // Step 1: Auto-seed executive accounts if they don't exist.
+    // Best-effort for the same reason as above — a seeding failure must never
+    // mask the real login outcome.
+    try {
+      await ensureExecutiveAccounts();
+    } catch (seedErr: any) {
+      console.error('[corporate/login] executive seeding failed:', seedErr?.code || seedErr?.message);
+    }
 
     // Step 2: Find user — try username first, then email as fallback
     let dbUser = null;
@@ -241,7 +253,10 @@ export async function POST(request: Request) {
       if (classified) {
         console.error('[corporate/login] DB error:', dbLookupError?.code || dbLookupError?.message);
         return NextResponse.json(
-          { error: 'Sign-in is temporarily unavailable', detail: classified },
+          {
+            error: 'Sign-in is temporarily unavailable',
+            detail: 'Our database is unreachable right now. Please try again in a few minutes.',
+          },
           { status: 503 }
         );
       }
@@ -325,6 +340,20 @@ export async function POST(request: Request) {
     console.log(`✓ ${dbUser.role} login successful: ${trimmedUsername}`);
     return response;
   } catch (error: any) {
+    // Classify known DB / Prisma errors so an outage is reported as such instead
+    // of an opaque "Login failed" that looks like a credential problem.
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[corporate/login] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        {
+          error: 'Sign-in is temporarily unavailable',
+          detail: 'Our database is unreachable right now. Please try again in a few minutes.',
+        },
+        { status: 503 }
+      );
+    }
+
     console.error('Corporate login error:', error);
     return NextResponse.json({
       error: 'Login failed',

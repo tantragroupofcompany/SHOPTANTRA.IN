@@ -87,5 +87,19 @@ export function classifyDbError(error: any): string | null {
     return 'Registration temporarily unavailable. Related record not found — please try again.';
   }
 
+  // Authentication / privilege failures against the database ITSELF.
+  // e.g. Prisma P2010 wrapping PostgreSQL 28P01 ("password authentication
+  // failed") from the Supabase pooler, or P1000. This is an outage of the
+  // service, never a problem with the caller's own credentials — so it must be
+  // reported as unavailable rather than as a wrong password / unknown user.
+  if (
+    code === 'P2010' ||
+    code === 'P1000' ||
+    /28P01|28P02|3D000|P2010|P1000/.test(msg) ||
+    /authentication failed|password authentication|no pg_hba|does not exist/i.test(msg)
+  ) {
+    return 'Service is temporarily unavailable while we restore the database connection. Please try again in a few minutes.';
+  }
+
   return null;
 }
