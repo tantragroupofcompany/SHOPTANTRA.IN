@@ -55,7 +55,7 @@ function createPrismaClient(): PrismaClient {
       // platform timeout: a failed/blocked connect now rejects instead of
       // hanging (previously a DB-down /api/auth/login call sat for 30s+).
       max: 5,
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
       ssl: sslDisabled
         ? undefined

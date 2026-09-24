@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { classifyDbError } from '../../../lib/authUtils';
 
 // Define categories list for static mapping
 const STATIC_CATEGORIES = [
@@ -668,7 +669,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: result });
   } catch (error: any) {
+    // Never echo raw Prisma/driver internals back to the browser — Prisma error
+    // objects embed connector + Postgres detail (which leaked the pooler's
+    // tenant error verbatim). An outage is reported as an outage.
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[supabase-polyfill] DB error:', error?.code || error?.message);
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
     console.error('Supabase Polyfill Router Error:', error);
-    return NextResponse.json({ error: error.message || 'Prisma query resolution failed.' }, { status: 500 });
+    return NextResponse.json({ error: 'Data request failed. Please try again.' }, { status: 500 });
   }
 }

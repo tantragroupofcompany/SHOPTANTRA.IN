@@ -108,7 +108,7 @@ export function classifyDbError(error: any): string | null {
     /must start with the protocol/i.test(msg) ||
     /connect|unreachable|refused|timeout|database server/i.test(msg)
   ) {
-    return 'Registration is temporarily unavailable. Our team has been notified. Please try again in a few minutes.';
+    return 'Our database is temporarily unavailable. Please try again in a few minutes.';
   }
 
   // Unique-constraint violations
