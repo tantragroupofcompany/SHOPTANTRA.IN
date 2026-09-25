@@ -20,6 +20,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co/rest/v1/
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 
+# Optional: the Supabase pooler (Supavisor) host that serves this project
+# (public, non-secret). Needed only when DATABASE_URL names a different pooler
+# cluster, which Supavisor rejects with
+# "FATAL: (ENOTFOUND) tenant/user postgres.<project-ref> not found".
+# SUPABASE_POOLER_HOST=aws-1-ap-south-1.pooler.supabase.com
+
 # Database (if using external PostgreSQL)
 # DATABASE_URL=postgresql://user:password@host:port/database
 ```

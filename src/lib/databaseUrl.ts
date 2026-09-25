@@ -22,6 +22,11 @@
  *   4. adds `connection_limit=1` when the URL talks to Supabase's PgBouncer
  *      pooler (`pgbouncer=true`) and no explicit limit was given — the
  *      documented serverless setting for that pooler.
+ *   5. replaces a leftover `PROJECT_REF` placeholder in the username/host with
+ *      the project's real, public ref, and re-points the host at the pooler
+ *      cluster that serves the project (`SUPABASE_POOLER_HOST`) when the stored
+ *      value names a different one — Supavisor answers both mistakes with
+ *      `FATAL: (ENOTFOUND) tenant/user postgres.<...> not found`.
  *
  * The VALUE is never logged or returned to a client: only one warning line is
  * emitted, stating WHICH repair was applied, so a misconfiguration stays
@@ -42,6 +47,27 @@ export function resolveSupabaseProjectRef(env: NodeJS.ProcessEnv = process.env):
   const raw = env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL || '';
   const match = String(raw).match(/^https?:\/\/([a-z0-9]{6,})\.supabase\.(?:co|in|net)\b/i);
   return match ? match[1] : undefined;
+}
+
+/**
+ * The Supabase POOLER (Supavisor) host that actually serves this project, e.g.
+ * `aws-1-ap-south-1.pooler.supabase.com`. This is NOT a secret either — it is a
+ * public DNS name — but it cannot be derived from the project ref, so it has its
+ * own variable.
+ *
+ * Why it is needed: Supavisor resolves the tenant from the USERNAME
+ * (`postgres.<project-ref>`) *inside the cluster the hostname belongs to*. A
+ * connection string whose host names a different Supavisor cluster/region than
+ * the one serving the project is answered with
+ *
+ *     FATAL: (ENOTFOUND) tenant/user postgres.<project-ref> not found
+ *
+ * even though the project ref and the password are both correct. Repairing the
+ * host needs no secret, so the credential keeps living only inside Vercel.
+ */
+export function resolveSupabasePoolerHost(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = String(env.SUPABASE_POOLER_HOST || '').trim().toLowerCase();
+  return /^[a-z0-9-]+\.pooler\.supabase\.com$/.test(raw) ? raw : undefined;
 }
 
 /**
@@ -105,6 +131,34 @@ function repairProjectRefPlaceholders(
   return { url: parsed.toString(), repaired: true };
 }
 
+/**
+ * Re-points a pooler connection string at the configured Supabase pooler host.
+ *
+ * Only the HOST of an existing `*.pooler.supabase.com` URL is touched: user,
+ * password, port, database and query parameters are reused byte-for-byte, so the
+ * credential never leaves the process and never needs to be re-typed.
+ */
+function repairPoolerHost(
+  url: string,
+  poolerHost?: string
+): { url: string; previousHost?: string; repaired: boolean } {
+  if (!poolerHost) return { url, repaired: false };
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { url, repaired: false };
+  }
+
+  if (!/\.pooler\.supabase\.com$/i.test(parsed.hostname)) return { url, repaired: false };
+  if (parsed.hostname.toLowerCase() === poolerHost) return { url, repaired: false };
+
+  const previousHost = parsed.hostname;
+  parsed.hostname = poolerHost;
+  return { url: parsed.toString(), previousHost, repaired: true };
+}
+
 function stripOneLayerOfQuotes(value: string): string {
   if (value.length >= 2) {
     const first = value[0];
@@ -124,10 +178,15 @@ const CONNECTION_URL_PREFIX = /^(postgres(ql)?:\/\/|file:|mysql:\/\/)/i;
  * `projectRef` (optional) is the PUBLIC Supabase project ref; when given, a
  * connection string that still contains the template's `PROJECT_REF`
  * placeholder is repaired with it (username/host only — never the password).
+ *
+ * `poolerHost` (optional) is the PUBLIC Supabase pooler hostname; when given, an
+ * existing `*.pooler.supabase.com` host is re-pointed at it. User, password,
+ * port, database and parameters are reused verbatim — only the host changes.
  */
 export function normalizeDatabaseUrl(
   raw?: string | null,
-  projectRef?: string
+  projectRef?: string,
+  poolerHost?: string
 ): { url: string | undefined; repairs: string[] } {
   if (typeof raw !== 'string') return { url: undefined, repairs: [] };
 
@@ -172,6 +231,12 @@ export function normalizeDatabaseUrl(
     repairs.push('replaced the PROJECT_REF placeholder with the real project ref');
   }
 
+  const hostRepair = repairPoolerHost(url, poolerHost);
+  if (hostRepair.repaired) {
+    url = hostRepair.url;
+    repairs.push(`repointed the pooler host (was ${hostRepair.previousHost}) to ${poolerHost}`);
+  }
+
   if (/^postgres(ql)?:\/\//i.test(url) && /pgbouncer=true/i.test(url) && !/connection_limit=/i.test(url)) {
     url = `${url}${url.includes('?') ? '&' : '?'}connection_limit=1`;
     repairs.push('added connection_limit=1 for the PgBouncer pooler');
@@ -189,7 +254,8 @@ export function resolveDatabaseUrl(): string | undefined {
   if (cached) return cached.url;
 
   const projectRef = resolveSupabaseProjectRef();
-  const { url, repairs } = normalizeDatabaseUrl(process.env.DATABASE_URL, projectRef);
+  const poolerHost = resolveSupabasePoolerHost();
+  const { url, repairs } = normalizeDatabaseUrl(process.env.DATABASE_URL, projectRef, poolerHost);
   if (repairs.length > 0 && url) {
     console.warn(
       `[database-url] DATABASE_URL was not a clean URL; normalised it (${repairs.join(', ')}). ` +
