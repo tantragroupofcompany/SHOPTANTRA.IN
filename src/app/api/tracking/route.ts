@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { classifyDbError } from '../../../lib/authUtils';
 
 export async function GET(request: Request) {
   try {
@@ -97,7 +98,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: 'Missing query parameters. Provide AWB/Tracking Number, or Order ID + Phone' }, { status: 400 });
   } catch (error: any) {
-    console.error('Error loading tracking data:', error);
-    return NextResponse.json({ error: error.message || 'Tracking verification failed' }, { status: 500 });
+    // This route is PUBLIC, so a raw Prisma/Postgres message (which can name the
+    // database user, the connector and the SQL) must never reach the caller.
+    console.error('[tracking] DB error:', error?.code || error?.message);
+    const classified = classifyDbError(error);
+    if (classified) {
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+    return NextResponse.json({ error: 'Tracking verification failed. Please try again.' }, { status: 500 });
   }
 }

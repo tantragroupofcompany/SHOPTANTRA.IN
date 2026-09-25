@@ -20,6 +20,13 @@ export {
 } from './shipping/index';
 export type { ProviderName } from './shipping/index';
 
+/**
+ * @deprecated FABRICATES logistics data: it invents a random AWB, tracking link
+ * and label/slip paths for SHIPROCKET/DELHIVERY/BLUEDART without contacting any
+ * courier. It is no longer reachable from any API route (POST /api/shipping now
+ * answers 501) and is kept only so older imports compile. Never use it to
+ * represent a real shipment — use src/lib/shipping/shipmentService.ts instead.
+ */
 export function generateShippingData(carrier: 'SHIPROCKET' | 'DELHIVERY' | 'BLUEDART' = 'DELHIVERY'): ShippingDetails {
   const randomAWB = Math.floor(1000000000 + Math.random() * 9000000000);
   const expectedDate = new Date();

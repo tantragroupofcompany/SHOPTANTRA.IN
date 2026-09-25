@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 export async function POST(request: Request) {
   try {
@@ -88,10 +89,13 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error calculating shipping charges:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to calculate shipping charges' },
-      { status: 500 }
-    );
+    // Public checkout path: report a classified outage instead of echoing the
+    // raw database error (which can contain credentials/connection details).
+    console.error('[shipping/calculate] DB error:', error?.code || error?.message);
+    const classified = classifyDbError(error);
+    if (classified) {
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+    return NextResponse.json({ error: 'Failed to calculate shipping charges. Please try again.' }, { status: 500 });
   }
 }

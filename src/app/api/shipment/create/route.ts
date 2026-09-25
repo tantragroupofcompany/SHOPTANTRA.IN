@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 export async function POST(request: Request) {
   try {
@@ -22,8 +23,14 @@ export async function POST(request: Request) {
           },
         },
       });
-    } catch (e) {
-      console.error('Database error while retrieving order:', e);
+    } catch (e: any) {
+      // A database outage is an outage, not a "database error" 500 that hides
+      // which layer failed. Classify it and answer 503 (no internals leaked).
+      console.error('[shipment/create] DB error while retrieving order:', e?.code || e?.message);
+      const classified = classifyDbError(e);
+      if (classified) {
+        return NextResponse.json({ error: classified }, { status: 503 });
+      }
       return NextResponse.json({ error: 'Database error while retrieving order' }, { status: 500 });
     }
 

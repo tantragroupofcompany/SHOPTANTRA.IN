@@ -73,7 +73,18 @@ export function dbErrorReason(error: any): string {
   // holds a template placeholder where the password belongs, say so — that is a
   // configuration paste problem, NOT a rotated password, and it must not send the
   // operator off to reset a database password that was never wrong.
-  if (/28P01|password authentication failed|no pg_hba/i.test(msg) || code === 'P1000') {
+  //
+  // Supavisor also reports a burst of rejected logins as
+  // `FATAL: (ECIRCUITBREAKER) too many authentication failures, new connections
+  // are temporarily blocked` (Prisma surfaces it as XX000, not 28P01). It means
+  // the configured credentials are being refused, so it must be classified as a
+  // credential failure too — otherwise lib/dbBootstrap.ts does NOT recognise the
+  // failure and keeps firing every remaining statement at the pooler, which is
+  // what re-opens the breaker on each cold start.
+  if (
+    /28P01|28P02|password authentication failed|no pg_hba|authentication failures|ECIRCUITBREAKER/i.test(msg) ||
+    code === 'P1000'
+  ) {
     return describeCredentialPlaceholders().password ? 'credentials_placeholder' : 'credentials_rejected';
   }
   // Host/port/DNS/network level failure.
@@ -136,7 +147,7 @@ export function classifyDbError(error: any): string | null {
     code === 'P2010' ||
     code === 'P1000' ||
     /28P01|28P02|3D000|P2010|P1000/.test(msg) ||
-    /authentication failed|password authentication|no pg_hba|does not exist/i.test(msg)
+    /authentication failed|authentication failures|password authentication|no pg_hba|ECIRCUITBREAKER|does not exist/i.test(msg)
   ) {
     return 'Service is temporarily unavailable while we restore the database connection. Please try again in a few minutes.';
   }

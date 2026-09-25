@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { classifyDbError } from '../../../lib/authUtils';
 
 export async function GET(request: Request) {
   try {
@@ -379,11 +380,14 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error('Error generating platform analytics:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to generate analytics data' },
-      { status: 500 }
-    );
+    // Report a classified outage; never echo raw Prisma/Postgres internals
+    // (database user, connector, SQL) from the admin analytics endpoint.
+    console.error('[analytics] DB error:', error?.code || error?.message);
+    const classified = classifyDbError(error);
+    if (classified) {
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+    return NextResponse.json({ error: 'Failed to generate analytics data. Please try again.' }, { status: 500 });
   }
 }
 
