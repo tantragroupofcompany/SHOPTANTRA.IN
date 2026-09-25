@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+/**
+ * Lazily initialize the Supabase admin client inside the request handler so that
+ * a missing / invalid SUPABASE_URL can never crash this module at import time.
+ * A module-scope `createClient('')` throws "Invalid supabaseUrl", which breaks
+ * `next build` page-data collection for this route and takes the whole route
+ * down (GET included) even when Supabase storage is simply not configured.
+ * Mirrors src/app/api/seller/upload-logo/route.ts.
+ */
+function getSupabaseAdmin(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key || !/^https?:\/\/.+/i.test(url)) return null;
+  return createClient(url, key);
+}
 
 export async function GET() {
   try {
@@ -61,7 +71,20 @@ export async function POST(request: Request) {
     // 4. Convert File to Buffer
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // 5. Ensure bucket exists
+    // 5. Resolve the Supabase admin client. Storage is optional, so an
+    //    unconfigured deployment gets a clear error instead of a crash.
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        {
+          error:
+            'Logo storage is not configured. Please contact support or set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+        },
+        { status: 503 }
+      );
+    }
+
+    // 6. Ensure bucket exists
     try {
       const { data: buckets } = await supabaseAdmin.storage.listBuckets();
       if (!buckets?.some(b => b.name === 'logos')) {
@@ -71,7 +94,7 @@ export async function POST(request: Request) {
       console.warn('Bucket verification warning:', e);
     }
 
-    // 6. Delete old logo if exists
+    // 7. Delete old logo if exists
     const currentSettings = await prisma.globalSettings.findUnique({
       where: { id: 'settings' }
     });
@@ -86,7 +109,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. Upload to Supabase Storage
+    // 8. Upload to Supabase Storage
     const { error: uploadError } = await supabaseAdmin.storage
       .from('logos')
       .upload(fileName, buffer, {
@@ -98,11 +121,11 @@ export async function POST(request: Request) {
       throw new Error(uploadError.message || 'Failed to upload to storage');
     }
 
-    // 8. Get Public URL
+    // 9. Get Public URL
     const { data: urlData } = supabaseAdmin.storage.from('logos').getPublicUrl(fileName);
     const publicUrl = urlData.publicUrl;
 
-    // 9. Save to GlobalSettings
+    // 10. Save to GlobalSettings
     const settings = await prisma.globalSettings.upsert({
       where: { id: 'settings' },
       update: { parentCompanyLogoUrl: publicUrl },
