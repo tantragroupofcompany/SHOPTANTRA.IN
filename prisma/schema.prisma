@@ -13,6 +13,10 @@ model User {
   email         String          @unique
   password      String
   role          String          @default("BUYER") // BUYER, SELLER, FOUNDER, CEO_MD, CHAIRMAN, ADMIN
+  // Account enable/disable flag behind the admin Users screen's active/inactive
+  // toggle. Additive column, created idempotently by lib/dbBootstrap; rows that
+  // predate it default to true.
+  isActive      Boolean         @default(true)
   fullName      String?
   phone         String?
   createdAt     DateTime        @default(now())
@@ -103,6 +107,11 @@ model Product {
   hsnCode              String?
   commissionPercent    Float?
   estimatedPackingTime Int         @default(24)
+  // Admin approval workflow. Additive columns, created idempotently by
+  // lib/dbBootstrap (production runs behind the Supabase pooler, where
+  // `prisma migrate deploy` cannot take its advisory locks).
+  approvalStatus       String?
+  isFeatured           Boolean     @default(false)
   createdAt            DateTime    @default(now())
   orderItems           OrderItem[]
   reviews              Review[]

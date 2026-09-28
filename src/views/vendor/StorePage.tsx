@@ -142,7 +142,9 @@ export default function StorePage() {
         .from('products')
         .select('id, title, price, image_url, rating')
         .eq('seller_id', sellerId)
-        .eq('status', 'active');
+        // Product status is stored upper-case (see Product.status / the admin
+        // approval flow); 'active' never matched a row.
+        .eq('status', 'ACTIVE');
 
       if (!productsError) {
         setProducts(productsData || []);

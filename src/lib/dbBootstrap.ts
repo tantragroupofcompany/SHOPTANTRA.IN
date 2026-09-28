@@ -39,6 +39,15 @@ function hasValidDatabaseUrl(): boolean {
 const STATEMENTS: string[] = [
   `ALTER TABLE "Seller" ADD COLUMN IF NOT EXISTS "razorpayLinkedAccountId" TEXT`,
   `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "commissionPercent" DOUBLE PRECISION`,
+  // --- Product approval workflow (admin Products screen) ---
+  // `approvalStatus` stays NULL for rows created before this column existed, and
+  // the polyfill derives their state from `status` (ACTIVE ⇒ APPROVED) so no
+  // historical row is rewritten here.
+  `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "approvalStatus" TEXT`,
+  `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "isFeatured" BOOLEAN NOT NULL DEFAULT false`,
+  // --- Account enable/disable (admin Users screen) ---
+  // Existing accounts stay active: the default backfills every row with true.
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "refundAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "refundStatus" TEXT`,
   `ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "platformAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
