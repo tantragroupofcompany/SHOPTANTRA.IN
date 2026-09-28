@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
 
+/**
+ * The only status transitions an operator may record. Anything else is rejected
+ * so a typo (or a crafted request) cannot push an order into an arbitrary state
+ * such as DELIVERED, which flips the payment row to COD_COLLECTED.
+ */
+const ALLOWED_STATUSES = new Set([
+  'CONFIRMED',
+  'PICKUP_SCHEDULED',
+  'PICKED_UP',
+  'PACKED',
+  'SHIPPED',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'CANCELLED',
+  'RTO',
+  'RETURNED',
+]);
+
 export async function POST(request: Request) {
   try {
     const { shipmentId, status, trackingNumber, dispatchDate, location, message } = await request.json();
@@ -10,7 +28,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Shipment ID and status are required' }, { status: 400 });
     }
 
-    const currentYear = new Date().getFullYear();
+    const nextStatus = String(status).toUpperCase();
+    if (!ALLOWED_STATUSES.has(nextStatus)) {
+      return NextResponse.json(
+        { error: `Invalid shipment status "${String(status).slice(0, 40)}".` },
+        { status: 400 }
+      );
+    }
 
     // 1. Fetch current shipment details
     const shipment = await prisma.shipment.findUnique({
@@ -22,21 +46,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Fetch realistic courier tracking updates if they exist
     const awb = trackingNumber || shipment.awbNumber || shipment.shipmentNumber;
-    const trackingHistory = await MasterCourierService.trackShipment(awb, status.toUpperCase());
 
     // 2. Perform updates inside a transaction to ensure atomic consistency
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = {
-        status: status.toUpperCase(),
+        status: nextStatus,
         updatedAt: new Date()
       };
 
       if (trackingNumber) {
         updateData.trackingNumber = trackingNumber;
         updateData.awbNumber = trackingNumber;
-        updateData.trackingLink = `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${trackingNumber}`;
+        // Do NOT guess a carrier tracking URL. The previous code always built an
+        // India Post link, but ShopTantra ships through Shipping Xpress, so every
+        // "Track parcel" button sent the buyer to a postal site that cannot know
+        // the AWB. We store the number and leave the link unset unless the
+        // configured provider publishes a tracking URL template.
+        const trackingUrlTemplate = process.env.SHIPPING_XPRESS_TRACKING_URL_TEMPLATE;
+        if (trackingUrlTemplate) {
+          updateData.trackingLink = trackingUrlTemplate.includes('{awb}')
+            ? trackingUrlTemplate.replace('{awb}', encodeURIComponent(trackingNumber))
+            : trackingUrlTemplate;
+        }
       }
 
       if (dispatchDate) {
@@ -49,82 +81,87 @@ export async function POST(request: Request) {
         data: updateData,
       });
 
-      // Update Order Status to sync with shipment
-      const finalPaymentStatus = status.toUpperCase() === 'DELIVERED' ? 'COD_COLLECTED' : shipment.order.paymentStatus;
-      
+      // Sync the order status with the shipment.
+      //
+      // Payment is deliberately NOT auto-asserted as collected. Marking a parcel
+      // DELIVERED does not prove the COD amount was actually handed over — the
+      // buyer's courier could pay later, or not at all. Previously this route
+      // flipped the order and payment rows to COD_COLLECTED and the commission to
+      // SETTLEMENT_PENDING on the strength of one click, which started seller
+      // payouts for money that may never have been collected. The payment row is
+      // now only advanced when the order really is a COD order, and even then it
+      // is left for an admin to confirm the cash was received.
+      const isCodOrder =
+        String(shipment.order.paymentMethod || '').toUpperCase() === 'COD' ||
+        shipment.order.paymentStatus === 'COD_PENDING' ||
+        shipment.order.paymentStatus === 'COD_COLLECTED';
+
       await tx.order.update({
         where: { id: shipment.orderId },
         data: {
-          status: status.toUpperCase(),
-          paymentStatus: finalPaymentStatus,
+          status: nextStatus,
           updatedAt: new Date()
         }
       });
 
-      if (status.toUpperCase() === 'DELIVERED') {
-        // Set Payment to COD_COLLECTED
-        await tx.payment.updateMany({
-          where: { orderId: shipment.orderId },
-          data: { status: 'COD_COLLECTED' }
-        });
+      const warnings: string[] = [];
 
-        // Set Commission to SETTLEMENT_PENDING
-        await tx.commission.updateMany({
-          where: { orderId: shipment.orderId },
-          data: { status: 'SETTLEMENT_PENDING' }
-        });
+      if (nextStatus === 'DELIVERED' && !isCodOrder) {
+        warnings.push(
+          'This is not a COD order, so no payment status was changed. Mark the payment ' +
+          'as captured only once the gateway confirms it.'
+        );
       }
 
       // Construct update message
       let statusMessage = message;
       if (!statusMessage) {
-        if (status.toUpperCase() === 'PACKED') {
+        if (nextStatus === 'PACKED') {
           statusMessage = 'Parcel successfully packed and ready for dispatch.';
-        } else if (status.toUpperCase() === 'SHIPPED') {
+        } else if (nextStatus === 'SHIPPED') {
           const formattedDate = dispatchDate ? new Date(dispatchDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
           statusMessage = `Dispatched via courier partner on ${formattedDate}. AWB: ${awb}`;
-        } else if (status.toUpperCase() === 'OUT_FOR_DELIVERY') {
+        } else if (nextStatus === 'OUT_FOR_DELIVERY') {
           statusMessage = 'Parcel is out for delivery with the local courier associate.';
-        } else if (status.toUpperCase() === 'DELIVERED') {
-          statusMessage = 'Parcel successfully delivered to the recipient.';
-        } else if (status.toUpperCase() === 'CANCELLED') {
+        } else if (nextStatus === 'DELIVERED') {
+          statusMessage = 'Parcel marked delivered. Verify with the courier before confirming COD collection.';
+        } else if (nextStatus === 'CANCELLED') {
           statusMessage = 'Shipment cancelled.';
         } else {
-          statusMessage = `Shipment status updated to ${status}.`;
+          statusMessage = `Shipment status updated to ${nextStatus}.`;
         }
       }
 
-      // Log tracking history
+      // Log tracking history. `location` is operator-supplied; when omitted we say
+      // "not reported" instead of the invented "Transit Hub" the old code used,
+      // which implied the parcel had physically passed through a sorting facility.
+      const eventLocation = location || 'Location not reported';
       const trackingUpdate = await tx.trackingUpdate.create({
         data: {
           shipmentId,
-          status: status.toUpperCase(),
-          location: location || 'Transit Hub',
+          status: nextStatus,
+          location: eventLocation,
           message: statusMessage,
           timestamp: new Date()
         }
       });
 
-      // Create tracking history updates from API mock if not already present
-      if (trackingHistory && trackingHistory.length > 0) {
-        // Log them as historical updates if they match
-      }
-
       // Log shipment audit log
-      await MasterCourierService.logAction(tx, shipment.id, `STATUS_${status.toUpperCase()}`, shipment.sellerId, 'SELLER', {
+      await MasterCourierService.logAction(tx, shipment.id, `STATUS_${nextStatus}`, shipment.sellerId, 'SELLER', {
         awbNumber: awb,
-        status: status.toUpperCase(),
-        location: location || 'Transit Hub',
+        status: nextStatus,
+        location: eventLocation,
         message: statusMessage
       });
 
-      return { shipment: updatedShipment, trackingUpdate };
+      return { shipment: updatedShipment, trackingUpdate, warnings };
     });
 
     return NextResponse.json({
       success: true,
-      message: `Shipment status updated to ${status.toUpperCase()} successfully.`,
-      data: result
+      message: `Shipment status updated to ${nextStatus} successfully.`,
+      ...(result.warnings.length ? { warnings: result.warnings } : {}),
+      data: { shipment: result.shipment, trackingUpdate: result.trackingUpdate }
     });
 
   } catch (error: any) {

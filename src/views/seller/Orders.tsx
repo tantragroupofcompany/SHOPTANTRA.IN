@@ -190,10 +190,23 @@ const Orders = () => {
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        alert('Shipment successfully created in database! Assigned to India Post Speed Post.');
+        // Report what the provider actually did, including anything that is
+        // still awaiting confirmation. The old message claimed the parcel was
+        // "Assigned to India Post Speed Post" on every success, which was never
+        // true; the AWB either exists with the configured courier or it does not.
+        alert(
+          (result.message || 'Shipment created.') +
+            (result.blocked
+              ? `\n\n${result.blocked} seller group(s) could not be booked — see the shipment list for the reason.`
+              : '')
+        );
         window.location.reload();
       } else {
-        alert('Failed to generate shipping label: ' + (result.error || 'Server error'));
+        alert(
+          'No shipment was booked.\n\n' +
+            (result.error || 'Server error') +
+            (result.reasons && result.reasons.length ? '\n\n' + result.reasons.join('\n') : '')
+        );
       }
     } catch (e) {
       console.error(e);

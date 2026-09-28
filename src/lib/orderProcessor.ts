@@ -239,12 +239,27 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
       const finalCommissionStatus = isPendingMethod ? 'PENDING' : 'PROCESSED';
 
       // 5. Create Order
+      //
+      // `Order.status` is the FULFILMENT lifecycle (PENDING -> CONFIRMED ->
+      // PROCESSING -> PACKED -> SHIPPED -> OUT_FOR_DELIVERY -> DELIVERED /
+      // CANCELLED), which is what every filter in the app reads:
+      //   /api/corporate/orders      status IN (PENDING, CONFIRMED, PROCESSING, ...)
+      //   /api/analytics             PENDING|CONFIRMED|PROCESSING|SHIPPED => pendingOrders
+      //   seller Orders / admin Orders status filters
+      //   /api/shipment/update-status overwrites it with the shipment status
+      //
+      // This line used to write `status: 'PAID'`, which is a PAYMENT value. Every
+      // brand-new order therefore matched no lifecycle bucket at all: it was
+      // invisible in the corporate order list, uncounted as pending/completed/
+      // cancelled in analytics, and unfilterable on the seller dashboard. A new
+      // order is accepted, not yet dispatched, so it starts at CONFIRMED; money
+      // state lives in `paymentStatus` and the Payment row.
       const order = await tx.order.create({
         data: {
           orderNumber,
           buyerId: user.id,
           sellerId: seller.id,
-          status: 'PAID',
+          status: 'CONFIRMED',
           paymentStatus: finalPaymentStatus,
           paymentMethod: method || 'ONLINE_PAYMENT',
           subtotal: computedSubtotal,

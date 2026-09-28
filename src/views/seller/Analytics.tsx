@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Eye, Users, TrendingUp, BarChart3, Star, MapPin } from 'lucide-react';
+import { Users, TrendingUp, BarChart3, Star, MapPin } from 'lucide-react';
 import { Card, StatCard } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 
 interface TrafficStats {
-  pageViews: number;
-  uniqueVisitors: number;
-  conversionRate: number;
-  bounceRate: number;
+  // ShopTantra does not currently record page-view or bounce telemetry, so these
+  // are reported as "not tracked" rather than being invented from order counts.
+  pageViewsTracked: boolean;
+  uniqueVisitorsTracked: boolean;
+  bounceRateTracked: boolean;
+  // Derived purely from real database rows.
+  totalOrders: number;
+  totalCustomers: number;
+  conversionRate: number | null;
 }
 
 interface TopProduct {
   title: string;
-  views: number;
-  conversions: number;
+  unitsSold: number;
 }
 
 interface DemographicData {
@@ -31,15 +35,18 @@ const Analytics = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<TrafficStats>({
-    pageViews: 0,
-    uniqueVisitors: 0,
-    conversionRate: 0,
-    bounceRate: 0,
+    pageViewsTracked: false,
+    uniqueVisitorsTracked: false,
+    bounceRateTracked: false,
+    totalOrders: 0,
+    totalCustomers: 0,
+    conversionRate: null,
   });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [revenueByDay, setRevenueByDay] = useState<{ label: string; value: number }[]>([]);
   const [demographics, setDemographics] = useState<DemographicData[]>([]);
   const [reviewTrends, setReviewTrends] = useState<ReviewTrend[]>([]);
-  const [overallRating, setOverallRating] = useState(4.5);
+  const [overallRating, setOverallRating] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -56,21 +63,37 @@ const Analytics = () => {
         const genData = await genRes.json();
         if (genData.success && genData.data) {
           const data = genData.data;
-          
-          // Map top products from API
+
+          // Top products: real units sold, straight from the API. This view used
+          // to report `views = units * 10 + 20`, which presented a fabricated
+          // impression number to sellers as if it were measured traffic.
           const topProds = (data.topProducts || []).map((p: any) => ({
             title: p.name,
-            views: p.units * 10 + 20, // estimated
-            conversions: p.units,
+            unitsSold: p.units,
           }));
           setTopProducts(topProds);
 
-          // Simulated/calculated traffic metrics
+          const totalOrders = data.revenue?.totalOrders || 0;
+          const totalCustomers = data.totalCustomers || 0;
+
+          // Real 7-day revenue series for the trend chart.
+          const series = Array.isArray(data.revenueSeries) ? data.revenueSeries : [];
+          setRevenueByDay(
+            series.map((d: any) => ({ label: d.label, value: Number(d.value) || 0 }))
+          );
+
           setStats({
-            pageViews: (data.revenue?.totalOrders || 0) * 12 + 100,
-            uniqueVisitors: data.totalCustomers || 0,
-            conversionRate: parseFloat(((data.revenue?.totalOrders / ((data.totalCustomers || 1) * 5)) * 100).toFixed(2)) || 2.5,
-            bounceRate: 35.5,
+            pageViewsTracked: false,
+            uniqueVisitorsTracked: false,
+            bounceRateTracked: false,
+            totalOrders,
+            totalCustomers,
+            // Orders-per-customer. Meaningful only once there is real traffic;
+            // below 5 customers the number is noise, so it is shown as null.
+            conversionRate:
+              totalCustomers >= 5 && totalOrders > 0
+                ? parseFloat(((totalOrders / totalCustomers) * 100).toFixed(2))
+                : null,
           });
         }
       }
@@ -136,6 +159,36 @@ const Analytics = () => {
             .slice(0, 5);
 
           setDemographics(demogData);
+
+          // Real 7-day revenue series, grouped from stored orders. Only
+          // cancelled orders are excluded; un-delivered COD orders are counted
+          // because they are genuine sales. `total` is the order total stored on
+          // the row, never a recomputed or estimated figure.
+          const dayBuckets = new Map<string, { value: number; orders: number }>();
+          const DAY_MS = 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(now - i * DAY_MS);
+            dayBuckets.set(d.toISOString().slice(0, 10), { value: 0, orders: 0 });
+          }
+          for (const order of orders as any[]) {
+            if (String(order.status || '').toUpperCase() === 'CANCELLED') continue;
+            const key = new Date(order.created_at || order.createdAt || now)
+              .toISOString()
+              .slice(0, 10);
+            const bucket = dayBuckets.get(key);
+            if (!bucket) continue;
+            const amount = Number(order.total ?? order.totalAmount ?? 0);
+            if (Number.isFinite(amount)) bucket.value += amount;
+            bucket.orders += 1;
+          }
+          setRevenueByDay(
+            Array.from(dayBuckets.entries()).map(([date, v]) => ({
+              label: new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+              value: Math.round(v.value),
+              orders: v.orders,
+            }))
+          );
         }
       }
     } catch (error) {
@@ -145,46 +198,70 @@ const Analytics = () => {
     }
   };
 
+  // Revenue trend straight from stored orders.
+  // The old version plotted the hardcoded array [2400, 3200, 2800, 3600, 4100,
+  // 3800] and captioned it "positive growth over the past 6 months" for every
+  // seller, including sellers with zero sales. It now renders the real daily
+  // revenue and says so when there is none.
   const drawRevenueChart = () => {
-    const data = [2400, 3200, 2800, 3600, 4100, 3800];
-    const maxValue = Math.max(...data);
     const width = 280;
     const height = 150;
     const padding = 30;
     const chartWidth = width - padding * 2;
     const chartHeight = height - padding * 2;
 
-    const points = data.map((value, index) => {
-      const x = padding + (index / (data.length - 1)) * chartWidth;
-      const y = padding + chartHeight - (value / maxValue) * chartHeight;
+    if (revenueByDay.length === 0 || revenueByDay.every((d) => d.value === 0)) {
+      return (
+        <div className="flex flex-col items-center justify-center text-center py-10">
+          <p className="text-sm text-gray-600">No revenue recorded in the last 7 days</p>
+          <p className="text-xs text-gray-400 mt-1">
+            The revenue trend is built from stored orders only — nothing is estimated.
+          </p>
+        </div>
+      );
+    }
+
+    const maxValue = Math.max(...revenueByDay.map((d) => d.value), 1);
+    const points = revenueByDay.map((point, index) => {
+      const x =
+        revenueByDay.length === 1
+          ? padding + chartWidth / 2
+          : padding + (index / (revenueByDay.length - 1)) * chartWidth;
+      const y = padding + chartHeight - (point.value / maxValue) * chartHeight;
       return `${x},${y}`;
     });
 
     const pathData = `M${points.join(' L')}`;
 
     return (
-      <svg width={width} height={height} className="w-full">
-        <defs>
-          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ea580c" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path
-          d={`${pathData} L${points[points.length - 1].split(',')[0]},${height - padding} L${padding},${height - padding} Z`}
-          fill="url(#areaGradient)"
-        />
-        <path d={pathData} stroke="#ea580c" strokeWidth="2" fill="none" />
-        {points.map((point, i) => (
-          <circle
-            key={i}
-            cx={point.split(',')[0]}
-            cy={point.split(',')[1]}
-            r="4"
-            fill="#ea580c"
+      <div className="w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+          <defs>
+            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ea580c" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path
+            d={`${pathData} L${points[points.length - 1].split(',')[0]},${height - padding} L${padding},${height - padding} Z`}
+            fill="url(#areaGradient)"
           />
-        ))}
-      </svg>
+          <path d={pathData} stroke="#ea580c" strokeWidth="2" fill="none" />
+          {points.map((point, i) => (
+            <circle
+              key={i}
+              cx={point.split(',')[0]}
+              cy={point.split(',')[1]}
+              r="4"
+              fill="#ea580c"
+            />
+          ))}
+        </svg>
+        <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1">
+          <span>{revenueByDay[0]?.label}</span>
+          <span>{revenueByDay[revenueByDay.length - 1]?.label}</span>
+        </div>
+      </div>
     );
   };
 
@@ -199,31 +276,32 @@ const Analytics = () => {
         <p className="text-gray-600 mt-2">Track your store performance and customer insights</p>
       </div>
 
-      {/* Traffic Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Sales stats.
+          Page views / unique visitors / bounce rate are deliberately NOT shown:
+          this platform records no traffic telemetry, and these cards used to
+          render invented values (totalOrders * 12 + 100 page views, a fixed
+          35.5% bounce rate) as if they were measured. Only real figures
+          aggregated from the database are displayed. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          title="Page Views"
-          value={stats.pageViews.toLocaleString()}
-          icon={Eye}
+          title="Total Orders"
+          value={(stats.totalOrders || 0).toLocaleString()}
+          icon={TrendingUp}
           color="navy"
         />
         <StatCard
-          title="Unique Visitors"
-          value={stats.uniqueVisitors.toLocaleString()}
+          title="Unique Customers"
+          value={(stats.totalCustomers || 0).toLocaleString()}
           icon={Users}
           color="green"
         />
         <StatCard
-          title="Conversion Rate"
-          value={`${stats.conversionRate}%`}
-          icon={TrendingUp}
-          color="orange"
-        />
-        <StatCard
-          title="Bounce Rate"
-          value={`${stats.bounceRate}%`}
+          title="Orders per Customer"
+          value={
+            stats.conversionRate === null ? 'Not enough data' : `${stats.conversionRate}%`
+          }
           icon={BarChart3}
-          color="red"
+          color="orange"
         />
       </div>
 
@@ -235,7 +313,10 @@ const Analytics = () => {
             {drawRevenueChart()}
           </div>
           <div className="text-center mt-4">
-            <p className="text-sm text-gray-600">Revenue trend shows positive growth over the past 6 months</p>
+            <p className="text-sm text-gray-600">
+              Sum of stored order totals per day, last 7 days
+              {stats.totalOrders ? ` · ${stats.totalOrders} order(s) all-time` : ''}
+            </p>
           </div>
         </Card>
 
@@ -269,23 +350,25 @@ const Analytics = () => {
             <p className="text-gray-500 text-center py-8">No product data available</p>
           ) : (
             <div className="space-y-3">
-              {topProducts.map((product, index) => (
+              {topProducts.map((product, index) => {
+                const maxUnits = Math.max(...topProducts.map((p) => p.unitsSold || 0), 1);
+                return (
                 <div key={index} className="border-b border-gray-100 pb-3 last:border-0">
                   <p className="font-medium text-gray-900">{product.title}</p>
                   <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>{product.views} views</span>
-                    <span>{product.conversions} conversions</span>
+                    <span>{product.unitsSold} units sold</span>
                   </div>
                   <div className="flex gap-2 mt-2">
                     <div className="flex-1 bg-gray-200 rounded h-2">
                       <div
                         className="bg-orange-500 h-2 rounded"
-                        style={{ width: `${(product.views / 500) * 100}%` }}
+                        style={{ width: `${Math.min(100, ((product.unitsSold || 0) / maxUnits) * 100)}%` }}
                       />
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

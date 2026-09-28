@@ -44,15 +44,14 @@ export async function GET(request: Request) {
         ? JSON.parse(shipment.order.shippingAddress)
         : shipment.order.shippingAddress;
 
-      const pickupAddress = shipment.seller?.pickupAddress || {
-        storeName: shipment.seller?.storeName || 'Central Warehouse',
-        contactName: 'Logistics Supervisor',
-        phone: '9099985145',
-        addressLine1: 'SHOPTANTRA central storage yard, Near Ring Road',
-        city: 'Surat',
-        state: 'Gujarat',
-        pincode: '395002',
-      };
+      // No invented pickup address. The previous fallback printed a real-looking
+      // warehouse ("SHOPTANTRA central storage yard, Surat 395002", phone
+      // 9099985145) on the label for any seller without one on file. A parcel
+      // handed to India Post with that address would go nowhere, and it leaked a
+      // phone number that is not the seller's. The label is rendered honestly
+      // instead: an explicit "not on file" warning.
+      const pickupAddress = shipment.seller?.pickupAddress || null;
+      const pickupAddressMissing = !pickupAddress;
 
       const paymentMethod = shipment.order.paymentMethod || 'PREPAID';
       const isCod = paymentMethod === 'COD' || shipment.codAmount > 0;
@@ -115,11 +114,18 @@ export async function GET(request: Request) {
           <div style="display: flex; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px;">
             <div style="flex: 3; font-size: 11px; line-height: 1.4; border-right: 1px solid #ccc; padding-right: 10px;">
               <span style="font-size: 9px; color: #666; font-weight: bold; display: block; margin-bottom: 3px;">RETURN / WAREHOUSE ADDRESS (SELLER)</span>
-              <strong>${pickupAddress.storeName}</strong><br/>
-              C/O: ${pickupAddress.contactName}<br/>
-              ${pickupAddress.addressLine1}<br/>
-              ${pickupAddress.city}, ${pickupAddress.state} - ${pickupAddress.pincode}<br/>
-              Phone: ${pickupAddress.phone}
+              ${
+                pickupAddressMissing
+                  ? `<strong style="color:#b91c1c;">PICKUP ADDRESS NOT ON FILE</strong><br/>
+                     This seller has no verified return/warehouse address saved, so this
+                     label must not be handed to the carrier. Save the seller's pickup
+                     address before dispatching.`
+                  : `<strong>${pickupAddress.storeName}</strong><br/>
+                     C/O: ${pickupAddress.contactName}<br/>
+                     ${pickupAddress.addressLine1}<br/>
+                     ${pickupAddress.city}, ${pickupAddress.state} - ${pickupAddress.pincode}<br/>
+                     Phone: ${pickupAddress.phone}`
+              }
             </div>
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-left: 10px;">
               <img src="${qrCodeUrl}" style="width: 75px; height: 75px; border: 1px solid #000; padding: 2px;" alt="QR Code" />

@@ -460,7 +460,11 @@ export default function Home() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-gray-800">
             {allProducts.slice(8, 12).map((p) => {
-              const itemsLeft = Math.floor(2 + Math.random() * 8);
+              // Real stock from the product row. This used to be
+              // `Math.floor(2 + Math.random() * 8)`, which re-rolled a fake
+              // "Only N items left!" scarcity message on every render and had
+              // nothing to do with the seller's actual inventory.
+              const itemsLeft = typeof p.stockCount === 'number' ? p.stockCount : null;
               return (
                 <div
                   key={p.id}
@@ -482,13 +486,36 @@ export default function Home() {
                         <span className="text-[10px] text-gray-400 line-through">₹{p.originalPrice}</span>
                       </div>
                     </div>
-                    {/* Stock remaining bar */}
-                    <div className="space-y-1">
-                      <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div className="bg-red-600 h-1.5 rounded-full" style={{ width: `${(itemsLeft / 12) * 100}%` }} />
+                    {/* Stock remaining bar, driven by the real inventory figure.
+                        Hidden when the product has no stock data rather than
+                        inventing a scarcity number. */}
+                    {itemsLeft !== null && (
+                      <div className="space-y-1">
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div
+                            className={
+                              itemsLeft <= 5
+                                ? 'bg-red-600 h-1.5 rounded-full'
+                                : 'bg-green-500 h-1.5 rounded-full'
+                            }
+                            style={{ width: `${Math.min(100, (itemsLeft / 50) * 100)}%` }}
+                          />
+                        </div>
+                        <span
+                          className={
+                            itemsLeft <= 5
+                              ? 'text-[9px] text-red-600 font-bold block'
+                              : 'text-[9px] text-gray-500 font-semibold block'
+                          }
+                        >
+                          {itemsLeft > 0
+                            ? itemsLeft <= 5
+                              ? `Only ${itemsLeft} left in stock`
+                              : `${itemsLeft} in stock`
+                            : 'Out of stock'}
+                        </span>
                       </div>
-                      <span className="text-[9px] text-red-600 font-bold block">Only {itemsLeft} items left in stock!</span>
-                    </div>
+                    )}
                   </div>
                 </div>
               );

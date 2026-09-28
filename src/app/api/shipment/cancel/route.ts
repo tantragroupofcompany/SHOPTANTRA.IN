@@ -19,10 +19,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
     }
 
-    // Call MasterCourierService to cancel AWB in ShopTantra Master Shipping account
-    const cancelResponse = await MasterCourierService.cancelShipment(
-      shipment.awbNumber || shipment.shipmentNumber
-    );
+    // Guard against a double restock. This route returns stock to the seller, so a
+    // second call (double click, retry, replayed request) would inflate inventory.
+    // The previous version re-ran the increment every time.
+    if (String(shipment.status).toUpperCase() === 'CANCELLED') {
+      return NextResponse.json(
+        {
+          success: true,
+          alreadyCancelled: true,
+          message:
+            'This shipment was already cancelled. No stock was returned a second time.',
+          data: shipment,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Ask the carrier to void the AWB.
+    //
+    // The carrier exposes no cancellation endpoint (verified HTTP 404), so
+    // `cancelShipment` now throws instead of returning a fake success. We still
+    // cancel the ShopTantra-side shipment and restock, but we tell the operator
+    // plainly that the carrier copy must be cancelled in their dashboard —
+    // otherwise the parcel keeps moving while the marketplace says it is
+    // cancelled.
+    let providerNotice: string;
+    let providerCancelled = true;
+    try {
+      await MasterCourierService.cancelShipment(
+        shipment.awbNumber || shipment.shipmentNumber
+      );
+      providerNotice = 'Carrier cancellation confirmed.';
+    } catch (e: any) {
+      providerCancelled = false;
+      providerNotice =
+        'The carrier could NOT be cancelled automatically (Shipping Xpress exposes no ' +
+        'cancellation endpoint). The parcel must also be cancelled in the Shipping ' +
+        'Xpress merchant dashboard, otherwise it will keep moving.';
+      console.warn('[shipment/cancel] provider cancel unavailable:', e?.code || e?.message);
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Update Shipment status to CANCELLED
@@ -61,8 +96,10 @@ export async function POST(request: Request) {
         data: {
           shipmentId: shipment.id,
           status: 'CANCELLED',
-          location: 'Central Control',
-          message: `Shipment cancelled in master shipping ledger. AWB: ${shipment.awbNumber || 'N/A'}.`,
+          location: 'ShopTantra Control',
+          message: providerCancelled
+            ? `Shipment cancelled and the carrier AWB was voided. AWB: ${shipment.awbNumber || 'N/A'}.`
+            : `Shipment cancelled in ShopTantra, but the carrier AWB could NOT be voided automatically and must be cancelled in the Shipping Xpress dashboard. AWB: ${shipment.awbNumber || 'N/A'}.`,
           timestamp: new Date()
         }
       });
@@ -70,7 +107,8 @@ export async function POST(request: Request) {
       // 5. Add audit trail entry
       await MasterCourierService.logAction(tx, shipment.id, 'SHIPMENT_CANCELLED', userId || 'SYSTEM', role || 'ADMIN', {
         awbNumber: shipment.awbNumber,
-        response: cancelResponse.message
+        providerCancelled,
+        response: providerNotice
       });
 
       return updatedShipment;
@@ -78,7 +116,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Shipment cancelled successfully.',
+      message: providerCancelled
+        ? 'Shipment cancelled successfully.'
+        : 'Shipment cancelled in ShopTantra.',
+      providerCancelled,
+      notice: providerNotice,
       data: result
     });
 

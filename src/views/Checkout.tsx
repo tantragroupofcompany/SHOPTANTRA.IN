@@ -79,13 +79,21 @@ export default function Checkout() {
   const [orderComplete, setOrderComplete] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
 
-  // Generated Transaction Info
+  // Identifiers echoed back by the server after a real order was persisted.
   const [txnDetails, setTxnDetails] = useState({
     orderId: '',
     paymentId: '',
     date: '',
     invoiceId: ''
   });
+
+  // Shipment state. An AWB is null until the carrier actually issues one, so
+  // the confirmation screen never shows an invented tracking number.
+  const [shipmentInfo, setShipmentInfo] = useState<{
+    awbNumber: string | null;
+    carrierName: string;
+    status: string | null;
+  }>({ awbNumber: null, carrierName: 'Shipping Xpress', status: null });
 
   const subtotal = useMemo(() => {
     return cart.reduce((acc, item) => {
@@ -268,14 +276,17 @@ export default function Checkout() {
       });
       rzp1.open();
     } catch (err: any) {
-      console.error(err);
+      console.error('[checkout] Razorpay initialisation failed:', err?.message || err);
       setIsProcessing(false);
-      // Fallback to simulation if Razorpay configuration error or not configured
-      setCheckoutError('Failed to initialize live Razorpay gateway. Redirecting to test simulator...');
-      setTimeout(() => {
-        setIsProcessing(true);
-        setCheckoutError('');
-      }, 1500);
+      // The old code said "Redirecting to test simulator..." and reopened the
+      // fake gateway modal, which offered a button that faked a successful
+      // payment. If the live gateway cannot be opened, tell the buyer plainly
+      // and let them choose COD or contact support. Never fake a payment.
+      setCheckoutError(
+        'Could not open the live payment gateway, so no payment was taken and no order was created. ' +
+          'Please check your connection and try again, or choose Cash on Delivery. ' +
+          'If this keeps happening, contact support — do not pay by any other means.'
+      );
     }
   };
 
@@ -301,66 +312,16 @@ export default function Checkout() {
         throw new Error(responseData.error || 'Failed to create Cashfree order');
       }
 
-      if (responseData.simulated) {
-        const verifyRes = await fetch('/api/checkout/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gateway: 'CASHFREE',
-            transactionReference: `CF-${responseData.orderId}-${Date.now()}`,
-            amount: grandTotal,
-            orderData: {
-              buyerId: profile?.id || user?.id || 'guest_buyer',
-              buyerName: fullName,
-              buyerEmail: email,
-              buyerPhone: phone,
-              sellerId: cart[0]?.product?.sellerId || 'seller_placeholder',
-              subtotal,
-              shippingAmount: shippingCharges,
-              taxAmount: gstAmount,
-              discountAmount,
-              totalAmount: grandTotal,
-              items: cart.map((item) => ({
-                productId: item.product.id,
-                title: item.product.title,
-                price: item.product.price,
-                quantity: item.quantity,
-                category: item.product.category || 'General',
-              })),
-              shippingAddress: { address, city, state: deliveryState, pincode },
-            },
-          }),
-        });
-
-        const verifyResult = await verifyRes.json();
-        setIsProcessing(false);
-
-        if (verifyRes.ok && verifyResult.success) {
-          setTxnDetails({
-            orderId: verifyResult.data.order.orderNumber,
-            paymentId: responseData.paymentSessionId,
-            date: new Date().toLocaleDateString('en-IN', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            invoiceId: `INV-${verifyResult.data.order.orderNumber}`,
-          });
-          setOrderComplete(true);
-          addNotification(
-            'Order Placed Successfully via Cashfree!',
-            `Your order ${verifyResult.data.order.orderNumber} has been verified in PostgreSQL.`,
-            'order'
-          );
-          clearCart();
-        } else {
-          setCheckoutError(verifyResult.error || 'Payment verification failed');
-        }
-      } else {
-        window.location.href = responseData.redirectUrl || `/checkout?order_id=${responseData.orderId}`;
+      // The Cashfree endpoint always returns a real gateway session (or an
+      // error). It never sets `simulated`. The old `if (responseData.simulated)`
+      // branch posted straight to /api/checkout/verify with a made-up reference,
+      // which would have created a real PAID order with no money taken. The only
+      // correct path is to hand the buyer to the gateway and let the webhook /
+      // verify endpoint confirm the payment afterwards.
+      if (!responseData.paymentSessionId) {
+        throw new Error('Cashfree did not return a payment session. No order was created.');
       }
+      window.location.href = responseData.redirectUrl || `/checkout?order_id=${responseData.orderId}`;
     } catch (err: any) {
       console.error(err);
       setIsProcessing(false);
@@ -388,66 +349,16 @@ export default function Checkout() {
         throw new Error(responseData.error || 'Failed to create PhonePe order');
       }
 
-      if (responseData.simulated) {
-        const verifyRes = await fetch('/api/checkout/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gateway: 'PHONEPE',
-            transactionReference: `PP-${responseData.orderId}-${Date.now()}`,
-            amount: grandTotal,
-            orderData: {
-              buyerId: profile?.id || user?.id || 'guest_buyer',
-              buyerName: fullName,
-              buyerEmail: email,
-              buyerPhone: phone,
-              sellerId: cart[0]?.product?.sellerId || 'seller_placeholder',
-              subtotal,
-              shippingAmount: shippingCharges,
-              taxAmount: gstAmount,
-              discountAmount,
-              totalAmount: grandTotal,
-              items: cart.map((item) => ({
-                productId: item.product.id,
-                title: item.product.title,
-                price: item.product.price,
-                quantity: item.quantity,
-                category: item.product.category || 'General',
-              })),
-              shippingAddress: { address, city, state: deliveryState, pincode },
-            },
-          }),
-        });
-
-        const verifyResult = await verifyRes.json();
-        setIsProcessing(false);
-
-        if (verifyRes.ok && verifyResult.success) {
-          setTxnDetails({
-            orderId: verifyResult.data.order.orderNumber,
-            paymentId: responseData.orderId,
-            date: new Date().toLocaleDateString('en-IN', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            invoiceId: `INV-${verifyResult.data.order.orderNumber}`,
-          });
-          setOrderComplete(true);
-          addNotification(
-            'Order Placed Successfully via PhonePe!',
-            `Your order ${verifyResult.data.order.orderNumber} has been verified in PostgreSQL.`,
-            'order'
-          );
-          clearCart();
-        } else {
-          setCheckoutError(verifyResult.error || 'Payment verification failed');
-        }
-      } else {
-        window.location.href = responseData.redirectUrl;
+      // The PhonePe endpoint always returns a real redirect URL (or an error). It
+      // never sets `simulated`. The old `if (responseData.simulated)` branch
+      // posted straight to /api/checkout/verify with a made-up reference, which
+      // would have created a real PAID order with no money taken. The only
+      // correct path is to hand the buyer to the gateway and let the webhook /
+      // verify endpoint confirm the payment afterwards.
+      if (!responseData.redirectUrl) {
+        throw new Error('PhonePe did not return a payment redirect. No order was created.');
       }
+      window.location.href = responseData.redirectUrl;
     } catch (err: any) {
       console.error(err);
       setIsProcessing(false);
@@ -499,9 +410,27 @@ export default function Checkout() {
         const orderInfo = verifyResult.data?.order || verifyResult.order || {};
         const paymentInfo = verifyResult.data?.payment || verifyResult.payment || {};
         
+        // Use only the identifiers the server actually persisted. The old code
+        // fell back to `ORD-${random}` / `PAY-${random}` / `ST-INV-${random}`,
+        // so a partial server response produced a receipt showing an order
+        // number that existed nowhere in the database.
+        const orderId = orderInfo.orderNumber || orderInfo.id || '';
+        const paymentRef = paymentInfo.transactionReference || paymentInfo.id || '';
+        const invoiceRef = orderInfo.invoiceId || verifyResult.data?.invoiceId || '';
+
+        if (!orderId) {
+          setIsProcessing(false);
+          setOrderComplete(false);
+          setCheckoutError(
+            'Your order was accepted but the server did not return an order number. ' +
+              'Please contact support with your cart details before paying again — do not retry the payment.'
+          );
+          return;
+        }
+
         setTxnDetails({
-          orderId: orderInfo.orderNumber || `ORD-${Math.floor(100000 + Math.random() * 900000)}`,
-          paymentId: paymentInfo.transactionReference || `PAY-${Math.floor(100000000 + Math.random() * 900000000)}`,
+          orderId,
+          paymentId: paymentRef || 'Not applicable (Cash on Delivery)',
           date: new Date().toLocaleDateString('en-IN', {
             year: 'numeric',
             month: 'long',
@@ -509,7 +438,16 @@ export default function Checkout() {
             hour: '2-digit',
             minute: '2-digit'
           }),
-          invoiceId: `ST-INV-${Math.floor(10000 + Math.random() * 90000)}`
+          invoiceId: invoiceRef
+        });
+
+        // A real AWB is only known once the courier has booked the parcel. The
+        // order response normally has none at this point, which is expected.
+        const shipment = verifyResult.data?.shipment || verifyResult.shipment || null;
+        setShipmentInfo({
+          awbNumber: shipment?.awbNumber || null,
+          carrierName: shipment?.courierPartnerName || 'Shipping Xpress',
+          status: shipment?.status || null,
         });
 
         setOrderComplete(true);
@@ -556,37 +494,6 @@ export default function Checkout() {
     } else if (paymentMethod === 'upi') {
       setIsProcessing(true);
     }
-  };
-
-  // Simulate Payment Success (for simulator fallback button)
-  const handlePaymentSuccess = () => {
-    setTimeout(() => {
-      setIsProcessing(false);
-      const randomOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-      const randomPaymentId = `PAY-${Math.floor(100000000 + Math.random() * 900000000)}`;
-      const randomInvoiceId = `ST-INV-${Math.floor(10000 + Math.random() * 90000)}`;
-      
-      setTxnDetails({
-        orderId: randomOrderId,
-        paymentId: randomPaymentId,
-        date: new Date().toLocaleDateString('en-IN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        invoiceId: randomInvoiceId
-      });
-
-      setOrderComplete(true);
-      addNotification(
-        'Order Placed Successfully!',
-        `Your order ${randomOrderId} has been created and shipping label generated with Shiprocket.`,
-        'order'
-      );
-      clearCart();
-    }, 2000);
   };
 
   const printInvoice = () => {
@@ -641,13 +548,21 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Logistics label information */}
+          {/* Logistics information.
+              This block used to render a `Delhivery Express` AWB number generated
+              with Math.random() on every render, so every buyer saw a different,
+              non-existent tracking number for a courier (Shiprocket) ShopTantra
+              does not use. An AWB exists only once a shipment has actually been
+              booked with the carrier, so it is shown only when the order came back
+              with a real one. */}
           <div className="bg-gray-50 p-4 rounded-xl text-xs flex justify-between items-center border border-gray-100">
             <div>
-              <span className="font-bold text-gray-600 uppercase block mb-0.5">Shipping Carrier (Shiprocket API)</span>
+              <span className="font-bold text-gray-600 uppercase block mb-0.5">Shipping</span>
               <span className="text-brand-navy font-bold flex items-center gap-1">
                 <Truck size={14} className="text-brand-orange" />
-                Delhivery Express • AWB Tracking Number: AWB-{Math.floor(88800000 + Math.random() * 11100000)}
+                {shipmentInfo.awbNumber
+                  ? `${shipmentInfo.carrierName} / AWB: ${shipmentInfo.awbNumber}`
+                  : 'Tracking number is assigned once the courier books your parcel.'}
               </span>
             </div>
             <div className="text-right">
@@ -983,7 +898,7 @@ export default function Checkout() {
 
             <div className="flex justify-center items-center gap-1.5 text-[10px] text-gray-400 text-center">
               <ShieldCheck size={14} className="text-brand-orange" />
-              100% Secure Transaction • Shiprocket Logistics
+              Secure Transaction • Payments handled by the configured gateway
             </div>
           </div>
         </div>
@@ -1076,23 +991,25 @@ export default function Checkout() {
                 >
                   Cancel
                 </button>
-                {paymentMethod === 'upi' ? (
-                  <button
-                    type="button"
-                    onClick={() => placeManualOrder('UPI')}
-                    className="flex-1 bg-brand-orange text-white font-bold py-2.5 rounded-lg text-xs hover:bg-brand-orange-hover"
-                  >
-                    I Have Paid, Complete Order
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handlePaymentSuccess}
-                    className="flex-1 bg-brand-orange text-white font-bold py-2.5 rounded-lg text-xs hover:bg-brand-orange-hover"
-                  >
-                    Simulate Success Pay
-                  </button>
-                )}
+                {/*
+                  No simulated-success path exists any more. The old
+                  "Simulate Success Pay" button minted a random order number,
+                  payment id and invoice id in the browser, showed a fake
+                  "Order Confirmed" receipt and cleared the cart, with nothing
+                  written to the database and no money taken. COD and UPI now go
+                  through placeManualOrder(); gateway methods redirect to the
+                  provider and are confirmed by webhook.
+                */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProcessing(false);
+                    setCheckoutError('');
+                  }}
+                  className="flex-1 bg-brand-orange text-white font-bold py-2.5 rounded-lg text-xs hover:bg-brand-orange-hover"
+                >
+                  Close
+                </button>
               </div>
             </div>
 

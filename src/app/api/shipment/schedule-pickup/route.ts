@@ -29,19 +29,41 @@ export async function POST(request: Request) {
 
     const pickupDateVal = pickupDate || new Date().toISOString().split('T')[0];
 
-    // Call MasterCourierService to schedule the pickup under ShopTantra's Master account
-    const pickupResponse = await MasterCourierService.schedulePickup(
-      shipment.awbNumber || shipment.shipmentNumber,
-      shipment.seller?.pickupAddress?.pickupLocationId || null,
-      pickupDateVal
-    );
+    // Raise the pickup with the carrier.
+    //
+    // Shipping Xpress exposes no pickup endpoint (verified HTTP 404), so
+    // `schedulePickup` now throws instead of reporting a fake confirmation.
+    // We do NOT mark the parcel PICKUP_SCHEDULED in that case — doing so would
+    // tell the seller a van is coming for a parcel nobody has collected.
+    let pickupResponse: { scheduled: boolean; notice: string };
+    try {
+      await MasterCourierService.schedulePickup(
+        shipment.awbNumber || shipment.shipmentNumber,
+        shipment.seller?.pickupAddress?.pickupLocationId || null,
+        pickupDateVal
+      );
+      pickupResponse = { scheduled: true, notice: 'Pickup confirmed by the carrier.' };
+    } catch (e: any) {
+      pickupResponse = {
+        scheduled: false,
+        notice:
+          'The carrier could NOT be scheduled automatically (Shipping Xpress exposes no ' +
+          'pickup-scheduling endpoint). Request the pickup in the Shipping Xpress ' +
+          'merchant dashboard, then set the status there.',
+      };
+      console.warn('[shipment/schedule-pickup] provider pickup unavailable:', e?.code || e?.message);
+    }
 
     // 2. Perform updates inside a transaction to ensure atomic consistency
     const result = await prisma.$transaction(async (tx) => {
       const updateData: any = {
-        status: 'PICKUP_SCHEDULED',
         updatedAt: new Date(),
       };
+
+      // Only claim the parcel is scheduled when the carrier actually said so.
+      if (pickupResponse.scheduled) {
+        updateData.status = 'PICKUP_SCHEDULED';
+      }
 
       if (pickupDateVal) {
         updateData.dispatchDate = pickupDateVal;
@@ -54,13 +76,15 @@ export async function POST(request: Request) {
       });
 
       // Update Order Status to sync with shipment
-      await tx.order.update({
-        where: { id: shipment.orderId },
-        data: {
-          status: 'PICKUP_SCHEDULED',
-          updatedAt: new Date(),
-        },
-      });
+      if (pickupResponse.scheduled) {
+        await tx.order.update({
+          where: { id: shipment.orderId },
+          data: {
+            status: 'PICKUP_SCHEDULED',
+            updatedAt: new Date(),
+          },
+        });
+      }
 
       // Build location from seller's pickup address if available
       const pickupAddress = shipment.seller?.pickupAddress;
@@ -70,7 +94,11 @@ export async function POST(request: Request) {
 
       // Build tracking message
       const messageParts: string[] = [];
-      messageParts.push(`Pickup scheduled for ${pickupDateVal}`);
+      messageParts.push(
+        pickupResponse.scheduled
+          ? `Pickup scheduled for ${pickupDateVal}`
+          : `Pickup requested for ${pickupDateVal} — NOT yet confirmed by the carrier`
+      );
       if (pickupTimeSlot) {
         messageParts.push(`Time slot: ${pickupTimeSlot}`);
       }
@@ -81,13 +109,16 @@ export async function POST(request: Request) {
       } else if (contactPhone) {
         messageParts.push(`Contact: ${contactPhone}`);
       }
+      if (!pickupResponse.scheduled) {
+        messageParts.push(pickupResponse.notice);
+      }
       const statusMessage = messageParts.join('. ');
 
       // Log tracking history
       const trackingUpdate = await tx.trackingUpdate.create({
         data: {
           shipmentId,
-          status: 'PICKUP_SCHEDULED',
+          status: pickupResponse.scheduled ? 'PICKUP_SCHEDULED' : 'PICKUP_REQUESTED',
           location: location,
           message: statusMessage,
           timestamp: new Date(),
@@ -95,20 +126,25 @@ export async function POST(request: Request) {
       });
 
       // Log shipment audit log
-      await MasterCourierService.logAction(tx, shipment.id, 'PICKUP_SCHEDULED', shipment.sellerId, 'SELLER', {
+      await MasterCourierService.logAction(tx, shipment.id, pickupResponse.scheduled ? 'PICKUP_SCHEDULED' : 'PICKUP_REQUEST_UNCONFIRMED', shipment.sellerId, 'SELLER', {
         awbNumber: shipment.awbNumber,
         pickupLocationId: pickupAddress?.pickupLocationId,
         date: pickupDateVal,
         timeSlot: pickupTimeSlot,
-        response: pickupResponse.message,
+        providerScheduled: pickupResponse.scheduled,
+        response: pickupResponse.notice,
       });
 
       return { shipment: updatedShipment, trackingUpdate };
     });
 
     return NextResponse.json({
-      success: true,
-      message: 'Pickup scheduled successfully.',
+      success: pickupResponse.scheduled,
+      message: pickupResponse.scheduled
+        ? 'Pickup scheduled successfully.'
+        : 'Pickup was NOT scheduled with the carrier. See notice.',
+      providerScheduled: pickupResponse.scheduled,
+      notice: pickupResponse.notice,
       data: result,
     });
 

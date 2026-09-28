@@ -85,7 +85,10 @@ export async function POST(request: Request) {
       success: true,
       shippingCharge: maxShippingCost,
       totalWeight,
-      couriers
+      couriers,
+      // The carrier exposes no rate-quote API, so these are ShopTantra platform
+      // estimates, not courier quotes. The client must label them as such.
+      ratesAreEstimates: true,
     });
 
   } catch (error: any) {

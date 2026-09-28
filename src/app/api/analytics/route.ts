@@ -84,6 +84,31 @@ export async function GET(request: Request) {
       }
     );
 
+    // 3b. Real 7-day revenue series (oldest -> newest), used by the seller
+    // dashboard trend chart. Every one of the 7 days is always present so the
+    // chart has a stable x-axis, and days with no orders correctly show 0 rather
+    // than being omitted or filled with sample values.
+    const revenueSeries: Array<{ date: string; label: string; value: number; orders: number }> = [];
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date(startOfToday);
+      day.setDate(day.getDate() - i);
+      const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(
+        day.getDate()
+      ).padStart(2, '0')}`;
+      const dayOrders = orders.filter(
+        (o) =>
+          o.createdAt.getFullYear() === day.getFullYear() &&
+          o.createdAt.getMonth() === day.getMonth() &&
+          o.createdAt.getDate() === day.getDate()
+      );
+      revenueSeries.push({
+        date: key,
+        label: day.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+        value: dayOrders.reduce((sum, o) => sum + o.totalAmount, 0),
+        orders: dayOrders.length,
+      });
+    }
+
     // 4. Fetch counts and statistics from database
     let totalCustomers = 0;
     let totalSellers = 0;
@@ -347,6 +372,7 @@ export async function GET(request: Request) {
       success: true,
       data: {
         revenue: metrics,
+        revenueSeries,
         totalCustomers,
         totalSellers,
         totalProducts,

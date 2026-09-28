@@ -1,31 +1,58 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { MasterCourierService } from '../../../../lib/masterCourierService';
 import { classifyDbError } from '../../../../lib/authUtils';
+import { isShippingEnabled, getShippingConfig } from '../../../../lib/shipping/config';
+import { createShipmentsForOrder } from '../../../../lib/shipping/shipmentService';
 
+/**
+ * POST /api/shipment/create
+ *
+ * Creates one real Shipment row per seller for an order by delegating to the
+ * verified provider orchestration in `shipmentService.createShipmentsForOrder`.
+ *
+ * WHY THIS ROUTE WAS REWRITTEN
+ * The previous implementation built shipments itself and it was wrong twice over:
+ *
+ *  1. IT FABRICATED LOGISTICS DATA. It called `MasterCourierService.createShipment()`,
+ *     which minted a random AWB (`DEL##########IN`) and a made-up expected-delivery
+ *     date without any courier ever being contacted, then wrote that AWB to the
+ *     Shipment row and marked the parcel CONFIRMED. Sellers and buyers were shown
+ *     a tracking number for a parcel that did not exist.
+ *
+ *  2. IT DOUBLE-DECREMENTED STOCK. `orderProcessor.processOrder()` already
+ *     decrements `Product.stock` inside the order-creation transaction. This
+ *     route then decremented the same stock AGAIN when a shipment was created.
+ *     Every shipped order therefore removed double its quantity from inventory,
+ *     driving real products to zero/negative stock.
+ *
+ * It also invented a fallback pickup address ("Registered Business Address,
+ * Mumbai 400001") for sellers with no warehouse on file, so parcels would be
+ * collected from an address the seller never had.
+ *
+ * The delegated service is provider-backed, idempotent per (order, seller),
+ * validates seller eligibility before booking, and records a failed booking
+ * honestly as PENDING_PROVIDER_CONFIRMATION / BLOCKED with the real reason and
+ * no AWB. It never touches stock.
+ */
 export async function POST(request: Request) {
+  let orderId: string | null = null;
   try {
-    const { orderId } = await request.json();
+    const body = await request.json();
+    orderId = body?.orderId || null;
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    // 1. Fetch Order details
+    // Load the order only to derive the payment mode and to answer 404 early.
     let order: any = null;
     try {
       order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-        },
+        select: { id: true, paymentMethod: true, paymentStatus: true },
       });
     } catch (e: any) {
-      // A database outage is an outage, not a "database error" 500 that hides
-      // which layer failed. Classify it and answer 503 (no internals leaked).
+      // A database outage is an outage. Classify it and answer 503 so no
+      // connector internals or credentials leak.
       console.error('[shipment/create] DB error while retrieving order:', e?.code || e?.message);
       const classified = classifyDbError(e);
       if (classified) {
@@ -38,222 +65,79 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Order not found in database' }, { status: 404 });
     }
 
-    const shippingAddress = typeof order.shippingAddress === 'string'
-      ? JSON.parse(order.shippingAddress)
-      : order.shippingAddress;
-    const deliveryPincode = shippingAddress.pincode || '380001';
+    const paymentMode: 'PREPAID' | 'COD' =
+      String(order.paymentMethod || '').toUpperCase() === 'COD' ||
+      order.paymentStatus === 'COD_PENDING'
+        ? 'COD'
+        : 'PREPAID';
 
-    // 2. Group items by Seller
-    const itemsBySeller: Record<string, any[]> = {};
-    order.items.forEach((item: any) => {
-      const sellerId = item.product?.sellerId || order.sellerId || 'default-seller';
-      if (!itemsBySeller[sellerId]) {
-        itemsBySeller[sellerId] = [];
-      }
-      itemsBySeller[sellerId].push(item);
-    });
+    const result = await createShipmentsForOrder({ orderId, paymentMode });
 
-    const createdShipments: any[] = [];
-
-    // 3. For each seller group, create a Shipment
-    for (const [sellerId, items] of Object.entries(itemsBySeller)) {
-      // Retrieve Seller Address & Info from Database
-      let pickupAddress: any = null;
-      let sellerEmail = '';
-      let sellerPhone = '';
-      let sellerName = 'Seller';
-
-      try {
-        const seller = await prisma.seller.findUnique({
-          where: { id: sellerId },
-          include: { user: true, pickupAddress: true },
-        });
-        if (seller) {
-          sellerEmail = seller.user?.email || sellerEmail;
-          sellerPhone = seller.user?.phone || sellerPhone;
-          sellerName = seller.storeName || sellerName;
-          pickupAddress = seller.pickupAddress;
-        }
-      } catch (e) {
-        console.warn(`Failed to fetch database pickup address for seller ${sellerId}`);
-      }
-
-      if (!pickupAddress) {
-        pickupAddress = {
-          storeName: sellerName,
-          contactName: sellerName,
-          phone: sellerPhone,
-          email: sellerEmail,
-          addressLine1: `Registered Business Address`,
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400001',
-          country: 'India',
-        };
-      }
-
-      // Calculate Shipment pricing and metrics
-      const subtotal = items.reduce((acc, item) => acc + item.total, 0);
-      const taxAmount = Math.round(subtotal * 0.18); // 18% GST mock
-      const totalWeight = items.reduce((acc, item) => acc + (item.quantity * 0.5), 0); // 0.5kg per item mock
-      const isCod = order.paymentMethod === 'COD' || order.paymentStatus === 'PENDING';
-      const paymentMode = isCod ? 'COD' : 'PREPAID';
-      const codAmount = isCod ? subtotal + taxAmount : 0;
-
-      // Select courier partner and generate AWB via ShopTantra Master Shipping Account
-      const courierDetails = await MasterCourierService.createShipment({
-        orderId: order.id,
-        sellerId,
-        pickupAddress: {
-          storeName: pickupAddress.storeName,
-          contactName: pickupAddress.contactName,
-          phone: pickupAddress.phone,
-          email: pickupAddress.email,
-          addressLine1: pickupAddress.addressLine1,
-          addressLine2: pickupAddress.addressLine2,
-          city: pickupAddress.city,
-          state: pickupAddress.state,
-          pincode: pickupAddress.pincode,
-          country: pickupAddress.country,
-          pickupLocationId: pickupAddress.pickupLocationId,
+    if (!isShippingEnabled()) {
+      return NextResponse.json(
+        {
+          success: false,
+          shipments: [],
+          providerEnabled: false,
+          error:
+            'Shipping is not configured for this deployment, so no shipment was booked. ' +
+            'No AWB was created and stock was not touched.',
         },
-        shippingAddress: {
-          fullName: shippingAddress.full_name || shippingAddress.name || 'Recipient',
-          phone: shippingAddress.phone || '9999999999',
-          email: shippingAddress.email || 'customer@example.com',
-          address: shippingAddress.address || 'Address Line 1',
-          city: shippingAddress.city || 'City',
-          state: shippingAddress.state || 'State',
-          pincode: deliveryPincode,
-          country: shippingAddress.country || 'India',
+        { status: 503 }
+      );
+    }
+
+    const blocked = result.shipments.filter((s) => s.source === 'BLOCKED');
+    const booked = result.shipments.filter((s) => s.source === 'PROVIDER');
+    const pending = result.shipments.filter(
+      (s) => s.source === 'FALLBACK' && s.status !== 'BOOKED'
+    );
+
+    // Nothing could be booked -> honest failure, listing the real reasons.
+    if (booked.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          provider: getShippingConfig().provider,
+          shipments: result.shipments,
+          blocked,
+          reasons: result.shipments.map(
+            (s) => s.failureReason || `Shipment for seller ${s.sellerId} is ${s.status}.`
+          ),
+          error:
+            'No shipment could be booked with the courier. ' +
+            (result.reason || 'See the per-seller reasons for details.') +
+            ' No AWB was created and stock was not touched.',
         },
-        items: items.map(i => ({
-          productId: i.productId,
-          title: i.title,
-          quantity: i.quantity,
-          price: i.price,
-          total: i.total,
-        })),
-        weight: totalWeight,
-        isCod,
-        codAmount,
-      });
-
-      const trackingId = courierDetails.awbNumber;
-      const currentYear = new Date().getFullYear();
-
-      // Save to database if online
-      let shipment: any = null;
-      try {
-        shipment = await prisma.$transaction(async (tx) => {
-          // Get or create courier partner dynamically
-          let courierPartner = await tx.courierPartner.findUnique({
-            where: { code: courierDetails.courierPartnerCode },
-          });
-          if (!courierPartner) {
-            courierPartner = await tx.courierPartner.create({
-              data: {
-                name: courierDetails.courierPartnerName,
-                code: courierDetails.courierPartnerCode,
-                isActive: true,
-                baseRatePrepaid: 45.0,
-                baseRateCOD: 65.0,
-              },
-            });
-          }
-
-          // Create shipment
-          const ship = await tx.shipment.create({
-            data: {
-              shipmentNumber: `SH-${currentYear}-${Math.floor(100000 + Math.random() * 900000)}`,
-              orderId: order.id,
-              sellerId,
-              courierPartnerId: courierPartner.id,
-              status: 'PENDING',
-              awbNumber: courierDetails.awbNumber,
-              trackingNumber: courierDetails.trackingNumber,
-              trackingLink: courierDetails.trackingLink,
-              labelUrl: courierDetails.labelUrl.replace('TEMP_ID', trackingId), // dynamically map label link
-              codAmount,
-              shippingCost: courierDetails.shippingCost,
-              weight: totalWeight,
-            },
-          });
-
-          // Link items
-          for (const item of items) {
-            await tx.orderItem.update({
-              where: { id: item.id },
-              data: { shipmentId: ship.id },
-            });
-
-            // Deduct inventory stock
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { decrement: item.quantity } },
-            });
-          }
-
-          // Create tracking updates
-          await tx.trackingUpdate.createMany({
-            data: [
-              {
-                shipmentId: ship.id,
-                status: 'CONFIRMED',
-                location: pickupAddress.city,
-                message: `Shipment confirmed and registered on Master Account. AWB generated: ${courierDetails.awbNumber} via ${courierDetails.courierPartnerName}.`,
-              },
-              {
-                shipmentId: ship.id,
-                status: 'PENDING_PICKUP',
-                location: pickupAddress.city,
-                message: `Awaiting seller dispatch from ${pickupAddress.storeName} (${pickupAddress.city}).`,
-              },
-            ],
-          });
-
-          // Create invoice
-          const invoiceNumber = `ST-INV-${currentYear}-${Math.floor(100000 + Math.random() * 900000)}`;
-          await tx.invoice.create({
-            data: {
-              invoiceNumber,
-              shipmentId: ship.id,
-              subtotal,
-              taxAmount,
-              totalAmount: subtotal + taxAmount,
-            },
-          });
-
-          // Audit log transaction
-          await MasterCourierService.logAction(tx, ship.id, 'AWB_GENERATED', sellerId, 'SELLER', {
-            orderId: order.id,
-            awbNumber: courierDetails.awbNumber,
-            pickupLocationId: pickupAddress.pickupLocationId,
-            carrier: courierDetails.courierPartnerName,
-            cost: courierDetails.shippingCost,
-          });
-
-          return ship;
-        });
-      } catch (err) {
-        console.error('Shipment creation transaction failed:', err);
-        return NextResponse.json({ error: 'Failed to create shipment in database' }, { status: 500 });
-      }
-
-      if (!shipment) {
-        return NextResponse.json({ error: 'Shipment creation returned null' }, { status: 500 });
-      }
-
-      createdShipments.push(shipment);
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      message: `Split shipment processed successfully. Generated ${createdShipments.length} shipment(s).`,
-      shipments: createdShipments,
+      provider: getShippingConfig().provider,
+      message:
+        `Booked ${booked.length} shipment(s) with the courier.` +
+        (pending.length ? ` ${pending.length} awaiting provider confirmation.` : '') +
+        (blocked.length ? ` ${blocked.length} blocked (seller not eligible).` : ''),
+      shipments: result.shipments,
+      booked: booked.length,
+      pendingProviderConfirmation: pending.length,
+      blocked: blocked.length,
     });
   } catch (error: any) {
-    console.error('Error creating split shipments:', error);
-    return NextResponse.json({ error: error.message || 'Fulfillment error occurred' }, { status: 500 });
+    console.error('[shipment/create] failed:', error?.code || error?.message);
+    const classified = classifyDbError(error);
+    if (classified) {
+      return NextResponse.json({ error: classified }, { status: 503 });
+    }
+    // createShipmentsForOrder throws a plain Error with an operator-readable
+    // reason (e.g. "PREPAID order X is not paid"). It is safe to surface and
+    // far more useful than a generic 500.
+    const message =
+      typeof error?.message === 'string' && error.message.length < 300
+        ? error.message
+        : 'Shipment could not be created. No AWB was generated and stock was not changed.';
+    return NextResponse.json({ error: message, shipments: [] }, { status: 400 });
   }
 }

@@ -52,6 +52,53 @@ export interface CourierServiceRate {
   rate: number;
   expectedDays: number;
   isCodSupported: boolean;
+  /**
+   * True when the number is a ShopTantra platform estimate rather than a quote
+   * returned by a courier. The UI must label it as such.
+   */
+  isEstimate: boolean;
+}
+
+/**
+ * Raised by every operation in this service that would otherwise have to invent
+ * a result.
+ *
+ * SHOP TANTRA — Master Courier Service
+ *
+ * IMPORTANT / HONESTY CONTRACT
+ * This service used to be a simulation. `createShipment()` minted a random AWB
+ * (`DEL##########IN`), `trackShipment()` invented a courier history with made-up
+ * hubs and back-dated timestamps, and `schedulePickup()` / `cancelShipment()`
+ * answered `{ success: true }` without contacting anybody. No courier was ever
+ * reached, so an operator (and the buyer) could believe a parcel was booked,
+ * picked up and in transit when nothing existed.
+ *
+ * ShopTantra now has a real, verified provider integration
+ * (`src/lib/shipping/shippingXpressProvider.ts`, reached through
+ * `shipmentService.createShipmentsForOrder`). That is the only path allowed to
+ * produce an AWB. This class therefore NEVER fabricates logistics data:
+ *   - `createShipment()`  -> throws (no provider configured for this account)
+ *   - `trackShipment()`   -> returns [] (the provider exposes no tracking API)
+ *   - `schedulePickup()`  -> throws (the provider exposes no pickup API)
+ *   - `cancelShipment()`  -> throws (the provider exposes no cancel API)
+ *   - `calculateRates()`  -> returns clearly-flagged platform ESTIMATES
+ *                            (the provider exposes no rate-quote API)
+ * `logAction()` is a real database write and is kept.
+ *
+ * `shipmentService.localFallback()` is the single caller of `createShipment()`
+ * and only reaches it when `SHIPPING_LOCAL_FALLBACK_ENABLED=true`; it catches
+ * this error and records the booking honestly as
+ * PENDING_PROVIDER_CONFIRMATION with no AWB.
+ */
+export class MasterShippingNotConfiguredError extends Error {
+  public readonly code = 'SHIPPING_PROVIDER_NOT_CONFIGURED';
+  constructor(operation: string, detail: string) {
+    super(
+      `Shipping Xpress cannot perform "${operation}": ${detail} ` +
+        `No AWB, tracking event or label was created.`
+    );
+    this.name = 'MasterShippingNotConfiguredError';
+  }
 }
 
 /**
@@ -72,202 +119,119 @@ export class MasterCourierService {
   }
 
   /**
-   * Auto-selects courier or uses manual override to book the shipment.
+   * Book a shipment on ShopTantra's master account.
+   *
+   * REFUSED BY DESIGN. The only verified carrier integration is
+   * `shippingXpressProvider.createShipment()` (POST /api/order/store), reached
+   * via `shipmentService.createShipmentsForOrder()`. This method has no live
+   * endpoint, so instead of returning a random AWB it throws and the caller
+   * records the booking as PENDING_PROVIDER_CONFIRMATION.
    */
-  public static async createShipment(params: CreateShipmentParams) {
-    const creds = this.getApiCredentials();
-    const isLive = !!(creds.apiKey || (creds.shiprocketEmail && creds.shiprocketPassword));
-
-    // Log the transaction attempt securely on the backend
-    console.log(`[Master Shipping API] Booking shipment for Order ID: ${params.orderId}. Mode: ${isLive ? 'LIVE' : 'MOCK CENTRALIZED'}`);
-    console.log(`[Master Shipping API] Pickup Warehouse: ${params.pickupAddress.storeName} (${params.pickupAddress.pickupLocationId || 'No ID Assigned'})`);
-
-    if (isLive) {
-      try {
-        // Real third-party API integration call would happen here.
-        // E.g., const res = await fetch('https://api.shiprocket.in/v1/external/shipments/create', ...)
-      } catch (err: any) {
-        console.error('[Master Shipping API] Live integration error, falling back to mock:', err);
-      }
-    }
-
-    // High-fidelity fallback logic. Returns realistic values to ensure a beautiful production-ready system.
-    const courierCode = params.courierCode || 'DELHIVERY_EXPRESS';
-    const carrierName = courierCode === 'INDIA_POST' ? 'India Post Speed Post' :
-                       courierCode === 'DELHIVERY_EXPRESS' ? 'Delhivery Express' :
-                       courierCode === 'BLUEDART_AIR' ? 'Blue Dart Air' : 'DTDC Express';
-
-    // Generate realistic AWB / Tracking Code
-    const awbPrefix = courierCode === 'INDIA_POST' ? 'IP' :
-                      courierCode === 'DELHIVERY_EXPRESS' ? 'DEL' :
-                      courierCode === 'BLUEDART_AIR' ? 'BD' : 'DTDC';
-    const randomSuffix = Math.floor(100000000 + Math.random() * 900000000);
-    const awbNumber = `${awbPrefix}${randomSuffix}IN`;
-
-    // Dynamic cost calculation based on weight, mode, and distance mock
-    const baseRate = params.isCod ? 65 : 45;
-    const shippingCost = Math.round(baseRate * (params.weight <= 0.5 ? 1 : Math.ceil(params.weight / 0.5) * 0.85));
-
-    const expectedDate = new Date();
-    expectedDate.setDate(expectedDate.getDate() + (courierCode === 'BLUEDART_AIR' ? 2 : 4));
-    const formattedEDD = expectedDate.toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-
-    const trackingLink = courierCode === 'INDIA_POST' 
-      ? `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?id=${awbNumber}`
-      : `https://www.delhivery.com/track/package/${awbNumber}`;
-
-    const labelUrl = `/api/shipment/label?ids=TEMP_ID`; // Will be mapped to active ID dynamically
-
-    return {
-      success: true,
-      awbNumber,
-      trackingNumber: awbNumber,
-      courierPartnerCode: courierCode,
-      courierPartnerName: carrierName,
-      shippingCost,
-      expectedDeliveryDate: formattedEDD,
-      trackingLink,
-      labelUrl,
-      isLive,
-    };
+  public static async createShipment(_params: CreateShipmentParams): Promise<never> {
+    throw new MasterShippingNotConfiguredError(
+      'create shipment',
+      'no courier API is wired to this master account. ' +
+        'Set SHIPTANTRA_MASTER_SHIPPING_API_KEY only together with a real endpoint implementation.'
+    );
   }
 
   /**
-   * Schedule pickup from seller's warehouse location
+   * Schedule a pickup from the seller's warehouse.
+   *
+   * REFUSED: Shipping Xpress exposes no pickup endpoint (GET /api/pickup/store
+   * and /api/pickup/list were verified live as HTTP 404). This used to answer
+   * `{ success: true }` unconditionally. It now throws so the caller reports
+   * that the pickup has NOT been raised with the carrier.
    */
-  public static async schedulePickup(awbNumber: string, pickupLocationId: string | null, pickupDate: string) {
-    const creds = this.getApiCredentials();
-    const isLive = !!(creds.apiKey || (creds.shiprocketEmail && creds.shiprocketPassword));
-
-    console.log(`[Master Shipping API] Scheduling pickup for AWB: ${awbNumber}. Pickup ID: ${pickupLocationId || 'Default'}. Date: ${pickupDate}`);
-
-    if (isLive) {
-      // Real API pickup schedule call
-    }
-
-    return {
-      success: true,
-      message: `Pickup scheduled successfully for AWB ${awbNumber} on ${pickupDate} from warehouse ID ${pickupLocationId || 'Central'}.`,
-      pickupScheduledDate: pickupDate,
-    };
+  public static async schedulePickup(
+    _awbNumber: string,
+    _pickupLocationId: string | null,
+    _pickupDate: string
+  ): Promise<never> {
+    throw new MasterShippingNotConfiguredError(
+      'schedule pickup',
+      'the carrier exposes no pickup-scheduling endpoint (verified 404). ' +
+        'Raise the pickup in the Shipping Xpress merchant dashboard.'
+    );
   }
 
   /**
-   * Cancel shipment AWB
+   * Cancel an AWB.
+   *
+   * REFUSED: Shipping Xpress exposes no cancellation endpoint (GET
+   * /api/order/cancel verified live as HTTP 404). This used to answer
+   * `{ success: true }` unconditionally. It now throws.
    */
-  public static async cancelShipment(awbNumber: string) {
-    const creds = this.getApiCredentials();
-    const isLive = !!(creds.apiKey || (creds.shiprocketEmail && creds.shiprocketPassword));
-
-    console.log(`[Master Shipping API] Cancelling AWB: ${awbNumber}`);
-
-    if (isLive) {
-      // Real API cancellation call
-    }
-
-    return {
-      success: true,
-      message: `Shipment AWB ${awbNumber} cancelled successfully in master shipping ledger.`,
-    };
+  public static async cancelShipment(_awbNumber: string): Promise<never> {
+    throw new MasterShippingNotConfiguredError(
+      'cancel shipment',
+      'the carrier exposes no cancellation endpoint (verified 404). ' +
+        'Cancel the order in the Shipping Xpress merchant dashboard.'
+    );
   }
 
   /**
-   * Fetch live tracking details from the shipping provider
+   * Fetch tracking events from the carrier.
+   *
+   * Returns an EMPTY list. The carrier exposes no tracking API (verified), and
+   * this method used to synthesise a full courier history — made-up hubs, made-up
+   * courier assistants and back-dated timestamps derived purely from the current
+   * status. Those events were never persisted (see update-status/route.ts), but
+   * they were returned to callers as if they were real. Empty is the truth.
    */
-  public static async trackShipment(awbNumber: string, currentStatus: string = 'PENDING') {
-    const creds = this.getApiCredentials();
-    const isLive = !!(creds.apiKey || (creds.shiprocketEmail && creds.shiprocketPassword));
-
-    if (isLive) {
-      // Real API tracking call
-    }
-
-    // Return high-fidelity tracking history based on the shipment status
-    const logs = [];
-    const now = new Date();
-
-    const createLog = (status: string, location: string, message: string, offsetHours: number) => {
-      const logTime = new Date(now.getTime() - offsetHours * 60 * 60 * 1000);
-      return {
-        status,
-        location,
-        message,
-        timestamp: logTime.toISOString(),
-      };
-    };
-
-    if (currentStatus === 'DELIVERED') {
-      logs.push(createLog('DELIVERED', 'Customer Address', 'Parcel delivered successfully.', 0));
-      logs.push(createLog('OUT_FOR_DELIVERY', 'Local Hub', 'Out for delivery with courier assistant.', 5));
-      logs.push(createLog('SHIPPED', 'Main Sorting Facility', 'In-transit to destination hub.', 24));
-      logs.push(createLog('PICKED_UP', 'Seller Warehouse', 'Picked up from seller warehouse.', 36));
-      logs.push(createLog('PICKUP_SCHEDULED', 'Seller Warehouse', 'Pickup scheduled by merchant.', 48));
-      logs.push(createLog('CONFIRMED', 'Central Hub', 'AWB created and shipment confirmed.', 52));
-    } else if (currentStatus === 'OUT_FOR_DELIVERY') {
-      logs.push(createLog('OUT_FOR_DELIVERY', 'Local Hub', 'Out for delivery with courier assistant.', 0));
-      logs.push(createLog('SHIPPED', 'Main Sorting Facility', 'In-transit to destination hub.', 18));
-      logs.push(createLog('PICKED_UP', 'Seller Warehouse', 'Picked up from seller warehouse.', 30));
-      logs.push(createLog('PICKUP_SCHEDULED', 'Seller Warehouse', 'Pickup scheduled.', 40));
-    } else if (currentStatus === 'SHIPPED') {
-      logs.push(createLog('SHIPPED', 'Main Sorting Facility', 'In-transit to destination hub.', 0));
-      logs.push(createLog('PICKED_UP', 'Seller Warehouse', 'Picked up from seller warehouse.', 12));
-      logs.push(createLog('PICKUP_SCHEDULED', 'Seller Warehouse', 'Pickup scheduled.', 24));
-    } else if (currentStatus === 'PICKED_UP') {
-      logs.push(createLog('PICKED_UP', 'Seller Warehouse', 'Picked up from seller warehouse.', 0));
-      logs.push(createLog('PICKUP_SCHEDULED', 'Seller Warehouse', 'Pickup scheduled.', 12));
-    } else if (currentStatus === 'PICKUP_SCHEDULED') {
-      logs.push(createLog('PICKUP_SCHEDULED', 'Seller Warehouse', 'Pickup scheduled by merchant.', 0));
-      logs.push(createLog('CONFIRMED', 'Central Hub', 'AWB created and shipment confirmed.', 4));
-    } else {
-      logs.push(createLog('CONFIRMED', 'Central Hub', 'AWB created and shipment confirmed.', 0));
-    }
-
-    return logs;
+  public static async trackShipment(
+    _awbNumber: string,
+    _currentStatus: string = 'PENDING'
+  ): Promise<Array<{ status: string; location: string; message: string; timestamp: string }>> {
+    return [];
   }
 
   /**
-   * Dynamic rate calculator for courier services
+   * Weight-based platform shipping ESTIMATE.
+   *
+   * The carrier exposes no rate-quote endpoint (verified), so these are NOT
+   * courier quotes — they are ShopTantra's own published slab rates used to show
+   * the buyer a shipping figure before the parcel is booked. Every row is flagged
+   * `isEstimate: true` and the API response is flagged too, so nothing here can
+   * be mistaken for a carrier quote. The final charge is set at booking time.
    */
-  public static async calculateRates(pickupPincode: string, deliveryPincode: string, weight: number, paymentMode: 'PREPAID' | 'COD', codAmount: number): Promise<CourierServiceRate[]> {
-    const creds = this.getApiCredentials();
-    const isLive = !!(creds.apiKey || (creds.shiprocketEmail && creds.shiprocketPassword));
-
-    if (isLive) {
-      // Real API rate check
-    }
-
-    const codFee = paymentMode === 'COD' ? Math.max(15, codAmount * 0.015) : 0;
+  public static async calculateRates(
+    _pickupPincode: string,
+    _deliveryPincode: string,
+    weight: number,
+    paymentMode: 'PREPAID' | 'COD',
+    codAmount: number
+  ): Promise<CourierServiceRate[]> {
+    const codFee = paymentMode === 'COD' ? Math.max(15, Math.round(codAmount * 0.015)) : 0;
     const baseW = weight <= 0.5 ? 1 : Math.ceil(weight / 0.5) * 0.85;
 
     return [
       {
         courierId: 'DELHIVERY_EXPRESS',
-        name: 'Delhivery Express (Auto)',
+        name: 'Standard Delivery (estimated)',
         code: 'DELHIVERY_EXPRESS',
-        rate: Math.round(45 * baseW + codFee),
+        rate: Math.round(45 * baseW) + codFee,
         expectedDays: 4,
         isCodSupported: true,
+        isEstimate: true,
       },
       {
         courierId: 'BLUEDART_AIR',
-        name: 'Blue Dart Air Priority',
+        name: 'Priority Delivery (estimated)',
         code: 'BLUEDART_AIR',
-        rate: Math.round(85 * baseW + codFee),
+        rate: Math.round(85 * baseW) + codFee,
         expectedDays: 2,
         isCodSupported: true,
+        isEstimate: true,
       },
       {
         courierId: 'INDIA_POST',
-        name: 'India Post Speed Post',
+        name: 'Economy Delivery (estimated)',
         code: 'INDIA_POST',
-        rate: Math.round(35 * baseW + codFee),
+        rate: Math.round(35 * baseW),
         expectedDays: 5,
         isCodSupported: false,
+        isEstimate: true,
       },
     ];
   }
