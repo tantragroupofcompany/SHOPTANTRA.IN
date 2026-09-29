@@ -715,7 +715,11 @@ Generated on: ${new Date().toLocaleString()}
               </div>
             </div>
 
-            {selectedOrder.status !== 'pending' && selectedOrder.status !== 'cancelled' && (
+            {/* Fulfillment controls. A new order arrives as `confirmed`, so
+                gating this block on `!== 'pending'` alone hid the whole
+                shipment panel from every freshly placed order. */}
+            {selectedOrder.status !== 'pending' &&
+              selectedOrder.status !== 'cancelled' && (
               <div className="border-t border-gray-200 pt-6 space-y-4">
                 <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-1.5">
                   <Package size={16} className="text-orange-500" />
@@ -873,7 +877,14 @@ Generated on: ${new Date().toLocaleString()}
             <div className="border-t border-gray-200 pt-6">
               <h4 className="text-sm font-semibold text-gray-900 mb-3">Order Actions</h4>
               <div className="flex flex-wrap gap-2">
-                {selectedOrder.status === 'pending' && (
+                {/* Accept / Reject are offered for any order the seller has not
+                    yet started fulfilling. New orders arrive as `confirmed`
+                    (orderProcessor), and `pending` remains valid for legacy rows,
+                    so both are actionable here. Previously this was gated on
+                    `status === 'pending'` only, which meant the buttons never
+                    rendered for a newly placed order. */}
+                {(selectedOrder.status === 'pending' ||
+                  selectedOrder.status === 'confirmed') && (
                   <>
                     <Button
                       variant="primary"
@@ -893,7 +904,9 @@ Generated on: ${new Date().toLocaleString()}
                     </Button>
                   </>
                 )}
-                {selectedOrder.status !== 'pending' && selectedOrder.status !== 'cancelled' && (
+                {selectedOrder.status !== 'pending' &&
+                  selectedOrder.status !== 'confirmed' &&
+                  selectedOrder.status !== 'cancelled' && (
                   <>
                     {!selectedOrder.tracking_number && (
                       <Button
