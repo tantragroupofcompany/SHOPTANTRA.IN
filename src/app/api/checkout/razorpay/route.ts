@@ -19,7 +19,20 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // A malformed body is a client error, not a server fault. `request.json()`
+    // rejects on invalid JSON and that rejection used to reach the catch below,
+    // which answered 500 and echoed the raw V8 parser text
+    // ("Expected property name or '}' in JSON at position 1 ...").
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
+    }
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'A JSON request body is required.' }, { status: 400 });
+    }
+
     // Ensure additive marketplace schema exists (Seller columns etc.)
     const { ensureSchema } = await import('../../../../lib/dbBootstrap');
     await ensureSchema();

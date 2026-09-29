@@ -7,7 +7,17 @@ const COD_MAX_AMOUNT = 5000;
 
 export async function POST(request: Request) {
   try {
-    const { amount, pincode } = await request.json();
+    // A malformed body is a client error. `request.json()` rejects on invalid
+    // JSON and that rejection used to land in the catch below as a 500, so a bad
+    // request was reported as a server fault.
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
+    }
+
+    const { amount, pincode } = body || {};
 
     if (!amount || !pincode) {
       return NextResponse.json({ error: 'Amount and pincode are required.' }, { status: 400 });
