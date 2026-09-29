@@ -5,7 +5,22 @@ import { classifyDbError } from '../../../../lib/authUtils';
 
 export async function POST(request: Request) {
   try {
-    const { cartItems, deliveryPincode } = await request.json();
+    // A missing or malformed body must be a client error (400), not a server
+    // error. `request.json()` rejects on an empty body, and that rejection used
+    // to fall into the catch below and answer 500, so a malformed probe was
+    // reported as a server fault. Real checkout callers always send JSON, but
+    // the distinction is the correct one and keeps 5xx meaning "we broke".
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'A valid JSON request body with cartItems and deliveryPincode is required.' },
+        { status: 400 }
+      );
+    }
+
+    const { cartItems, deliveryPincode } = body || {};
 
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
       return NextResponse.json({ error: 'Cart items are required.' }, { status: 400 });
