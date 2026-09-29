@@ -100,6 +100,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/api/management') ||
     path.startsWith('/api/corporate') ||
     path.startsWith('/api/seller') ||
+    path.startsWith('/api/shipment') ||
     path.startsWith('/api/buyer')
   ) {
     if (path.startsWith('/api/founder')) {
@@ -112,6 +113,16 @@ export async function middleware(request: NextRequest) {
       const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/seller')) {
+      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/shipment')) {
+      // Shipment booking/labeling was previously NOT matched by any prefix
+      // above, so /api/shipment/* was reachable with no session at all: an
+      // anonymous request reached the handlers and answered 400 instead of
+      // 401. That exposed shipment creation, label PDFs (customer name, phone
+      // and full delivery address) and shipment cancellation to anyone. The
+      // only callers are the authenticated seller and admin dashboards, so the
+      // same roles that may read or mutate seller data gate these routes.
       const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/buyer')) {
