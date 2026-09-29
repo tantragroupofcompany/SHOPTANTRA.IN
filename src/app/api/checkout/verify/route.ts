@@ -4,7 +4,27 @@ import { isRetiredGateway } from '../../../../lib/orderProcessor';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // A malformed body is a client error. `request.json()` rejects on invalid
+    // JSON, and that rejection used to fall into the catch below, which answered
+    // 500 and echoed the raw V8 parser message
+    // ("Expected property name or '}' in JSON at position 1 ..."). That both
+    // mis-reported a caller mistake as a server fault and leaked engine internals
+    // to whoever sent the request.
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON request body.' },
+        { status: 400 }
+      );
+    }
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json(
+        { error: 'A JSON request body is required.' },
+        { status: 400 }
+      );
+    }
 
     // 0. RETIRED GATEWAYS. Cashfree and PhonePe are no longer offered by
     //    ShopTantra: their checkout routes and webhooks were deleted. A stale
@@ -86,7 +106,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Error verifying payment:', error);
+    // Defence in depth: if any nested parse still rejects, report it as a 400
+    // with a fixed message rather than echoing the engine's parser text.
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
+    }
+    console.error('Error verifying payment:', error?.name || 'Error');
     return NextResponse.json(
       { error: error.message || 'Payment signature verification failed' },
       { status: 500 }
