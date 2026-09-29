@@ -173,16 +173,26 @@ export default function MobilePreview() {
                         <span className="font-bold">Included</span>
                       </div>
                       <div className="flex justify-between border-t border-gray-100 pt-1.5 text-brand-navy font-extrabold">
-                        <span>Total Paid:</span>
+                        <span>Total (preview):</span>
                         <span>₹{customerProducts[0].price + customerProducts[1].price}</span>
                       </div>
                     </div>
                     
                     <button onClick={() => {
-                      alert('Order simulated successfully!');
+                      // This is a BRANDING PREVIEW, not a checkout. Nothing is
+                      // charged, no order is written and no payment is recorded.
+                      // The previous message ("Order simulated successfully!",
+                      // under a "Total Paid" heading) could be mistaken for a real
+                      // completed payment, so the wording now says plainly that
+                      // this is a preview and no money was taken.
+                      alert(
+                        'Preview only — this is the Mobile App UI Simulator.\n\n' +
+                        'No payment was taken, no order was created and nothing was saved.\n' +
+                        'To actually buy, use the real checkout at /checkout (Razorpay or Cash on Delivery).'
+                      );
                       setCustomerScreen('home');
                     }} className="w-full bg-brand-orange text-white font-bold py-2 rounded-lg text-[10px]">
-                      Place Order (UPI/Cards)
+                      Place Order (UPI/Cards) — PREVIEW
                     </button>
                   </div>
                 )}
