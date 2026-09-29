@@ -82,7 +82,11 @@ export function validateSellerForShipment(
     return `Seller verification is not complete (status=${seller.verificationStatus}).`;
   }
   if (!pickup) {
-    return 'Seller has no pickup location on file. A verified pickup location is required.';
+    return (
+      'Seller pickup location is not configured. The seller must add and verify their own ' +
+      'pickup location in Seller > Store Settings before a shipment can be booked. ' +
+      'No default ShopTantra warehouse address is used.'
+    );
   }
   if (pickup.verificationStatus !== 'VERIFIED' && pickup.verificationStatus !== 'verified') {
     return `Pickup location verification is not complete (status=${pickup.verificationStatus}).`;

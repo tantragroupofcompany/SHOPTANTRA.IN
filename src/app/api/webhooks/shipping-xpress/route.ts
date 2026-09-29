@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     payload?.tracking_number;
 
   let updated = false;
+  let duplicate = false;
   if (ref) {
     const reportedStatus =
       payload?.status ||
@@ -101,20 +102,34 @@ export async function POST(request: NextRequest) {
           },
         });
         if (matching) {
-          await prisma.shipment.update({
-            where: { id: matching.id },
-            data: { status: mapped, lastProviderSyncAt: new Date() },
-          });
-          await prisma.trackingUpdate
-            .create({
-              data: {
-                shipmentId: matching.id,
-                status: mapped,
-                message: `Status synced from Shipping Xpress webhook (${String(reportedStatus)}).`,
-              },
-            })
-            .catch(() => undefined);
-          updated = true;
+          // IDEMPOTENT + TRANSACTIONAL.
+          // A courier retries the same event, so replaying it must be a no-op:
+          // the shipment status write and the tracking-history row are coupled,
+          // so they run in ONE transaction, and both are skipped entirely when
+          // the status is already the mapped value. Without this, every retry
+          // appended another duplicate "Status synced ..." tracking entry and
+          // re-stamped lastProviderSyncAt, making the timeline lie about how many
+          // real events occurred.
+          const statusChanged = matching.status !== mapped;
+
+          if (statusChanged) {
+            await prisma.$transaction(async (tx) => {
+              await tx.shipment.update({
+                where: { id: matching.id },
+                data: { status: mapped, lastProviderSyncAt: new Date() },
+              });
+              await tx.trackingUpdate.create({
+                data: {
+                  shipmentId: matching.id,
+                  status: mapped,
+                  message: `Status synced from Shipping Xpress webhook (${String(reportedStatus)}).`,
+                },
+              });
+            });
+            updated = true;
+          } else {
+            duplicate = true;
+          }
         }
       }
     }
@@ -123,10 +138,10 @@ export async function POST(request: NextRequest) {
   // Log only a sanitized summary — never the whole payload, never credentials.
   console.log(
     '[shipping-xpress webhook]',
-    JSON.stringify(sanitizeForLog({ ref: ref || null, updated }))
+    JSON.stringify(sanitizeForLog({ ref: ref || null, updated, duplicate }))
   );
 
-  return NextResponse.json({ received: true, updated }, { status: 200 });
+  return NextResponse.json({ received: true, updated, duplicate }, { status: 200 });
 }
 
 export async function GET() {
