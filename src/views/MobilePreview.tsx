@@ -344,7 +344,7 @@ export default function MobilePreview() {
                     <div className="space-y-2">
                       {[
                         { orderId: 'ORD-5401', client: 'Aman Verma', item: 'TantraSound ANC Headset', time: 'Pending Pickup', status: 'ready' },
-                        { orderId: 'ORD-2993', client: 'Lalit Patel', item: 'A2 Desi Cow Ghee (1L)', time: 'Shipped (Delhivery)', status: 'shipped' }
+                        { orderId: 'ORD-2993', client: 'Lalit Patel', item: 'A2 Desi Cow Ghee (1L)', time: 'Shipped', status: 'shipped' }
                       ].map((ord, idx) => (
                         <div key={idx} className="bg-white rounded-xl p-3 border border-gray-100 shadow-xs space-y-2">
                           <div className="flex justify-between items-center text-[9px]">

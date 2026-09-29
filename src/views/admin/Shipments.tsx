@@ -56,7 +56,10 @@ const Shipments = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [manualTrackingNo, setManualTrackingNo] = useState('');
   const [manualDispatchDate, setManualDispatchDate] = useState('');
-  const [selectedCourier, setSelectedCourier] = useState('DELHIVERY_EXPRESS');
+  // ShopTantra books through Shipping Xpress only. The carrier that actually
+  // holds a shipment is set from the provider response and read back off
+  // courierPartner; the manual-dispatch fallback is Shipping Xpress itself.
+  const [selectedCourier, setSelectedCourier] = useState('Shipping Xpress');
 
   const fetchShipments = async () => {
     try {
@@ -169,7 +172,7 @@ const Shipments = () => {
     setSelectedShipment(shipment);
     setManualTrackingNo(shipment.trackingNumber || '');
     setManualDispatchDate(shipment.dispatchDate || '');
-    setSelectedCourier(shipment.courierPartner?.name || 'DELHIVERY_EXPRESS');
+    setSelectedCourier(shipment.courierPartner?.name || 'Shipping Xpress');
     setIsModalOpen(true);
   };
 
@@ -328,7 +331,7 @@ const Shipments = () => {
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase">Carrier Partner</p>
-                <p className="text-sm font-semibold text-gray-900 uppercase">{selectedShipment.courierPartner?.name || 'India Post Speed Post'}</p>
+                <p className="text-sm font-semibold text-gray-900 uppercase">{selectedShipment.courierPartner?.name || 'Carrier not assigned'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase">Shipment Status</p>
@@ -340,13 +343,13 @@ const Shipments = () => {
               </div>
             </div>
 
-            {/* India Post Speed Post Manual Dispatch Form */}
+            {/* Shipping Xpress manual dispatch form */}
             {selectedShipment.status.toUpperCase() !== 'DELIVERED' && selectedShipment.status.toUpperCase() !== 'CANCELLED' && (
               <div className="border border-blue-200 bg-blue-50/50 p-4 rounded-xl space-y-3">
                 <h4 className="text-xs font-bold text-blue-900 uppercase">Update Dispatch Parameters</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">India Post AWB Tracking Number</label>
+                    <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Shipping Xpress AWB / Tracking Number</label>
                     <input
                       type="text"
                       placeholder="e.g. SP987654321IN"
@@ -371,9 +374,7 @@ const Shipments = () => {
                       value={selectedCourier}
                       onChange={(e) => setSelectedCourier(e.target.value)}
                     >
-                      <option value="DELHIVERY_EXPRESS">Delhivery Express (Auto Route)</option>
-                      <option value="BLUEDART_AIR">Blue Dart Air Priority</option>
-                      <option value="INDIA_POST">India Post Speed Post</option>
+                      <option value="Shipping Xpress">Shipping Xpress (default carrier)</option>
                     </select>
                   </div>
                 </div>

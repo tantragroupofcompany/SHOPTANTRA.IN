@@ -241,7 +241,7 @@ const Shipments = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Seller Shipment Console</h1>
-        <p className="text-gray-500 mt-1">Manage manual India Post Speed Post shipments, print labels, and input tracking numbers</p>
+        <p className="text-gray-500 mt-1">Manage Shipping Xpress shipments, print labels, and input tracking numbers</p>
       </div>
 
       {/* Stats Cards */}
@@ -310,7 +310,7 @@ const Shipments = () => {
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase">Carrier Partner</p>
-                <p className="text-sm font-semibold text-gray-900 uppercase">{selectedShipment.courierPartner?.name || 'India Post Speed Post'}</p>
+                <p className="text-sm font-semibold text-gray-900 uppercase">{selectedShipment.courierPartner?.name || 'Carrier not assigned'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase">Shipment Status</p>
@@ -362,7 +362,7 @@ const Shipments = () => {
               </div>
             )}
 
-            {/* India Post Speed Post Manual Dispatch Form */}
+            {/* Shipping Xpress manual dispatch form */}
             {selectedShipment.status.toUpperCase() !== 'DELIVERED' && selectedShipment.status.toUpperCase() !== 'CANCELLED' && (
               <div className="border border-blue-200 bg-blue-50/50 p-4 rounded-xl space-y-3">
                 <h4 className="text-xs font-bold text-blue-900 uppercase">Update Dispatch Parameters</h4>

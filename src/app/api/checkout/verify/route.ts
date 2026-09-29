@@ -1,11 +1,29 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { isRetiredGateway } from '../../../../lib/orderProcessor';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 1. Generic gateway path (Cashfree / PhonePe / COD / UPI) - delegate to processVerifiedOrder.
+    // 0. RETIRED GATEWAYS. Cashfree and PhonePe are no longer offered by
+    //    ShopTantra: their checkout routes and webhooks were deleted. A stale
+    //    client (or a cached page) could still POST here, and previously the
+    //    generic branch below would have created a REAL PAID order for a
+    //    payment ShopTantra never collected. Fail loudly with 410 Gone instead.
+    //    This is never silently converted into a Razorpay/COD success.
+    if (isRetiredGateway(body.gateway) || isRetiredGateway(body.method)) {
+      return NextResponse.json(
+        {
+          error:
+            'This payment method is no longer supported. Please choose Razorpay or Cash on Delivery.',
+          retiredPaymentMethod: true,
+        },
+        { status: 410 }
+      );
+    }
+
+    // 1. Generic path — COD (the only non-Razorpay method ShopTantra offers).
     if (body.gateway && body.transactionReference) {
       const { processVerifiedOrder } = await import('../../../../lib/orderProcessor');
       const result = await processVerifiedOrder({

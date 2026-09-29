@@ -85,10 +85,9 @@ export interface CourierServiceRate {
  *                            (the provider exposes no rate-quote API)
  * `logAction()` is a real database write and is kept.
  *
- * `shipmentService.localFallback()` is the single caller of `createShipment()`
- * and only reaches it when `SHIPPING_LOCAL_FALLBACK_ENABLED=true`; it catches
- * this error and records the booking honestly as
- * PENDING_PROVIDER_CONFIRMATION with no AWB.
+ * `createShipment()` now has NO caller: `shipmentService.localFallback()` (and
+ * the `SHIPPING_LOCAL_FALLBACK_ENABLED` opt-in that gated it) were deleted so a
+ * carrier failure can never be replaced by a simulated success.
  */
 export class MasterShippingNotConfiguredError extends Error {
   public readonly code = 'SHIPPING_PROVIDER_NOT_CONFIGURED';
@@ -102,19 +101,22 @@ export class MasterShippingNotConfiguredError extends Error {
 }
 
 /**
- * Enterprise-Grade Master Courier Service Integration Client
- * 
- * Provides unified integration for shipping operations. Books all orders, generates AWB, 
- * schedules pickups, tracks shipments, and prints labels through ShopTantra's master shipping account.
- * Automatically allocates pickup address depending on the seller warehouse location.
+ * Master courier account client.
+ *
+ * Every mutating operation here REFUSES by design (see the class-level honesty
+ * contract above). The only verified carrier integration is Shipping Xpress,
+ * reached through `shipmentService.createShipmentsForOrder()`.
+ *
+ * NOTE: Shiprocket was removed from ShopTantra. The credentials below used to be
+ * read from `SHOPTANTRA_SHIPROCKET_EMAIL` / `SHOPTANTRA_SHIPROCKET_PASSWORD` and
+ * handed to a Shiprocket login call; ShopTantra no longer integrates Shiprocket
+ * (or any courier other than Shipping Xpress), so those reads are gone.
  */
 export class MasterCourierService {
   private static getApiCredentials() {
     return {
       apiKey: process.env.SHOPTANTRA_MASTER_SHIPPING_API_KEY || null,
       apiSecret: process.env.SHOPTANTRA_MASTER_SHIPPING_API_SECRET || null,
-      shiprocketEmail: process.env.SHOPTANTRA_SHIPROCKET_EMAIL || null,
-      shiprocketPassword: process.env.SHOPTANTRA_SHIPROCKET_PASSWORD || null,
     };
   }
 
@@ -187,13 +189,20 @@ export class MasterCourierService {
   }
 
   /**
-   * Weight-based platform shipping ESTIMATE.
+   * Weight-based platform shipping ESTIMATE, expressed as Shipping Xpress
+   * service levels.
    *
-   * The carrier exposes no rate-quote endpoint (verified), so these are NOT
-   * courier quotes — they are ShopTantra's own published slab rates used to show
-   * the buyer a shipping figure before the parcel is booked. Every row is flagged
-   * `isEstimate: true` and the API response is flagged too, so nothing here can
-   * be mistaken for a carrier quote. The final charge is set at booking time.
+   * The carrier exposes no rate-quote endpoint (verified live), so these are NOT
+   * carrier quotes — they are ShopTantra's own published slab rates shown to the
+   * buyer before a parcel is booked. Every row is flagged `isEstimate: true` and
+   * the API response is flagged too, so nothing here can be mistaken for a
+   * carrier quote. The final charge is set at booking time.
+   *
+   * NOTE: this list used to be keyed `DELHIVERY_EXPRESS` / `BLUEDART_AIR` /
+   * `INDIA_POST`. ShopTantra does not integrate any of those carriers — it ships
+   * through Shipping Xpress only — so quoting them offered buyers services that
+   * could not carry their parcel. The tiers are now Shipping Xpress service
+   * levels; the live `shipping_mode` value comes from SHIPPING_XPRESS_SHIPPING_MODE.
    */
   public static async calculateRates(
     _pickupPincode: string,
@@ -207,34 +216,35 @@ export class MasterCourierService {
 
     return [
       {
-        courierId: 'DELHIVERY_EXPRESS',
-        name: 'Standard Delivery (estimated)',
-        code: 'DELHIVERY_EXPRESS',
+        courierId: 'SXP_ECONOMY',
+        name: 'Shipping Xpress Economy (estimated)',
+        code: 'SXP_ECONOMY',
+        rate: Math.round(35 * baseW),
+        expectedDays: 5,
+        isCodSupported: false,
+        isEstimate: true,
+      },
+      {
+        courierId: 'SXP_SURFACE',
+        name: 'Shipping Xpress Surface (estimated)',
+        code: 'SXP_SURFACE',
         rate: Math.round(45 * baseW) + codFee,
         expectedDays: 4,
         isCodSupported: true,
         isEstimate: true,
       },
       {
-        courierId: 'BLUEDART_AIR',
-        name: 'Priority Delivery (estimated)',
-        code: 'BLUEDART_AIR',
+        courierId: 'SXP_PRIORITY',
+        name: 'Shipping Xpress Priority (estimated)',
+        code: 'SXP_PRIORITY',
         rate: Math.round(85 * baseW) + codFee,
         expectedDays: 2,
         isCodSupported: true,
         isEstimate: true,
       },
-      {
-        courierId: 'INDIA_POST',
-        name: 'Economy Delivery (estimated)',
-        code: 'INDIA_POST',
-        rate: Math.round(35 * baseW),
-        expectedDays: 5,
-        isCodSupported: false,
-        isEstimate: true,
-      },
     ];
   }
+
 
   /**
    * Helper to write shipping audit logs

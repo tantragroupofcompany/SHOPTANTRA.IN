@@ -723,7 +723,7 @@ Generated on: ${new Date().toLocaleString()}
               <div className="border-t border-gray-200 pt-6 space-y-4">
                 <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wider flex items-center gap-1.5">
                   <Package size={16} className="text-orange-500" />
-                  India Post Speed Post — Shipment Management
+                  Shipping Xpress — Shipment Management
                 </h3>
                 
                 {(!selectedOrder.shipments || selectedOrder.shipments.length === 0) ? (
@@ -776,7 +776,7 @@ Generated on: ${new Date().toLocaleString()}
                         
                         <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
                           <div><strong>AWB / Tracking:</strong> {ship.tracking_number || ship.awb_number || 'Pending'}</div>
-                          <div><strong>Courier:</strong> {ship.courier_partner?.name || ship.courierPartner?.name || 'India Post Speed Post'}</div>
+                          <div><strong>Courier:</strong> {ship.courier_partner?.name || ship.courierPartner?.name || 'Carrier not assigned'}</div>
                           <div><strong>Weight:</strong> {ship.weight || 0.5} kg</div>
                           <div><strong>COD Collect:</strong> ₹{ship.cod_amount || ship.codAmount || 0}</div>
                           {ship.dispatch_date && <div><strong>Dispatch Date:</strong> {ship.dispatch_date}</div>}
@@ -785,7 +785,7 @@ Generated on: ${new Date().toLocaleString()}
                         {/* Speed Post manual entry form */}
                         {ship.status !== 'delivered' && ship.status !== 'cancelled' && (
                           <div className="border-t border-gray-200/60 pt-3 space-y-2">
-                            <p className="text-[10px] font-bold text-gray-700 uppercase">India Post Speed Post Dispatch Info</p>
+                            <p className="text-[10px] font-bold text-gray-700 uppercase">Shipping Xpress Dispatch Info</p>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">Tracking Number</label>
@@ -820,7 +820,7 @@ Generated on: ${new Date().toLocaleString()}
                                   const trk = shipmentTrackingNo[ship.id] || ship.tracking_number;
                                   const dsp = shipmentDispatchDate[ship.id] || ship.dispatch_date;
                                   if (!trk || !dsp) {
-                                    alert('Please enter India Post Tracking Number and Dispatch Date first.');
+                                    alert('Please enter the Shipping Xpress tracking number and dispatch date first.');
                                     return;
                                   }
                                   handleUpdateShipmentStatus(ship.id, 'SHIPPED', trk, dsp);

@@ -241,9 +241,8 @@ export function Footer() {
               SSL Secured Payments
             </span>
             <div className="flex gap-1.5">
-              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">UPI</span>
               <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">Razorpay</span>
-              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">Cashfree</span>
+              <span className="bg-white/10 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold text-gray-300">COD</span>
             </div>
           </div>
         </div>

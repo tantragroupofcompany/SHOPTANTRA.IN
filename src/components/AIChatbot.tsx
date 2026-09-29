@@ -112,7 +112,7 @@ export default function AIChatbot() {
       return {
         id: aiId,
         sender: 'ai',
-        text: '📦 You can track your order live inside your User Dashboard under the "Orders" section. Currently, all shipments are integrated with Shiprocket and shipped via Delhivery/Blue Dart. AWB numbers are updated automatically within 2 hours of payment.',
+        text: '📦 You can track your order live inside your User Dashboard under the "Orders" section. ShopTantra ships through Shipping Xpress, and the AWB / tracking number appears there as soon as the carrier books your parcel.',
         actions: [{ label: 'Go to Order History', action: 'nav_orders' }]
       };
     }

@@ -33,7 +33,7 @@ export default function About() {
       description: 'All sellers register using government-verified details, including GSTIN and PAN cards.',
     },
     {
-      title: 'Shiprocket Logistics API',
+      title: 'Shipping Xpress Logistics',
       description: 'Fast nationwide package delivery with transparent AWB tracking.',
     },
     {

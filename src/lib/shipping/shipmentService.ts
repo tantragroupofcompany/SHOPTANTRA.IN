@@ -56,15 +56,33 @@ export interface ShipmentPreflightResult {
 }
 
 const SHIPMENT_PROVIDER = 'SHIPPING_XPRESS' as const;
-const MASTER_PROVIDER = 'MASTER_ACCOUNT' as const;
 
 /**
- * Opt-in flag. The local master-account path (`MasterCourierService`) is a
- * SIMULATION that fabricates AWB numbers, so it is never used as an automatic
- * "successful" booking unless a deployment explicitly enables it.
+ * Build an honest "not booked" result: no AWB, no tracking number, no label —
+ * only the reason the carrier call did not produce a shipment.
+ *
+ * ShopTantra has NO simulated shipping path. `SHIPPING_LOCAL_FALLBACK_ENABLED`
+ * used to switch on a master-account simulator that fabricated AWB numbers
+ * (`DEL##########IN`), which could make a parcel look booked when nothing had
+ * been handed to any carrier. That flag and its code path were removed.
  */
-function allowLocalFallback(): boolean {
-  return String(process.env.SHIPPING_LOCAL_FALLBACK_ENABLED || '').toLowerCase() === 'true';
+function notBooked(reason: string): CreateShipmentResult {
+  return {
+    provider: SHIPMENT_PROVIDER,
+    success: false,
+    status: 'PENDING_PROVIDER_CONFIRMATION',
+    failureReason: reason,
+    awb: null,
+    trackingNumber: null,
+    trackingLink: null,
+    labelUrl: null,
+    shippingCost: null,
+    courierName: null,
+    codAmount: null,
+    rawResponse: null,
+    providerShipmentId: null,
+    providerOrderId: null,
+  };
 }
 
 /**
@@ -337,54 +355,23 @@ export async function createShipmentsForOrder(params: {
     let source: 'PROVIDER' | 'FALLBACK';
     const provider = getShippingProvider();
     if (!provider) {
-      // Reached only when the provider registry is empty; the marketplaces flow
+      // Reached only when the provider registry is empty; the marketplace flow
       // normally no-ops earlier via `isShippingEnabled()`.
-      res = await localFallback(pm, input, sellerItems);
-      source = 'FALLBACK';
+      res = notBooked('No shipping provider is configured. Set SHIPPING_XPRESS_ENABLED=true.');
+      source = 'PROVIDER';
     } else {
       try {
         res = await provider.createShipment(input);
-        if (res.success) {
-          source = 'PROVIDER';
-        } else if (allowLocalFallback()) {
-          // Explicit opt-in only: MasterCourierService.createShipment is a
-          // simulated master account that fabricates AWB numbers, so it must
-          // never be used silently as a "successful" booking.
-          console.warn(
-            'Shipping Xpress booking failed; using configured local fallback:',
-            sanitizeForLog({ order: order.orderNumber, reason: res.failureReason })
-          );
-          res = await localFallback(pm, input, sellerItems);
-          source = 'FALLBACK';
-        } else {
-          // Honest failure: keep the provider's reason, store no AWB, and let
-          // admin retry. Never invent a shipment number.
-          source = 'PROVIDER';
-        }
+        source = 'PROVIDER';
       } catch (e: any) {
-        console.warn('Shipping provider threw; evaluating fallback:', sanitizeForLog({ msg: e?.message }));
-        if (allowLocalFallback()) {
-          res = await localFallback(pm, input, sellerItems);
-          source = 'FALLBACK';
-        } else {
-          res = {
-            provider: SHIPMENT_PROVIDER,
-            success: false,
-            status: 'PENDING_PROVIDER_CONFIRMATION',
-            failureReason: `Shipping Xpress call threw: ${e?.message || String(e)}`,
-            awb: null,
-            trackingNumber: null,
-            trackingLink: null,
-            labelUrl: null,
-            shippingCost: null,
-            courierName: null,
-            codAmount: null,
-            rawResponse: null,
-            providerShipmentId: null,
-            providerOrderId: null,
-          };
-          source = 'PROVIDER';
-        }
+        console.warn('Shipping provider threw:', sanitizeForLog({ msg: e?.message }));
+        // HONEST FAILURE. There is no simulated master-account fallback any more:
+        // `MasterCourierService.createShipment` used to mint a random AWB, which
+        // made a booking that never happened look successful. A failure is now
+        // recorded as PENDING_PROVIDER_CONFIRMATION with the carrier's reason and
+        // NO AWB, so an operator can retry instead of chasing a phantom parcel.
+        res = notBooked(`Shipping Xpress call threw: ${e?.message || String(e)}`);
+        source = 'PROVIDER';
       }
     }
 
@@ -604,101 +591,6 @@ function shipmentToView(s: any): CreatedShipmentView {
   };
 }
 
-/**
- * Local master-account fallback.
- *
- * IMPORTANT: `MasterCourierService.createShipment` is a SIMULATION — it
- * fabricates AWB/tracking numbers (and even the "live" branch is a placeholder),
- * so it is ONLY invoked when `SHIPPING_LOCAL_FALLBACK_ENABLED=true`. Without that
- * opt-in a failed provider booking is recorded honestly as
- * PENDING_PROVIDER_CONFIRMATION with the provider's failure reason and no AWB.
- *
- * Stock was already decremented at order creation.
- */
-async function localFallback(
-  pm: 'PREPAID' | 'COD',
-  input: CreateShipmentInput,
-  sellerItems: GroupItem[]
-): Promise<CreateShipmentResult> {
-  try {
-    const booking: any = await MasterCourierService.createShipment({
-      orderId: input.orderId,
-      sellerId: input.sellerId,
-      items: sellerItems.map((it) => ({
-        productId: it.productId || '',
-        title: it.title,
-        quantity: it.quantity,
-        price: it.price,
-        total: it.total,
-      })),
-      weight: input.weight,
-      isCod: pm === 'COD',
-      codAmount: estimateCodAmount(sellerItems, pm),
-      courierCode: 'DELHIVERY_EXPRESS',
-      pickupAddress: {
-        storeName: input.pickupAddress.storeName || '',
-        contactName: input.pickupAddress.contactName || '',
-        phone: input.pickupAddress.phone || '',
-        email: input.pickupAddress.email || '',
-        addressLine1: input.pickupAddress.addressLine1 || '',
-        addressLine2: input.pickupAddress.addressLine2 ?? null,
-        city: input.pickupAddress.city || '',
-        state: input.pickupAddress.state || '',
-        pincode: input.pickupAddress.pincode || '',
-        country: input.pickupAddress.country || 'India',
-        pickupLocationId: input.pickupAddress.pickupLocationId ?? null,
-      },
-      shippingAddress: {
-        fullName: input.shippingAddress.fullName,
-        phone: input.shippingAddress.phone,
-        email: input.shippingAddress.email || '',
-        address: input.shippingAddress.addressLine1,
-        city: input.shippingAddress.city,
-        state: input.shippingAddress.state,
-        pincode: input.shippingAddress.pincode,
-        country: input.shippingAddress.country,
-      },
-    });
-
-    if (booking) {
-      const awb = booking.awbNumber ?? booking.trackingNumber ?? null;
-      return {
-        provider: MASTER_PROVIDER,
-        success: true,
-        status: 'BOOKED',
-        providerShipmentId: booking.trackingNumber ?? awb,
-        providerOrderId: input.orderId,
-        awb,
-        trackingNumber: booking.trackingNumber ?? awb,
-        trackingLink:
-          booking.trackingLink ||
-          (awb ? `https://shoptantra.in/track?awb=${encodeURIComponent(awb)}` : null),
-        labelUrl: booking.labelUrl || null,
-        shippingCost: typeof booking.shippingCost === 'number' ? booking.shippingCost : null,
-        courierName: booking.courierPartnerName ?? booking.courierPartnerCode ?? 'Local Courier',
-        rawResponse: sanitizeForLog(booking),
-      };
-    }
-  } catch (e: any) {
-    console.warn('Local courier fallback failed:', sanitizeForLog({ msg: e?.message }));
-  }
-
-  return {
-    provider: MASTER_PROVIDER,
-    success: false,
-    status: 'PENDING_PROVIDER_CONFIRMATION',
-    failureReason: 'No shipping provider available and the local master-account fallback failed.',
-    awb: null,
-    trackingNumber: null,
-    trackingLink: null,
-    labelUrl: null,
-    shippingCost: null,
-    courierName: null,
-    rawResponse: null,
-    providerShipmentId: null,
-    providerOrderId: null,
-  };
-}
 
 /** Phase 6 hook — auto-create shipments after order confirmation. Never blocks checkout. */
 export async function triggerAutoShipment(orderId: string, paymentMode: 'PREPAID' | 'COD'): Promise<void> {

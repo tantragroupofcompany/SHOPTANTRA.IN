@@ -644,7 +644,7 @@ export default function Home() {
             {[
               { name: 'Dr. Ramesh Nair', role: 'Buyer (Ayurveda)', text: 'KSM-66 Ashwagandha is absolutely genuine. I am experiencing massive improvements in stress levels and sleep quality.', rating: 5, location: 'Kochi, Kerala' },
               { name: 'Kavita Patel', role: 'Buyer (Fashion)', text: ' Kurta Fabric feels like authentic cotton. The embroidery work is top-tier. Very happy with the shipping updates.', rating: 5, location: 'Ahmedabad, Gujarat' },
-              { name: 'Aakash Malhotra', role: 'Buyer (Electronics)', text: 'Ordered the TantraSound Pro ANC. Battery life is incredible. Recharged only once in 2 weeks! Delhivery AWB tracking was smooth.', rating: 4, location: 'Delhi NCR' }
+              { name: 'Aakash Malhotra', role: 'Buyer (Electronics)', text: 'Ordered the TantraSound Pro ANC. Battery life is incredible. Recharged only once in 2 weeks! AWB tracking was smooth.', rating: 4, location: 'Delhi NCR' }
             ].map((rev, idx) => (
               <div key={idx} className="bg-white dark:bg-brand-navy p-6 rounded-2xl border border-gray-100 dark:border-brand-navy-light/10 shadow-xs space-y-4">
                 <div className="flex items-center gap-1.5">{ratingStars(rev.rating)}</div>
@@ -765,8 +765,8 @@ export default function Home() {
           <div className="space-y-3">
             {[
               { q: "How are products verified on SHOPTANTRA?", a: "Every merchant/seller registers their business using government-verified details, including GSTIN and PAN cards. Our admin team conducts checks before store approvals to prevent fake listings." },
-              { q: "What are the standard shipping carriers and charges?", a: "We integrate directly with Shiprocket, delivering packages via Delhivery, Blue Dart, and Express logistics. Shipping is flat ₹99 for orders under ₹999, and completely FREE for orders above ₹999." },
-              { q: "Is cash on delivery (COD) supported?", a: "Yes, we support Cash on Delivery, alongside secure payment gateways like Razorpay, Cashfree, and UPI scan codes." },
+              { q: "What are the standard shipping carriers and charges?", a: "ShopTantra ships through Shipping Xpress, its single logistics partner. Shipping is flat ₹99 for orders under ₹999, and completely FREE for orders above ₹999." },
+              { q: "Is cash on delivery (COD) supported?", a: "Yes. ShopTantra accepts Cash on Delivery and secure online payments through Razorpay (cards, UPI, net banking and wallets). Cashfree and PhonePe are no longer offered." },
               { q: "How can I register as a seller and what are the fees?", a: "Simply click the 'Become a Seller' button, complete the registration form with your GSTIN and bank details. We offer a transparent commission system starting at 5% dependent on categories." }
             ].map((faq, idx) => (
               <div key={idx} className="bg-white dark:bg-brand-navy rounded-xl border border-gray-100 dark:border-brand-navy-light/10 shadow-xs overflow-hidden">

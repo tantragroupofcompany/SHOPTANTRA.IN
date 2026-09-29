@@ -151,7 +151,7 @@ export async function GET(request: Request) {
           paymentStatus: order.paymentStatus,
           paymentMethod: order.paymentMethod || 'COD',
           trackingNumber: shipment?.trackingNumber || order.shipments.find(s => s.trackingNumber)?.trackingNumber || 'N/A',
-          carrier: shipment?.courierPartner?.name || 'Manual Speed Post',
+          carrier: shipment?.courierPartner?.name || 'Carrier not assigned',
         };
       });
 

@@ -55,7 +55,10 @@ export async function GET(request: Request) {
 
       const paymentMethod = shipment.order.paymentMethod || 'PREPAID';
       const isCod = paymentMethod === 'COD' || shipment.codAmount > 0;
-      const carrierName = shipment.courierPartner?.name || 'India Post Speed Post';
+      // The carrier name comes only from the provider's own response. ShopTantra
+      // ships through Shipping Xpress; naming a different courier here would put
+      // a carrier on the label that never handled the parcel.
+      const carrierName = shipment.courierPartner?.name || 'Carrier not assigned';
 
       const barcodeSvg = generateBarcodeSVG(shipment.awbNumber || shipment.shipmentNumber);
       const trackingLink = shipment.trackingLink || `https://shoptantra.in/track?awb=${shipment.awbNumber}`;

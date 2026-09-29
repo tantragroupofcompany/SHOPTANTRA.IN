@@ -56,9 +56,9 @@ async function main() {
     await prisma.courierPartner.create({ data: { name: 'DTDC', code: 'DTDC', isActive: true, baseRatePrepaid: 35.0, baseRateCOD: 55.0, averageDeliveryDays: 5 } });
     console.log('Added: DTDC');
   }
-  if (!courierCodes.includes('SHIPROCKET')) {
-    await prisma.courierPartner.create({ data: { name: 'Shiprocket', code: 'SHIPROCKET', isActive: true, baseRatePrepaid: 40.0, baseRateCOD: 65.0, averageDeliveryDays: 3 } });
-    console.log('Added: Shiprocket');
+  if (!courierCodes.includes('SHIPPING_XPRESS')) {
+    await prisma.courierPartner.create({ data: { name: 'Shipping Xpress', code: 'SHIPPING_XPRESS', isActive: true, baseRatePrepaid: 45.0, baseRateCOD: 70.0, averageDeliveryDays: 4 } });
+    console.log('Added: Shipping Xpress');
   }
 
   console.log('\nTop-up seed complete!');

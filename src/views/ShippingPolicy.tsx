@@ -10,7 +10,7 @@ export default function ShippingPolicy() {
     {
       icon: Truck,
       title: 'Trusted Shipping Nodes',
-      desc: 'We partner with Shiprocket, Delhivery, BlueDart, and India Post to ensure secure and fast shipping to over 26,000 pin codes across India.'
+      desc: 'We ship exclusively through Shipping Xpress to ensure secure and fast delivery across India.'
     },
     {
       icon: MapPin,

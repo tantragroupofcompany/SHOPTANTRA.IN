@@ -7,7 +7,6 @@ import {
   Truck,
   Download,
   AlertCircle,
-  QrCode,
   ArrowLeft,
   ChevronRight,
   ShieldCheck
@@ -72,8 +71,13 @@ export default function Checkout() {
   const [pincode, setPincode] = useState('');
   const [gstin, setGstin] = useState(''); // Optional B2B GSTIN
 
-  // Payment & Shipping State
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cashfree' | 'phonepe' | 'cod' | 'upi'>('cod');
+  // Payment & Shipping State.
+  //
+  // SHOP TANTRA supports exactly two payment methods: Razorpay and Cash on
+  // Delivery. Cashfree and PhonePe were removed from the product entirely (their
+  // API routes, webhooks and UI are gone); offering them here would send buyers
+  // to endpoints that no longer exist.
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('cod');
   const [shippingCharges, setShippingCharges] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
@@ -290,82 +294,12 @@ export default function Checkout() {
     }
   };
 
-  const initiateCashfreePayment = async () => {
-    try {
-      setIsProcessing(true);
-      setCheckoutError('');
-
-      const res = await fetch('/api/checkout/cashfree', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: grandTotal,
-          customerId: profile?.id || user?.id || 'guest_buyer',
-          customerName: fullName,
-          customerEmail: email,
-          customerPhone: phone,
-        }),
-      });
-
-      const responseData = await res.json();
-      if (!res.ok || responseData.error) {
-        throw new Error(responseData.error || 'Failed to create Cashfree order');
-      }
-
-      // The Cashfree endpoint always returns a real gateway session (or an
-      // error). It never sets `simulated`. The old `if (responseData.simulated)`
-      // branch posted straight to /api/checkout/verify with a made-up reference,
-      // which would have created a real PAID order with no money taken. The only
-      // correct path is to hand the buyer to the gateway and let the webhook /
-      // verify endpoint confirm the payment afterwards.
-      if (!responseData.paymentSessionId) {
-        throw new Error('Cashfree did not return a payment session. No order was created.');
-      }
-      window.location.href = responseData.redirectUrl || `/checkout?order_id=${responseData.orderId}`;
-    } catch (err: any) {
-      console.error(err);
-      setIsProcessing(false);
-      setCheckoutError(err.message || 'Failed to initialize Cashfree gateway.');
-    }
-  };
-
-  const initiatePhonePePayment = async () => {
-    try {
-      setIsProcessing(true);
-      setCheckoutError('');
-
-      const res = await fetch('/api/checkout/phonepe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: grandTotal,
-          customerId: profile?.id || user?.id || 'guest_buyer',
-          customerPhone: phone,
-        }),
-      });
-
-      const responseData = await res.json();
-      if (!res.ok || responseData.error) {
-        throw new Error(responseData.error || 'Failed to create PhonePe order');
-      }
-
-      // The PhonePe endpoint always returns a real redirect URL (or an error). It
-      // never sets `simulated`. The old `if (responseData.simulated)` branch
-      // posted straight to /api/checkout/verify with a made-up reference, which
-      // would have created a real PAID order with no money taken. The only
-      // correct path is to hand the buyer to the gateway and let the webhook /
-      // verify endpoint confirm the payment afterwards.
-      if (!responseData.redirectUrl) {
-        throw new Error('PhonePe did not return a payment redirect. No order was created.');
-      }
-      window.location.href = responseData.redirectUrl;
-    } catch (err: any) {
-      console.error(err);
-      setIsProcessing(false);
-    }
-  };
-
-  const placeManualOrder = async (method: 'COD' | 'UPI') => {
+  /**
+   * Cash on Delivery. This is the only non-gateway payment method ShopTantra
+   * offers; the old `MANUAL_UPI` option was removed along with a QR panel that
+   * could never confirm a payment.
+   */
+  const placeManualOrder = async () => {
     try {
       setIsProcessing(true);
       setCheckoutError('');
@@ -374,10 +308,10 @@ export default function Checkout() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gateway: method === 'COD' ? 'COD' : 'MANUAL_UPI',
-          transactionReference: `txn_${method.toLowerCase()}_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+          gateway: 'COD',
+          transactionReference: `txn_cod_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
           amount: grandTotal,
-          method: method,
+          method: 'COD',
           orderData: {
             buyerId: profile?.id || user?.id || 'guest_buyer',
             sellerId: cart[0]?.product?.sellerId || 'seller_placeholder',
@@ -453,7 +387,7 @@ export default function Checkout() {
         setOrderComplete(true);
         addNotification(
           'Order Placed Successfully!',
-          `Your order has been created successfully with status ${method === 'COD' ? 'COD_PENDING' : 'UPI_VERIFICATION_PENDING'}.`,
+          'Your order has been created successfully with status COD_PENDING. You pay the courier on delivery.',
           'order'
         );
         clearCart();
@@ -485,14 +419,8 @@ export default function Checkout() {
 
     if (paymentMethod === 'razorpay') {
       initiateRazorpayPayment();
-    } else if (paymentMethod === 'cashfree') {
-      initiateCashfreePayment();
-    } else if (paymentMethod === 'phonepe') {
-      initiatePhonePePayment();
     } else if (paymentMethod === 'cod') {
-      await placeManualOrder('COD');
-    } else if (paymentMethod === 'upi') {
-      setIsProcessing(true);
+      await placeManualOrder();
     }
   };
 
@@ -551,10 +479,10 @@ export default function Checkout() {
           {/* Logistics information.
               This block used to render a `Delhivery Express` AWB number generated
               with Math.random() on every render, so every buyer saw a different,
-              non-existent tracking number for a courier (Shiprocket) ShopTantra
-              does not use. An AWB exists only once a shipment has actually been
-              booked with the carrier, so it is shown only when the order came back
-              with a real one. */}
+              non-existent tracking number for a courier ShopTantra never books
+              with. An AWB exists only once a shipment has actually been booked with the
+              carrier (Shipping Xpress), so it is shown only when the order came
+              back with a real one. */}
           <div className="bg-gray-50 p-4 rounded-xl text-xs flex justify-between items-center border border-gray-100">
             <div>
               <span className="font-bold text-gray-600 uppercase block mb-0.5">Shipping</span>
@@ -782,8 +710,16 @@ export default function Checkout() {
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/*
+                SHOP TANTRA offers EXACTLY two payment methods: Razorpay and Cash
+                on Delivery. Cashfree, PhonePe and the manual UPI-scan panel were
+                removed — their API routes and webhooks no longer exist, so
+                listing them here would hand buyers a method that cannot take
+                payment.
+              */}
               {[
-                { id: 'cod', label: 'Cash On Delivery (COD)', desc: 'Pay with cash upon package receipt.' }
+                { id: 'razorpay', label: 'Razorpay (Cards / UPI / NetBanking / Wallets)', desc: 'Secure online payment. Your order is confirmed the moment the gateway verifies it.' },
+                { id: 'cod', label: 'Cash On Delivery (COD)', desc: 'Pay with cash upon package receipt.' },
               ].map((method) => (
                 <label
                   key={method.id}
@@ -924,64 +860,27 @@ export default function Checkout() {
             {/* Modal Content */}
             <div className="p-6 text-center space-y-5">
               
-              {paymentMethod === 'upi' && (
-                <div className="space-y-4">
-                  <div className="w-40 h-40 bg-gray-50 mx-auto rounded-xl flex items-center justify-center border border-gray-100 relative">
-                    <QrCode size={120} className="text-brand-navy" />
-                    <div className="absolute inset-0 bg-black/5 flex items-center justify-center">
-                      <span className="bg-brand-orange text-white text-[9px] font-extrabold px-1 py-0.5 rounded">SCAN CODE</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    Scan the QR code using BHIM, GooglePay, Paytm, or PhonePe. Order will complete automatically once paid.
-                  </p>
+              {/*
+                The UPI-scan QR panel and the disabled "card" form were removed.
+                The QR panel told the buyer the order "will complete automatically
+                once paid", but no endpoint ever confirmed a UPI transfer and the
+                card form was a disabled mock. Neither was reachable from the
+                payment selector any more, so both are gone.
+              */}
+              <div className="py-6">
+                <div className="relative w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-brand-orange/10 rounded-full">
+                  <CreditCard size={28} className="text-brand-orange animate-pulse" />
+                  <span className="absolute inset-0 rounded-full border-2 border-brand-orange/40 animate-ping" />
                 </div>
-              )}
-
-              {paymentMethod === 'card' && (
-                <div className="space-y-3 text-left">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Card Number</label>
-                    <input
-                      type="text"
-                      placeholder="4111 2222 3333 4444"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs"
-                      disabled
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">Expiry Date</label>
-                      <input
-                        type="text"
-                        placeholder="MM/YY"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs"
-                        disabled
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase">CVV</label>
-                      <input
-                        type="password"
-                        placeholder="***"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs"
-                        disabled
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod !== 'upi' && paymentMethod !== 'card' && (
-                <div className="py-6">
-                  <div className="relative w-16 h-16 mx-auto mb-4 flex items-center justify-center bg-brand-orange/10 rounded-full">
-                    <CreditCard size={28} className="text-brand-orange animate-pulse" />
-                    <span className="absolute inset-0 rounded-full border-2 border-brand-orange/40 animate-ping" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Connecting with Merchant Bank...</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-400 mt-1.5">Securing connection to the {paymentMethod.toUpperCase()} billing node.</p>
-                </div>
-              )}
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                  {paymentMethod === 'razorpay' ? 'Opening the Razorpay secure gateway…' : 'Recording your Cash on Delivery order…'}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-400 mt-1.5">
+                  {paymentMethod === 'razorpay'
+                    ? 'Complete the payment in the Razorpay window. Your order is only confirmed after the gateway verifies it.'
+                    : 'No payment is taken now. You pay the delivery agent when the parcel arrives.'}
+                </p>
+              </div>
 
               <div className="flex gap-3 border-t border-gray-100 dark:border-brand-navy-light/10 pt-4">
                 <button

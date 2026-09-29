@@ -205,14 +205,16 @@ export async function GET(request: any) {
       paymentStatusAmounts[p.status] = p._sum.amount || 0;
     });
 
-    // Gateway-wise collected amounts (case-insensitive on stored gateway names)
-    const gatewaySums = { razorpay: 0, cashfree: 0, phonepe: 0, cod: 0, other: 0 };
+    // Gateway-wise collected amounts (case-insensitive on stored gateway names).
+    // ShopTantra accepts payments through Razorpay and Cash on Delivery ONLY —
+    // Cashfree and PhonePe were removed. Any legacy Payment row still carrying
+    // one of those gateway strings is counted under `other` so the collected
+    // total stays truthful instead of being silently dropped.
+    const gatewaySums = { razorpay: 0, cod: 0, other: 0 };
     paidGatewayRaw.forEach((g: any) => {
       const key = (g.gateway || '').toUpperCase();
       const amount = g._sum.amount || 0;
       if (key.includes('RAZORPAY')) gatewaySums.razorpay += amount;
-      else if (key.includes('CASHFREE')) gatewaySums.cashfree += amount;
-      else if (key.includes('PHONEPE')) gatewaySums.phonepe += amount;
       else if (key.includes('COD')) gatewaySums.cod += amount;
       else gatewaySums.other += amount;
     });
@@ -359,9 +361,8 @@ const data = {
         failedPayments: paymentStatusCounts['FAILED'] || 0,
         refunds: paymentStatusAmounts['REFUNDED'] || 0,
         razorpay: gatewaySums.razorpay,
-        cashfree: gatewaySums.cashfree,
-        phonepe: gatewaySums.phonepe,
         cod: gatewaySums.cod,
+        other: gatewaySums.other,
         commissionCollected: Number(commissionCollected._sum.commissionAmount || 0),
         totalPayments,
         sellerPayable: settledTotal + pendingSettlementTotal + failedTransferTotal + cancelledSettlementTotal,
@@ -445,7 +446,7 @@ const data = {
           sellers: { total: 0, approved: 0, pending: 0, rejected: 0, suspended: 0, blocked: 0, newToday: 0, newThisWeek: 0, newThisMonth: 0, pendingApprovalSellers: [], topSellers: [] },
           buyers: { total: 0, newToday: 0, active: 0, inactive: 0, topBuyers: [] },
           customers: { total: 0, newToday: 0, active: 0, inactive: 0 },
-          payments: { totalCollected: 0, pendingSettlement: 0, failedPayments: 0, refunds: 0, razorpay: 0, cashfree: 0, phonepe: 0, cod: 0, commissionCollected: 0, totalPayments: 0 },
+          payments: { totalCollected: 0, pendingSettlement: 0, failedPayments: 0, refunds: 0, razorpay: 0, cod: 0, other: 0, commissionCollected: 0, totalPayments: 0 },
           shipping: { ready: 0, packed: 0, shipped: 0, inTransit: 0, delivered: 0, returned: 0, cancelled: 0 },
           shipments: { total: 0, byStatus: {} },
           support: { open: 0, resolved: 0, pending: 0 },

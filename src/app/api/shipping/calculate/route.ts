@@ -60,7 +60,9 @@ export async function POST(request: Request) {
 
       // Accumulate segment costs to get the total shipping charge
       if (rates && rates.length > 0) {
-        const cheapest = rates[0]; // Delhivery is usually first
+        // `calculateRates()` is ordered cheapest-tier first (SXP_ECONOMY), so
+        // index 0 is the lowest platform estimate — not a specific courier.
+        const cheapest = rates[0];
         maxShippingCost += cheapest.rate;
 
         // Group courier rates options to present to client

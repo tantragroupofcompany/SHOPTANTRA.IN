@@ -14,7 +14,7 @@ interface DashboardData {
   marketplace: { totalProducts: number; approvedProducts: number; pendingProducts: number; blockedProducts: number; rejectedProducts: number; outOfStockProducts: number; draftProducts: number; totalCategories: number; lowStockProducts: number; totalInventory: number };
   sellers: { total: number; approved: number; pending: number; rejected: number; suspended: number; blocked: number; newToday: number; newThisWeek: number; newThisMonth: number; pendingApprovalSellers: any[]; topSellers: any[] };
   buyers: { total: number; newToday: number; active: number; inactive: number; topBuyers: any[] };
-  payments: { totalCollected: number; pendingSettlement: number; failedPayments: number; refunds: number; razorpay: number; cashfree: number; phonepe: number; cod: number; commissionCollected: number; totalPayments: number };
+  payments: { totalCollected: number; pendingSettlement: number; failedPayments: number; refunds: number; razorpay: number; cod: number; other: number; commissionCollected: number; totalPayments: number };
   shipping: { ready: number; packed: number; shipped: number; inTransit: number; delivered: number; returned: number; cancelled: number };
   support: { open: number; resolved: number; pending: number };
   analytics: { topProducts: any[]; topCategories: any[]; revenueByMonth: any[]; ordersByMonth: any[] };
@@ -321,9 +321,10 @@ export default function CorporateDashboard() {
                     <div className="flex justify-between"><span className="text-gray-400">Commission</span><span className="font-bold">{formatCurrency(data.payments.commissionCollected)}</span></div>
                     <div className="mt-2 pt-2 border-t border-gray-700 grid grid-cols-2 gap-2">
                       <div><span className="text-gray-400">Razorpay</span><p className="font-bold">{formatCurrency(data.payments.razorpay)}</p></div>
-                      <div><span className="text-gray-400">Cashfree</span><p className="font-bold">{formatCurrency(data.payments.cashfree)}</p></div>
-                      <div><span className="text-gray-400">PhonePe</span><p className="font-bold">{formatCurrency(data.payments.phonepe)}</p></div>
                       <div><span className="text-gray-400">COD</span><p className="font-bold">{formatCurrency(data.payments.cod)}</p></div>
+                      {data.payments.other > 0 && (
+                        <div><span className="text-gray-400">Legacy (retired methods)</span><p className="font-bold">{formatCurrency(data.payments.other)}</p></div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -461,9 +462,10 @@ export default function CorporateDashboard() {
                 <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Globe size={16} className="text-orange-500" /> Gateway Wise</h2>
                 <div className="space-y-3 text-xs">
                   <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Razorpay</span><span className="font-bold">{formatCurrency(data.payments.razorpay)}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Cashfree</span><span className="font-bold">{formatCurrency(data.payments.cashfree)}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">PhonePe</span><span className="font-bold">{formatCurrency(data.payments.phonepe)}</span></div>
                   <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">COD</span><span className="font-bold">{formatCurrency(data.payments.cod)}</span></div>
+                  {data.payments.other > 0 && (
+                    <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Legacy (retired methods)</span><span className="font-bold">{formatCurrency(data.payments.other)}</span></div>
+                  )}
                 </div>
               </div>
             </div>

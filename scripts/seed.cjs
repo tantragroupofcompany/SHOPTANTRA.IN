@@ -99,17 +99,19 @@ async function main() {
   // Admin creation removed for production safety. Create admins via secure migration/setup only.
 
   // 4. Seed Courier Partners
+  //
+  // ShopTantra ships through Shipping Xpress ONLY. The previous seed inserted
+  // Shiprocket / Delhivery / BlueDart / DTDC rows flagged `isActive: true`,
+  // which misrepresented the active carrier set on any screen that reads
+  // CourierPartner. Only the Shipping Xpress partner is registered now.
   const courierCount = await prisma.courierPartner.count();
   if (courierCount === 0) {
     await prisma.courierPartner.createMany({
       data: [
-        { name: 'Shiprocket', code: 'SHIPROCKET', isActive: true, baseRatePrepaid: 40.0, baseRateCOD: 65.0, averageDeliveryDays: 3 },
-        { name: 'Delhivery', code: 'DELHIVERY', isActive: true, baseRatePrepaid: 38.0, baseRateCOD: 60.0, averageDeliveryDays: 4 },
-        { name: 'BlueDart', code: 'BLUEDART', isActive: true, baseRatePrepaid: 55.0, baseRateCOD: 85.0, averageDeliveryDays: 2 },
-        { name: 'DTDC', code: 'DTDC', isActive: true, baseRatePrepaid: 35.0, baseRateCOD: 55.0, averageDeliveryDays: 5 },
+        { name: 'Shipping Xpress', code: 'SHIPPING_XPRESS', isActive: true, baseRatePrepaid: 45.0, baseRateCOD: 70.0, averageDeliveryDays: 4 },
       ],
     });
-    console.log('✅ Courier partners seeded (4 partners)');
+    console.log('✅ Courier partner seeded (Shipping Xpress only)');
   } else {
     console.log(`ℹ️ Courier partners already exist (${courierCount})`);
   }

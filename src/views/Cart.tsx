@@ -290,7 +290,7 @@ export default function Cart() {
 
             <div className="flex justify-center items-center gap-1.5 text-[11px] text-gray-400 text-center">
               <ShieldCheck size={14} className="text-brand-orange" />
-              Secure payments powered by Razorpay & Cashfree
+              Secure payments powered by Razorpay &amp; Cash on Delivery
             </div>
           </div>
 

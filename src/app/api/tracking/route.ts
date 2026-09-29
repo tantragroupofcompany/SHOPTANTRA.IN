@@ -32,7 +32,8 @@ export async function GET(request: Request) {
             shipmentNumber: shipment.shipmentNumber,
             awbNumber: shipment.awbNumber,
             status: shipment.status,
-            courierName: shipment.courierPartner?.name || 'India Post Speed Post',
+            // Honest: the carrier is only known once a shipment record exists.
+            courierName: shipment.courierPartner?.name || 'Carrier not assigned',
             trackingLink: shipment.trackingLink || `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${shipment.trackingNumber}`,
             codAmount: shipment.codAmount,
             weight: shipment.weight,
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
               status: ship.status,
               awbNumber: ship.awbNumber,
               trackingNumber: ship.trackingNumber,
-              courierName: ship.courierPartner?.name || 'India Post Speed Post',
+              courierName: ship.courierPartner?.name || 'Carrier not assigned',
               trackingLink: ship.trackingLink || `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${ship.trackingNumber}`,
               dispatchDate: ship.dispatchDate,
               estimatedDelivery: ship.estimatedDelivery,

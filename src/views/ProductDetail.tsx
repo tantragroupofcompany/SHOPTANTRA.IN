@@ -466,7 +466,7 @@ export default function ProductDetail() {
             </div>
             <div className="flex flex-col items-center gap-1">
               <Truck size={18} className="text-brand-orange" />
-              <span className="font-semibold text-gray-800 dark:text-gray-300">Fast Shiprocket</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-300">Tracked Shipping</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <RotateCcw size={18} className="text-brand-orange" />

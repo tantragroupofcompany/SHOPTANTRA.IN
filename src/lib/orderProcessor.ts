@@ -1,8 +1,33 @@
 import { prisma } from './prisma';
 import { sendOrderConfirmationAlert } from './alerts';
 
+/**
+ * The ONLY payment methods ShopTantra supports.
+ *
+ * Cashfree and PhonePe were removed from the product: their integrations were
+ * never fully configured in production and their checkout/reconcile paths are
+ * gone (src/app/api/checkout/cashfree, .../phonepe and the matching webhooks
+ * have been deleted). A request naming one of them is REJECTED — it is never
+ * silently downgraded to Razorpay, because that would take no money while
+ * creating a PAID order.
+ */
+export const SUPPORTED_GATEWAYS = ['RAZORPAY', 'COD'] as const;
+export type SupportedGateway = (typeof SUPPORTED_GATEWAYS)[number];
+
+/**
+ * Payment methods that used to exist and are now retired. Requests naming these
+ * must fail loudly via `isRetiredGateway()` (see `processVerifiedOrder` and
+ * POST /api/checkout/verify) instead of falling through.
+ */
+export const RETIRED_GATEWAYS = ['CASHFREE', 'PHONEPE'] as const;
+
+export function isRetiredGateway(value: unknown): boolean {
+  const key = String(value || '').trim().toUpperCase();
+  return (RETIRED_GATEWAYS as readonly string[]).includes(key);
+}
+
 interface ProcessOrderParams {
-  gateway: 'RAZORPAY' | 'CASHFREE' | 'PHONEPE' | 'COD';
+  gateway: SupportedGateway;
   transactionReference: string;
   amount: number;
   orderData: {
@@ -78,6 +103,16 @@ async function resolveCommissionRate(tx: any, seller: any, category: string, pro
 
 export async function processVerifiedOrder(params: ProcessOrderParams) {
   const { gateway, transactionReference, amount, orderData, method, gatewayLogs } = params;
+
+  // HARD STOP for retired gateways. This processor writes PAID orders and
+  // settlement ledgers, so a Cashfree/PhonePe call must never reach it — the
+  // money was never collected by ShopTantra.
+  if (isRetiredGateway(gateway) || isRetiredGateway(method)) {
+    throw Object.assign(
+      new Error('Payment method is no longer supported. Use Razorpay or Cash on Delivery.'),
+      { code: 'GATEWAY_RETIRED', status: 410 }
+    );
+  }
 
   try {
     // Make sure the marketplace schema (settlement ledger etc.) exists

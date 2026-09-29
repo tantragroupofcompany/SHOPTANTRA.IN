@@ -247,7 +247,7 @@ export default function Introduction() {
                   <Rocket size={20} /> Company Journey
                 </h3>
                 <p className="text-black dark:text-gray-300 leading-relaxed text-sm sm:text-base">
-                  Starting as a vision to unite Swadeshi craftspeople and local distributors, SHOPTANTRA quickly grew into a technical hub. We built integrated payment models supporting automated Razorpay split payouts, live shipping aggregations with Delhivery and Blue Dart through Shiprocket, and detailed seller management panels. Today, we support thousands of active SKUs across categories like Grocery, Ayurveda, Electronics, and Local crafts.
+                  Starting as a vision to unite Swadeshi craftspeople and local distributors, SHOPTANTRA quickly grew into a technical hub. We built integrated payment models supporting automated Razorpay split payouts, live shipping aggregation through Shipping Xpress, and detailed seller management panels. Today, we support thousands of active SKUs across categories like Grocery, Ayurveda, Electronics, and Local crafts.
                 </p>
               </div>
             </div>
@@ -552,7 +552,7 @@ export default function Introduction() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { title: "Secure Platform", desc: "SSL secured checkouts, split payout nodes, and strict buyer purchase locks.", icon: ShieldCheck },
-              { title: "Fast Delivery", desc: "Partnered directly with Shiprocket, Delhivery, and Blue Dart for prompt tracking.", icon: Rocket },
+              { title: "Fast Delivery", desc: "Shipped through Shipping Xpress with AWB tracking in your dashboard.", icon: Rocket },
               { title: "Trusted Sellers", desc: "Every seller's GSTIN and store details are authenticated before catalogs go live.", icon: Award },
               { title: "Easy Returns", desc: "Direct ticket channels, dispute options, and instant buyer refund allocations.", icon: CheckCircle },
               { title: "Best Prices", desc: "Direct-from-manufacturer sourcing removes distributor markups completely.", icon: TrendingUp },
