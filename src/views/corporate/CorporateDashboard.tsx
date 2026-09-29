@@ -87,9 +87,28 @@ export default function CorporateDashboard() {
     finally { setRefreshing(false); }
   }
 
-  const handleLogout = () => {
-    document.cookie = 'auth_token=; path=/; max-age=0';
-    document.cookie = 'corporate_auth_token=; path=/; max-age=0';
+  const handleLogout = async () => {
+    // The corporate cookies are HTTP-only, so `document.cookie` cannot clear
+    // them — the old inline expiry silently did nothing and the executive
+    // session survived "Sign Out" for its full 8 hour lifetime. Ask the server
+    // to expire them, then also clear any non-HTTP-only leftovers (e.g. a
+    // locally stored session) and return to the sign-in screen.
+    try {
+      await fetch('/api/corporate/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // Network failure: still clear what we can and leave the page.
+    }
+    try {
+      document.cookie = 'auth_token=; path=/; max-age=0';
+      document.cookie = 'corporate_auth_token=; path=/; max-age=0';
+      localStorage.removeItem('st_local_session');
+      localStorage.removeItem('st_local_profile');
+      localStorage.removeItem('st_local_user');
+    } catch {
+      // Storage may be unavailable (private mode); the server call is what matters.
+    }
+    setCorpUser(null);
+    setData(null);
     navigate('/corporate-access', { replace: true });
   };
 

@@ -103,13 +103,18 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/api/shipment') ||
     path.startsWith('/api/buyer')
   ) {
+    // Sign-out must stay reachable even when the session has already expired,
+    // otherwise a stale executive cookie could never be cleared. The route
+    // itself only expires cookies and returns no data.
+    const isCorporateLogout =
+      path === '/api/corporate/logout' || path.startsWith('/api/corporate/logout/');
     if (path.startsWith('/api/founder')) {
       const guard = await requireRole(request, ['FOUNDER']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/admin') || path.startsWith('/api/management')) {
       const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'ADMIN']);
       if (guard instanceof NextResponse) return guard;
-    } else if (path.startsWith('/api/corporate')) {
+    } else if (path.startsWith('/api/corporate') && !isCorporateLogout) {
       const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/seller')) {
