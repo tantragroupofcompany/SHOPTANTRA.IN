@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Package, ShoppingCart, AlertCircle, TrendingUp, DollarSign, Users, Award, Percent } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
@@ -130,9 +130,23 @@ function SellerDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards Row */}
+      {/*
+        Every card below navigates to the real page that owns the data. They were
+        plain <div> elements with no click handler, which is why tapping them did
+        nothing. Each is now a real <Link>, so mouse, touch, Enter and Space all
+        work, the destination is announced to screen readers, and the browser
+        shows the correct URL. Destinations are existing seller routes
+        (src/ClientApp.tsx) - no new page was invented.
+
+        Contrast: values use text-brand-navy / dark:text-white, which stays
+        readable on the white card in both themes.
+      */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs">
+        <Link
+          to="/seller/reports"
+          aria-label="Gross revenue - open sales reports"
+          className="group bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Gross Revenue</span>
             <div className="p-1.5 rounded-lg bg-green-50 dark:bg-green-950/20 text-green-600">
@@ -143,9 +157,13 @@ function SellerDashboard() {
             ₹{stats.totalSales.toLocaleString('en-IN')}
           </span>
           <span className="text-[10px] text-gray-400 dark:text-gray-500 block mt-1">Admin fee (10%): ₹{stats.commissionsPaid}</span>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs">
+        <Link
+          to="/seller/orders"
+          aria-label="Active orders - open orders"
+          className="group bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Active Orders</span>
             <div className="p-1.5 rounded-lg bg-orange-50 dark:bg-brand-orange/10 text-brand-orange">
@@ -156,9 +174,13 @@ function SellerDashboard() {
             {stats.totalOrders} Dispatches
           </span>
           <span className="text-[10px] text-amber-600 font-bold block mt-1">{stats.pendingOrders} pending labels</span>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs">
+        <Link
+          to="/seller/products"
+          aria-label="Products listed - open products"
+          className="group bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Products Listed</span>
             <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/20 text-blue-600">
@@ -169,9 +191,13 @@ function SellerDashboard() {
             {stats.totalProducts} Items
           </span>
           <span className="text-[10px] text-green-650 font-bold block mt-1">All catalog active</span>
-        </div>
+        </Link>
 
-        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs">
+        <Link
+          to="/seller/earnings"
+          aria-label="Withdrawable balance - open earnings"
+          className="group bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 p-5 rounded-2xl shadow-xs transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+        >
           <div className="flex justify-between items-start">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Withdrawable Net</span>
             <div className="p-1.5 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 text-brand-gold">
@@ -182,7 +208,7 @@ function SellerDashboard() {
             ₹{stats.withdrawableBalance.toLocaleString('en-IN')}
           </span>
           <span className="text-[10px] text-gray-400 dark:text-gray-500 block mt-1">UPI / Bank Settlements</span>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -400,44 +400,68 @@ export default function AdminDashboard() {
       {/* Tab: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Dashboard Metric Cards */}
+          {/*
+            These four metric cards were plain <div>s with no handler, so tapping
+            them did nothing. They now activate the real tab that already holds
+            the underlying records. The dashboard's existing data source is
+            unchanged - only the interaction was added.
+          */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            
-            <div className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group">
+            <button
+              type="button"
+              onClick={() => setActiveTab('payments')}
+              aria-label="Total marketplace sales - open payments view"
+              className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group text-left transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+            >
               <span className="text-[9px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Total Marketplace Sales</span>
               <span className="text-xl font-black text-brand-navy dark:text-white block mt-2">
                 ₹{stats.totalRevenue.toLocaleString('en-IN')}
               </span>
               <span className="text-[10px] text-green-600 font-bold block mt-1">₹{stats.dailyRevenue.toLocaleString()} sales today</span>
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-xl group-hover:scale-125 transition-transform" />
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group">
+            <button
+              type="button"
+              onClick={() => setActiveTab('payments')}
+              aria-label="Commission earned - open payments view"
+              className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group text-left transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+            >
               <span className="text-[9px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Commission Earned</span>
               <span className="text-xl font-black text-brand-orange block mt-2">
                 ₹{stats.totalCommission.toLocaleString('en-IN')}
               </span>
               <span className="text-[10px] text-brand-gold font-bold block mt-1">10% Platform Retention</span>
               <div className="absolute top-0 right-0 w-24 h-24 bg-brand-orange/5 dark:bg-brand-orange/10 rounded-full blur-xl group-hover:scale-125 transition-transform" />
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              aria-label="Total orders - show order telemetry"
+              className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group text-left transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+            >
               <span className="text-[9px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Total Orders</span>
               <span className="text-xl font-black text-blue-600 dark:text-blue-400 block mt-2">
                 {stats.totalOrders.toLocaleString()} Orders
               </span>
               <span className="text-[10px] text-amber-600 font-bold block mt-1">{stats.pendingOrders} pending verification</span>
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-400/5 dark:bg-blue-400/10 rounded-full blur-xl group-hover:scale-125 transition-transform" />
-            </div>
+            </button>
 
-            <div className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group">
+            <button
+              type="button"
+              onClick={() => setActiveTab('sellers')}
+              aria-label="Registered merchants - open sellers view"
+              className="bg-white dark:bg-brand-navy p-5 rounded-2xl border border-gray-150 dark:border-brand-navy-light/10 shadow-xs relative overflow-hidden group text-left transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 dark:focus-visible:ring-offset-brand-navy min-h-[44px]"
+            >
               <span className="text-[9px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Registered Merchants</span>
               <span className="text-xl font-black text-purple-600 dark:text-purple-400 block mt-2">
                 {stats.totalSellers} Stores
               </span>
               <span className="text-[10px] text-gray-450 block mt-1">{stats.newSellersToday} registered today</span>
               <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-xl group-hover:scale-125 transition-transform" />
-            </div>
+            </button>
 
           </div>
 
