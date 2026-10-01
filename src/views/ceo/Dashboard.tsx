@@ -12,15 +12,20 @@
  */
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart3, Package, ShoppingCart, IndianRupee, Building2, CreditCard, Truck,
+  Package, ShoppingCart, IndianRupee, Building2, CreditCard, Truck,
+  Users, Percent, Wallet, Clock,
 } from 'lucide-react';
 import ExecutiveDashboardShell, {
-  MetricCard, Section, Rows, ListSection, RevenueByMonth,
+  Section, Rows, ListSection, RevenueByMonth,
 } from '../executive/ExecutiveDashboardShell';
+import MetricCard from '../executive/MetricCard';
+import { useOpenDetail } from '../executive/ExecutiveShell';
 import { formatCurrency, formatCount } from '../../lib/executiveDashboard';
 
 export default function CEODashboard() {
   const navigate = useNavigate();
+  // Every card opens a real detail panel backed by a role-guarded endpoint.
+  const open = useOpenDetail();
 
   return (
     <ExecutiveDashboardShell
@@ -30,15 +35,17 @@ export default function CEODashboard() {
     >
       {(d: any) => (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard icon={BarChart3} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.today.orders)} today`} />
-            <MetricCard icon={IndianRupee} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.today.revenue)} today`} />
-            <MetricCard icon={Package} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.outOfStockProducts)} out of stock`} />
-            <MetricCard icon={ShoppingCart} label="Buyers" value={formatCount(d.buyers.total)} sub={`${formatCount(d.today.newBuyers)} new today`} />
-            <MetricCard icon={Building2} label="Sellers" value={formatCount(d.sellers.total)} sub={`${formatCount(d.sellers.pending)} pending`} />
-            <MetricCard icon={CreditCard} label="Payments today" value={formatCount(d.today.payments)} sub={`${formatCurrency(d.payments.totalCollected)} collected`} />
-            <MetricCard icon={Truck} label="Shipments" value={formatCount(d.shipments.total)} sub={`${formatCount(d.shipping.shipped)} shipped`} />
-            <MetricCard icon={BarChart3} label="Commission" value={formatCurrency(d.payments.commissionCollected)} sub="collected" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <MetricCard icon={ShoppingCart} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.today.orders)} today`} onOpen={() => open('orders')} />
+            <MetricCard icon={IndianRupee} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.today.revenue)} today`} onOpen={() => open('payments')} />
+            <MetricCard icon={Package} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.outOfStockProducts)} out of stock`} onOpen={() => open('products')} />
+            <MetricCard icon={Users} label="Buyers" value={formatCount(d.buyers.total)} sub={`${formatCount(d.today.newBuyers)} new today`} onOpen={() => open('users')} />
+            <MetricCard icon={Building2} label="Sellers" value={formatCount(d.sellers.total)} sub={`${formatCount(d.sellers.pending)} pending`} onOpen={() => open('sellers')} />
+            <MetricCard icon={CreditCard} label="Payments" value={formatCount(d.payments.totalPayments)} sub={`${formatCurrency(d.payments.totalCollected)} collected`} onOpen={() => open('payments')} />
+            <MetricCard icon={Percent} label="Commission" value={formatCurrency(d.payments.commissionCollected)} sub="collected" onOpen={() => open('commission')} />
+            <MetricCard icon={Wallet} label="Settlements" value={formatCurrency(d.payments.sellerPayable)} sub="seller payable" onOpen={() => open('settlements')} />
+            <MetricCard icon={Clock} label="Pending orders" value={formatCount(d.company.pendingOrders)} sub="to fulfil" onOpen={() => open('orders')} />
+            <MetricCard icon={Truck} label="Shipments" value={formatCount(d.shipments.total)} sub={`${formatCount(d.shipping.shipped)} shipped`} onOpen={() => open('orders')} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Section title="Sales & Revenue">

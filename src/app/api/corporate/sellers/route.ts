@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { requireRole } from '../../../../middleware/index';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 /**
  * Corporate: live filtered seller list.
@@ -61,8 +62,16 @@ export async function GET(request: any) {
     return NextResponse.json({ success: true, data: { status, total, items } });
   } catch (error: any) {
     console.error('Corporate sellers error:', error);
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[corporate/sellers] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        { success: false, error: 'Unable to load sellers. Please try again.' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to load sellers' },
+      { success: false, error: 'Unable to load sellers. Please try again.' },
       { status: 500 }
     );
   }

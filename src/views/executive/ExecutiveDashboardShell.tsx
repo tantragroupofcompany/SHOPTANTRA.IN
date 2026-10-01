@@ -14,31 +14,10 @@
 import type { ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useExecutiveDashboard } from '../../lib/useExecutiveDashboard';
+import ExecutiveShell from './ExecutiveShell';
 
-export function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="bg-white/10 rounded-xl p-5 border border-white/10">
-      <div className="flex items-center gap-3">
-        <Icon className="w-6 h-6 text-brand-orange shrink-0" />
-        <div className="min-w-0">
-          <p className="text-xs text-gray-300">{label}</p>
-          <p className="text-xl font-bold break-words">{value}</p>
-          {sub ? <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p> : null}
-        </div>
-      </div>
-    </div>
-  );
-}
+/* MetricCard now lives in its own module (./MetricCard) and is interactive:
+   it renders a real <button> when a detail view exists. */
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -125,48 +104,65 @@ export default function ExecutiveDashboardShell({
 }) {
   const { data, state, error, refreshing, reload } = useExecutiveDashboard();
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{title}</h1>
-            <p className="text-gray-300 text-sm mt-1">{subtitle}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {state === 'ready' ? (
+  // Sign out goes through the server endpoint: the corporate cookies are
+  // HttpOnly, so `document.cookie` cannot clear them.
+  const signOut = async () => {
+    try {
+      await fetch('/api/corporate/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      /* the server call is what matters */
+    }
+    window.location.href = '/corporate-access';
+  };
+
+  if (state === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+        <LoadingSkeleton />
+      </div>
+    );
+  }
+
+  if (state === 'error') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
+        <div
+          role="alert"
+          className="max-w-2xl mx-auto mt-16 bg-red-500/10 border border-red-400/30 rounded-xl p-6 flex items-start gap-3"
+        >
+          <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" aria-hidden="true" />
+          <div>
+            <h1 className="text-lg font-bold text-red-200">{title}</h1>
+            <p className="text-sm text-red-200/90 mt-1">{error}</p>
+            <div className="mt-4 flex gap-3">
               <button
                 onClick={reload}
-                disabled={refreshing}
-                className="inline-flex items-center gap-2 text-sm text-gray-200 hover:text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 text-sm text-red-200 hover:text-white"
               >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Refreshing' : 'Refresh'}
+                <RefreshCw className="w-4 h-4" aria-hidden="true" /> Try again
               </button>
-            ) : null}
-            <button onClick={onBack} className="text-sm text-gray-200 hover:text-white">
-              Back to site
-            </button>
-          </div>
-        </header>
-
-        {state === 'loading' ? <LoadingSkeleton /> : null}
-
-        {state === 'error' ? (
-          <div role="alert" className="bg-red-500/10 border border-red-400/30 rounded-xl p-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-200">{error}</p>
-              <button onClick={reload} className="mt-3 inline-flex items-center gap-2 text-sm text-red-200 hover:text-white">
-                <RefreshCw className="w-4 h-4" /> Try again
+              <button onClick={onBack} className="text-sm text-gray-300 hover:text-white">
+                Back to site
               </button>
             </div>
           </div>
-        ) : null}
-
-        {state === 'ready' && data ? children(data) : null}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <ExecutiveShell
+      title={title}
+      subtitle={subtitle}
+      role={title.replace(' Dashboard', '')}
+      loading={loading}
+      refreshing={refreshing}
+      onRefresh={reload}
+      onSignOut={signOut}
+    >
+      {data ? children(data) : null}
+    </ExecutiveShell>
   );
 }
 

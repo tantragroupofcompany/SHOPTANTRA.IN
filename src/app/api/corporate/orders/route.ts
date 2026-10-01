@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { requireRole } from '../../../../middleware/index';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 /**
  * Corporate: live filtered order list.
@@ -62,8 +63,19 @@ export async function GET(request: any) {
     return NextResponse.json({ success: true, data: { status, total, items } });
   } catch (error: any) {
     console.error('Corporate orders error:', error);
+    // Do not ship the raw Prisma/driver message to the browser, and do not
+    // answer 200 with an empty list - that is indistinguishable from a genuinely
+    // empty table and hides a database outage. Detail stays in the server log.
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[corporate/orders] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        { success: false, error: 'Unable to load orders. Please try again.' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to load orders' },
+      { success: false, error: 'Unable to load orders. Please try again.' },
       { status: 500 }
     );
   }
