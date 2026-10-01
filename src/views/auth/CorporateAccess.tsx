@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Building2, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -42,29 +42,53 @@ export default function CorporateAccess() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Hardening: whatever happens on this screen, the form must never open with a
+  // credential in it. Switching portals, remounting and back-navigation all reset
+  // the fields, so a username typed for one portal can never appear in another.
+  useEffect(() => {
+    setUsername('');
+    setPassword('');
+    setRemember(false);
+    setError(null);
+  }, [selectedRole]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Never submit an empty field, and never keep the password around after a
+    // failed attempt.
+    if (!username.trim() || !password) {
+      setError('Invalid username or password.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch('/api/corporate/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password }),
+        // `remember` only asks the server for a longer-lived session cookie.
+        // The password is transmitted once, over TLS, and is never persisted
+        // anywhere in the browser.
+        body: JSON.stringify({ username: username.trim(), password, remember }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.error || 'Invalid username or password.');
+        setError('Invalid username or password.');
+        setPassword('');
         setLoading(false);
         return;
       }
 
-      navigate(data.redirectTo || '/corporate/dashboard');
-    } catch (err: any) {
+      navigate(data.redirectTo || '/corporate-access');
+    } catch {
       setError('Invalid username or password.');
+      setPassword('');
       setLoading(false);
     }
   };
@@ -121,33 +145,48 @@ export default function CorporateAccess() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Username</label>
+                <label htmlFor="exec-username" className="text-xs font-semibold text-gray-600">Username</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  {/*
+                    The field renders with no `value` attribute in the HTML and no
+                    defaultValue: state starts as '' so the form is always blank on
+                    load. The placeholder is deliberately neutral - it must never
+                    name an executive, because the sign-in screen is public.
+                  */}
                   <input
+                    id="exec-username"
+                    name="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none"
-                    placeholder="founder_2027"
+                    placeholder="Enter username"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-600">Password</label>
+                <label htmlFor="exec-password" className="text-xs font-semibold text-gray-600">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input
+                    id="exec-password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none"
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                   />
                 </div>
               </div>
@@ -160,8 +199,14 @@ export default function CorporateAccess() {
                   onChange={(e) => setRemember(e.target.checked)}
                   className="rounded border-gray-300 text-brand-orange focus:ring-brand-orange"
                 />
-                <label htmlFor="remember" className="text-xs text-gray-500">Remember me</label>
+                <label htmlFor="remember" className="text-xs text-gray-500">
+                  Remember me
+                </label>
               </div>
+              <p className="text-[11px] text-gray-400 -mt-2">
+                Keeps you signed in on this device. No password is stored in the
+                browser.
+              </p>
 
               <Button
                 type="submit"

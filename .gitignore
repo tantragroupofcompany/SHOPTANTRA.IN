@@ -23,12 +23,17 @@ dist-ssr
 .env
 
 .vercel
+# `.env*` covers .env.local, .env.production, .env.production.local and every
+# other real secret file. `.env.example` is the committed TEMPLATE: it contains
+# variable NAMES with empty values only, and is the only way a developer learns
+# which secrets the app expects.
 .env*
+!.env.example
 .next
 scratch/
 
 # Local junk that must never be committed
 _tok.tmp
 
-.vercel
-.env*
+# Local scratch output from lint/build/test runs
+*.log

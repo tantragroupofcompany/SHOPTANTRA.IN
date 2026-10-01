@@ -18,36 +18,19 @@
  * script is only an optional operator convenience.
  *
  * Never resets a password that already verifies, and never creates duplicates.
+ *
+ * The usernames are read from src/lib/executives.ts — the single source of truth
+ * shared with the login route — so this script can never drift out of sync and
+ * provision a second account for an executive who already has one.
  */
 
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { identities, retiredUsernames } = require('../src/lib/executives.json');
 
 const prisma = new PrismaClient();
 
-const executives = [
-  {
-    username: 'founder_2027',
-    email: 'founder@shoptantra.in',
-    role: 'FOUNDER',
-    fullName: 'Founder',
-    passwordEnvKey: 'EXECUTIVE_FOUNDER_PASSWORD',
-  },
-  {
-    username: 'ceo_2027',
-    email: 'ceo@shoptantra.in',
-    role: 'CEO_MD',
-    fullName: 'CEO & MD',
-    passwordEnvKey: 'EXECUTIVE_CEO_PASSWORD',
-  },
-  {
-    username: 'chairman_2027',
-    email: 'chairman@shoptantra.in',
-    role: 'CHAIRMAN',
-    fullName: 'Chairman',
-    passwordEnvKey: 'EXECUTIVE_CHAIRMAN_PASSWORD',
-  },
-];
+const executives = identities;
 
 async function seed() {
   const missing = executives.filter(
@@ -65,6 +48,41 @@ async function seed() {
 
   console.log('Seeding executive accounts...\n');
 
+  // --- 1. Retire superseded credential generations -------------------------
+  // A leftover row carrying an old username would keep authenticating, because
+  // the login route resolves accounts by username. Rather than deleting the row
+  // (which would orphan the executive's orders/audit trail), we clear the
+  // username so it can never match, and blank the password hash so it cannot
+  // authenticate by email either. The account is then re-identified below by
+  // its role and given the current username.
+  if (retiredUsernames && retiredUsernames.length > 0) {
+    const stale = await prisma.user.findMany({
+      where: { username: { in: retiredUsernames } },
+      select: { id: true, role: true, username: true },
+    });
+
+    for (const row of stale) {
+      await prisma.user.update({
+        where: { id: row.id },
+        data: {
+          username: null,
+          // An unusable placeholder, NOT a fabricated bcrypt hash. Any value
+          // that is not a valid bcrypt/pbkdf2 hash fails closed in
+          // verifyPassword(), so this account is inert until re-provisioned.
+          password: '!retired-credential-disabled',
+        },
+      });
+      console.log('  RETIRED ' + row.role + ' (' + row.username + ') - can no longer authenticate');
+    }
+
+    if (stale.length === 0) {
+      console.log('  No superseded executive accounts found (already clean).');
+    }
+  }
+
+  console.log('');
+
+  // --- 2. Provision the current generation ---------------------------------
   for (const exec of executives) {
     const plain = process.env[exec.passwordEnvKey];
 
@@ -74,23 +92,33 @@ async function seed() {
       (await prisma.user.findUnique({ where: { email: exec.email } }));
 
     if (existing) {
-      // Do not reset a password that already matches the configured value.
-      if (await bcrypt.compare(plain, existing.password)) {
+      const passwordMatches = await bcrypt.compare(plain, existing.password);
+      const usernameCurrent = existing.username === exec.username;
+
+      // Idempotence must be decided on BOTH fields. Previously the script
+      // returned early whenever the password already verified, which left a
+      // renamed account stuck on its previous generation's username forever.
+      if (passwordMatches && usernameCurrent) {
         console.log('  ' + exec.role + ' (' + exec.username + ') - already provisioned, skipping');
         continue;
       }
+
       const salt = await bcrypt.genSalt(12);
       const hashedPassword = await bcrypt.hash(plain, salt);
       await prisma.user.update({
         where: { id: existing.id },
         data: {
           username: exec.username,
+          email: exec.email,
           password: hashedPassword,
           role: exec.role,
           fullName: exec.fullName,
         },
       });
-      console.log('  ' + exec.role + ' (' + exec.username + ') - password synchronised with env var');
+      console.log(
+        '  ' + exec.role + ' (' + exec.username + ') - ' +
+          (usernameCurrent ? 'password synchronised with env var' : 'account re-identified to current username')
+      );
       continue;
     }
 
@@ -108,6 +136,23 @@ async function seed() {
     });
 
     console.log('  ' + exec.role + ' (' + exec.username + ') - created');
+  }
+
+  // --- 3. Assert one account per executive role ----------------------------
+  // A duplicate executive row is a privilege-escalation hazard: two rows for
+  // FOUNDER means two independent passwords granting the same access. Fail loudly.
+  for (const exec of executives) {
+    const rows = await prisma.user.findMany({
+      where: { role: exec.role },
+      select: { id: true, username: true },
+    });
+    if (rows.length > 1) {
+      console.error(
+        'ERROR: ' + rows.length + ' accounts exist for role ' + exec.role +
+          '. Resolve the duplicate manually before going live.'
+      );
+      process.exitCode = 1;
+    }
   }
 
   console.log('\n  Executive seeding complete.');

@@ -8,7 +8,10 @@
     "build": "prisma generate && next build",
     "migrate:deploy": "node scripts/migrate-deploy.cjs",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test": "node scripts/test-executive-auth.cjs",
+    "test:executives": "node scripts/test-executive-auth.cjs",
+    "seed:executives": "node scripts/seed-executives.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.19.3",

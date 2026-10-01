@@ -11,7 +11,21 @@ export function hashPassword(password: string): string {
 
 // Verify a password against a stored hashed value
 // Supports both custom pbkdf2 (salt:hash) and bcrypt ($2a$/$2b$) formats
-export function verifyPassword(password: string, storedValue: string): boolean {
+//
+// `allowPlaintext` exists for a specific reason. When a stored value matches
+// NEITHER recognised hash format, the only way to "verify" it is to compare the
+// supplied password to the stored text directly. That is a plaintext credential
+// check: anyone who can read the column has the password, and a row seeded with
+// a sentinel string would authenticate against that same sentinel.
+//
+// Legacy buyer/seller rows still rely on it, so the default is unchanged. The
+// executive sign-in path passes `false`, so an executive row must hold a real
+// bcrypt hash and a malformed/sentinel value can never match.
+export function verifyPassword(
+  password: string,
+  storedValue: string,
+  { allowPlaintext = true }: { allowPlaintext?: boolean } = {}
+): boolean {
   if (!storedValue) return false;
 
   // Check for bcrypt hash format ($2a$... or $2b$...)
@@ -37,8 +51,26 @@ export function verifyPassword(password: string, storedValue: string): boolean {
     }
   }
 
+  // A value that is not a hash and must never be treated as one. These are the
+  // inert placeholders written by supabase/migrations/20260723_add_username and
+  // by scripts/seed-executives.cjs; they are not credentials.
+  if (isDisabledCredentialSentinel(storedValue)) return false;
+
   // Legacy plaintext fallback
+  if (!allowPlaintext) return false;
   return password === storedValue;
+}
+
+/**
+ * Placeholder values written into `User.password` for executive accounts that
+ * have not been provisioned (or that have been explicitly retired). They are not
+ * passwords and must never authenticate, whoever supplies them.
+ */
+export function isDisabledCredentialSentinel(storedValue: string): boolean {
+  return (
+    storedValue === '!retired-credential-disabled' ||
+    storedValue === '!no-credential-until-provisioned'
+  );
 }
 
 // Hash password using bcrypt (for executive accounts)

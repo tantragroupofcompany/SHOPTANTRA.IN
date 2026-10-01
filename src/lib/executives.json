@@ -1,0 +1,32 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for executive identities. Server-side only: never import this from a React component, or the usernames will be bundled into client-side JavaScript. NO PASSWORDS BELOW - bootstrap passwords arrive only through the server-side environment variables named in passwordEnvKey.",
+  "identities": [
+    {
+      "role": "FOUNDER",
+      "username": "founder_2026",
+      "email": "founder@shoptantra.in",
+      "fullName": "Founder",
+      "passwordEnvKey": "EXECUTIVE_FOUNDER_PASSWORD"
+    },
+    {
+      "role": "CHAIRMAN",
+      "username": "chairman_2026",
+      "email": "chairman@shoptantra.in",
+      "fullName": "Chairman",
+      "passwordEnvKey": "EXECUTIVE_CHAIRMAN_PASSWORD"
+    },
+    {
+      "role": "CEO_MD",
+      "username": "ceo_2026",
+      "email": "ceo@shoptantra.in",
+      "fullName": "CEO & MD",
+      "passwordEnvKey": "EXECUTIVE_CEO_PASSWORD"
+    }
+  ],
+  "$retiredComment": "Superseded credential generations. Rejected with a generic 401 and, more importantly, no longer attached to any User row: provisioning renames the account to the current username, so these cannot authenticate.",
+  "retiredUsernames": [
+    "founder_2027",
+    "chairman_2027",
+    "ceo_2027"
+  ]
+}

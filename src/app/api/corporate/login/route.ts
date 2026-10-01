@@ -6,8 +6,8 @@ import {
   getCorporateRoleDashboard,
   getJwtSecret,
   normalizeCorporateRole,
-  type CorporateRole,
 } from '../../../../lib/corporateAuth';
+import { EXECUTIVE_IDENTITIES, isRetiredExecutiveUsername } from '../../../../lib/executives';
 
 /**
  * Executive accounts are NOT hardcoded in this repository.
@@ -24,39 +24,26 @@ import {
  * When a variable is absent its account is left completely untouched - it is
  * never created and never reset. That keeps this endpoint idempotent and means
  * a missing env var can never silently overwrite an executive's password.
+ *
+ * The usernames and role/email triple live in `src/lib/executives.ts`, which is
+ * a server-only module: the sign-in form is rendered blank and has no idea which
+ * accounts exist.
  */
-interface ExecutiveSeed {
-  role: CorporateRole;
-  username: string;
-  email: string;
-  fullName: string;
-  /** Name of the environment variable holding this account's bootstrap password. */
-  passwordEnvKey: string;
-}
+type ExecutiveSeed = (typeof EXECUTIVE_IDENTITIES)[number];
 
-const EXECUTIVE_SEEDS: ExecutiveSeed[] = [
-  {
-    role: 'FOUNDER',
-    username: 'founder_2027',
-    email: 'founder@shoptantra.in',
-    fullName: 'Founder',
-    passwordEnvKey: 'EXECUTIVE_FOUNDER_PASSWORD',
-  },
-  {
-    role: 'CEO_MD',
-    username: 'ceo_2027',
-    email: 'ceo@shoptantra.in',
-    fullName: 'CEO & MD',
-    passwordEnvKey: 'EXECUTIVE_CEO_PASSWORD',
-  },
-  {
-    role: 'CHAIRMAN',
-    username: 'chairman_2027',
-    email: 'chairman@shoptantra.in',
-    fullName: 'Chairman',
-    passwordEnvKey: 'EXECUTIVE_CHAIRMAN_PASSWORD',
-  },
-];
+const EXECUTIVE_SEEDS: readonly ExecutiveSeed[] = EXECUTIVE_IDENTITIES;
+
+/**
+ * The ONLY error text returned for a rejected sign-in.
+ *
+ * It is deliberately identical for an unknown username, a retired username and a
+ * wrong password. Previously this endpoint answered "User not found" vs "Wrong
+ * password" vs "Access Denied (role: X)", which let anyone enumerate the
+ * executive accounts and their roles from the sign-in screen.
+ */
+const GENERIC_LOGIN_ERROR = {
+  error: 'Invalid username or password.',
+} as const;
 
 /**
  * Ensures the username column exists on the User table (production fix).
@@ -94,10 +81,13 @@ async function ensureExecutiveAccounts() {
     });
 
     if (existingByRole) {
-      // Update with latest username + password if needed
+      // Update with latest username + password if needed.
+      // `allowPlaintext: false` is deliberate: a row holding a non-hash sentinel
+      // must be treated as "not provisioned" so it is rewritten with a real
+      // bcrypt hash rather than being accepted as-is.
       const needsUpdate =
         existingByRole.username !== exec.username ||
-        !verifyPassword(passwordPlain, existingByRole.password);
+        !verifyPassword(passwordPlain, existingByRole.password, { allowPlaintext: false });
 
       if (needsUpdate) {
         await prisma.user.update({
@@ -207,6 +197,15 @@ export async function POST(request: Request) {
     let dbUser = null;
     let dbLookupError: any = null;
 
+    // Step 2a: Reject superseded credential generations BEFORE touching the
+    // database. The account rows are renamed to the current usernames by
+    // provisioning, so these no longer match any row, but checking up front makes
+    // the rejection independent of database state and costs no query.
+    if (isRetiredExecutiveUsername(trimmedUsername)) {
+      console.warn('[corporate/login] rejected retired executive username');
+      return NextResponse.json(GENERIC_LOGIN_ERROR, { status: 401 });
+    }
+
     try {
       dbUser = await prisma.user.findUnique({
         where: { username: trimmedUsername },
@@ -227,28 +226,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Step 2b: If still not found, check if they might have typed a role name.
-    // normalizeCorporateRole() also collapses the legacy 'ceo' / 'md' spellings
-    // into the single stored role 'CEO_MD'.
     if (!dbUser) {
-      const roleMap: Record<string, string> = {
-        founder: 'FOUNDER',
-        ceo: 'CEO_MD',
-        md: 'CEO_MD',
-        'ceo & md': 'CEO_MD',
-        chairman: 'CHAIRMAN',
-      };
-      const possibleRole = normalizeCorporateRole(roleMap[trimmedUsername] ?? trimmedUsername);
-      if (possibleRole) {
-        dbUser = await prisma.user.findFirst({
-          where: { role: possibleRole },
-        });
-      }
-    }
-
-    if (!dbUser) {
-      // A database/connection failure must never masquerade as "User not found" —
-      // that is exactly what made this outage look like missing executive accounts.
+      // A database/connection failure must never masquerade as a credential
+      // rejection — that is exactly what made a real outage look like missing
+      // executive accounts. Only a genuinely reachable database produces the
+      // generic 401 below.
       const classified = dbLookupError ? classifyDbError(dbLookupError) : null;
       if (classified) {
         console.error('[corporate/login] DB error:', dbLookupError?.code || dbLookupError?.message);
@@ -261,27 +243,28 @@ export async function POST(request: Request) {
         );
       }
 
-      console.log(`Login failed: user not found for "${trimmedUsername}"`);
-      return NextResponse.json({
-        error: 'User not found',
-        detail: `No executive account found with username "${trimmedUsername}".`,
-      }, { status: 401 });
+      console.warn('[corporate/login] rejected unknown username');
+      return NextResponse.json(GENERIC_LOGIN_ERROR, { status: 401 });
     }
 
-    // Step 3: Verify password — supports bcrypt, pbkdf2, and plaintext
+    // Step 3: Verify the password. `allowPlaintext: false` is mandatory here:
+    // an executive row must hold a real bcrypt hash. Without it, a row whose
+    // password column contains a non-hash sentinel or legacy plaintext would be
+    // matched by string equality, i.e. readable straight out of the database.
     let passwordValid = false;
     try {
-      passwordValid = verifyPassword(password, dbUser.password);
-    } catch (pwErr: any) {
-      console.error('Password verification threw:', pwErr);
+      passwordValid = verifyPassword(password, dbUser.password, { allowPlaintext: false });
+    } catch {
+      // A verification failure is a failed sign-in, never a server error: it must
+      // not disclose whether the underlying cause was a malformed hash.
+      passwordValid = false;
     }
 
     if (!passwordValid) {
-      console.log(`Login failed: wrong password for "${trimmedUsername}"`);
-      return NextResponse.json({
-        error: 'Wrong password',
-        detail: 'The password you entered is incorrect.',
-      }, { status: 401 });
+      // Same generic text as an unknown username: the response must not reveal
+      // that the account exists.
+      console.warn('[corporate/login] rejected wrong password');
+      return NextResponse.json(GENERIC_LOGIN_ERROR, { status: 401 });
     }
 
     // Step 4: Verify corporate role. CORPORATE_ROLES in lib/corporateAuth.ts is
@@ -289,14 +272,36 @@ export async function POST(request: Request) {
     // the one stored role 'CEO_MD'.
     const corporateRole = normalizeCorporateRole(dbUser.role);
     if (!corporateRole) {
-      console.log(`Login failed: role ${dbUser.role} not allowed`);
-      return NextResponse.json({
-        error: 'Access Denied',
-        detail: `Your account (role: ${dbUser.role}) does not have executive privileges.`,
-      }, { status: 403 });
+      // A valid, authenticated non-executive account reached the executive door.
+      // This is a 403 (authenticated but not authorised), which is the correct
+      // status, but the body stays generic so the stored role is not disclosed.
+      console.warn(`[corporate/login] rejected non-executive account`);
+      return NextResponse.json(
+        { error: 'Access Denied', detail: 'This account does not have executive privileges.' },
+        { status: 403 }
+      );
     }
 
-    // Step 5: Create session JWT
+    // Step 5: Create session JWT.
+    //
+    // REMEMBER ME
+    // -----------
+    // "Remember me" is implemented ENTIRELY on the server, by lengthening the
+    // lifetime of the HttpOnly cookie. The client never sees, stores or
+    // re-sends the password: there is no localStorage write, no sessionStorage
+    // write and no non-HttpOnly cookie. Remembering is therefore a property of
+    // the already-issued session token, not a saved credential.
+    //
+    // The `remember` flag is attacker-controllable, so it is only allowed to
+    // EXTEND a session to the fixed 30-day maximum. It can never shorten a
+    // session below the 8-hour baseline and it carries no authority of its own.
+    const SESSION_SECONDS = 8 * 60 * 60; // 8 hours - baseline
+    const REMEMBER_ME_SECONDS = 30 * 24 * 60 * 60; // 30 days - explicit opt-in
+    const requestedRemember = body.remember === true;
+    const sessionSeconds = requestedRemember
+      ? Math.max(SESSION_SECONDS, REMEMBER_ME_SECONDS)
+      : SESSION_SECONDS;
+
     const secret = getJwtSecret();
     const token = await new SignJWT({
       userId: dbUser.id,
@@ -306,7 +311,7 @@ export async function POST(request: Request) {
       type: 'corporate',
     })
       .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('8h')
+      .setExpirationTime(`${sessionSeconds}s`)
       .sign(secret);
 
     // Step 6: Land each executive on their own dashboard.
@@ -322,22 +327,21 @@ export async function POST(request: Request) {
         role: corporateRole,
         fullName: dbUser.fullName,
       },
-      token,
     });
 
-    // Step 7: Set secure HTTP-only cookies
+    // Step 7: Set secure HTTP-only cookies.
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
-      maxAge: 8 * 60 * 60,
+      maxAge: sessionSeconds,
       path: '/',
     };
 
     response.cookies.set('corporate_auth_token', token, cookieOptions);
     response.cookies.set('auth_token', token, cookieOptions);
 
-    console.log(`✓ ${dbUser.role} login successful: ${trimmedUsername}`);
+    console.log(`✓ ${corporateRole} login successful (remember=${requestedRemember})`);
     return response;
   } catch (error: any) {
     // Classify known DB / Prisma errors so an outage is reported as such instead
