@@ -4,6 +4,8 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Optional anchor id, so a control elsewhere can scroll this card into view. */
+  id?: string;
 }
 
 const paddings = {
@@ -13,9 +15,9 @@ const paddings = {
   lg: 'p-8',
 };
 
-export function Card({ children, className = '', padding = 'md' }: CardProps) {
+export function Card({ children, className = '', padding = 'md', id }: CardProps) {
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${paddings[padding]} ${className}`}>
+    <div id={id} className={`bg-white rounded-xl shadow-sm border border-gray-100 ${paddings[padding]} ${className}`}>
       {children}
     </div>
   );

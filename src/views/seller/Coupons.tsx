@@ -206,15 +206,32 @@ function SellerCoupons() {
         </Button>
       </div>
 
-      {/* Analytics Cards */}
+      {/*
+        The first card previously asked for a navy gradient
+        (`bg-gradient-to-br from-brand-navy to-brand-navy-light text-white`)
+        on top of the shared <Card>, which hardcodes `bg-white`. The gradient
+        never won, so the card painted white while the value kept
+        `text-white` - white text on a white card, i.e. an invisible number.
+        That is exactly what the reference screenshot showed.
+
+        It is now styled like its two siblings (white card, dark navy value),
+        which both fixes the contrast and matches the intended design. The
+        value is also made a real button that jumps to the promotions table
+        below, so it is not a dead tile.
+      */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Card className="p-6 flex items-center justify-between bg-gradient-to-br from-brand-navy to-brand-navy-light text-white border-0">
+        <button
+          type="button"
+          onClick={() => document.getElementById('promotions-table')?.scrollIntoView({ behavior: 'smooth' })}
+          aria-label="Total active promo codes - jump to the promotions list"
+          className="text-left p-6 flex items-center justify-between bg-white dark:bg-brand-navy border border-gray-150/40 dark:border-brand-navy-light/10 rounded-xl shadow-sm transition-all duration-200 hover:border-brand-orange/50 hover:shadow-md active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 min-h-[44px]"
+        >
           <div>
-            <span className="text-xs text-gray-300 font-bold uppercase tracking-wider block">Total Active Promo Codes</span>
-            <span className="text-3xl font-black block mt-2">{totalCoupons}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block">Total Active Promo Codes</span>
+            <span className="text-3xl font-black block mt-2 text-brand-navy dark:text-white">{totalCoupons}</span>
           </div>
-          <Tag size={40} className="text-brand-orange opacity-60" />
-        </Card>
+          <Tag size={40} className="text-brand-orange shrink-0" />
+        </button>
         <Card className="p-6 flex items-center justify-between bg-white dark:bg-brand-navy border border-gray-150/40 dark:border-brand-navy-light/10">
           <div>
             <span className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block">Coupon Redemptions</span>
@@ -232,7 +249,7 @@ function SellerCoupons() {
       </div>
 
       {/* Coupons Table */}
-      <Card className="overflow-hidden border border-gray-150/40 dark:border-brand-navy-light/10">
+      <Card id="promotions-table" className="overflow-hidden border border-gray-150/40 dark:border-brand-navy-light/10">
         <div className="p-4 bg-gray-50 dark:bg-brand-navy-dark border-b border-gray-150/40 dark:border-brand-navy-light/10">
           <h2 className="font-bold text-sm text-gray-800 dark:text-gray-200">Active Store Promotions</h2>
         </div>
