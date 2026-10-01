@@ -1,56 +1,135 @@
 'use client';
 
+/**
+ * CHAIRMAN dashboard - live production data.
+ *
+ * Replaced a static placeholder that rendered an em dash and "Chairman controls
+ * placeholder. Connect backend APIs to populate live metrics." It now reads the
+ * existing role-guarded `/api/corporate/dashboard` endpoint, which queries the
+ * production database, and presents the management/financial view for CHAIRMAN.
+ *
+ * Gated by ChairmanGuard (client) and `requireRole` (server).
+ */
 import { useNavigate } from 'react-router-dom';
-import { PieChart, DollarSign, Users, FileText } from 'lucide-react';
+import {
+  PieChart, DollarSign, Users, FileText, ShoppingCart, CreditCard, Building2,
+} from 'lucide-react';
+import ExecutiveDashboardShell, {
+  MetricCard, Section, Rows, ListSection, RevenueByMonth,
+} from '../executive/ExecutiveDashboardShell';
+import { formatCurrency, formatCount } from '../../lib/executiveDashboard';
 
 export default function ChairmanDashboard() {
   const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Chairman Dashboard</h1>
-            <p className="text-gray-300 text-sm mt-1">Management, financial reports, and analytics.</p>
+    <ExecutiveDashboardShell
+      title="Chairman Dashboard"
+      subtitle="Management, financial reports, and analytics."
+      onBack={() => navigate('/')}
+    >
+      {(d: any) => (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard icon={DollarSign} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.company.monthlyRevenue)} this month`} />
+            <MetricCard icon={PieChart} label="Gross sales" value={formatCurrency(d.finance.grossSales)} sub="paid + COD expected" />
+            <MetricCard icon={CreditCard} label="Platform commission" value={formatCurrency(d.finance.platformCommission)} sub={`${formatCurrency(d.payments.commissionCollected)} collected`} />
+            <MetricCard icon={ShoppingCart} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.company.completedOrders)} completed`} />
+            <MetricCard icon={Users} label="Stakeholders" value={formatCount(d.totalUsers)} sub={`${formatCount(d.buyers.total)} buyers`} />
+            <MetricCard icon={Building2} label="Sellers" value={formatCount(d.sellers.total)} sub={`${formatCount(d.sellers.approved)} approved`} />
+            <MetricCard icon={FileText} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.pendingProducts)} pending`} />
+            <MetricCard icon={DollarSign} label="Seller payable" value={formatCurrency(d.finance.sellerPayable)} sub={`${formatCurrency(d.finance.sellerSettled)} settled`} />
           </div>
-          <button onClick={() => navigate('/')} className="text-sm text-gray-200 hover:text-white">Back to site</button>
-        </header>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Section title="Business Overview">
+              <Rows rows={[
+                ['Total users', formatCount(d.totalUsers)],
+                ['Buyers', formatCount(d.buyers.total)],
+                ['Active buyers', formatCount(d.buyers.active)],
+                ['Sellers', formatCount(d.sellers.total)],
+                ['Products', formatCount(d.marketplace.totalProducts)],
+                ['Categories', formatCount(d.marketplace.totalCategories)],
+                ['Reviews', formatCount(d.business.totalReviews)],
+              ]} />
+            </Section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white/10 rounded-xl p-5 border border-white/10">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-6 h-6 text-brand-orange" />
-              <div>
-                <p className="text-xs text-gray-300">Revenue</p>
-                <p className="text-xl font-bold">—</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-5 border border-white/10">
-            <div className="flex items-center gap-3">
-              <Users className="w-6 h-6 text-brand-orange" />
-              <div>
-                <p className="text-xs text-gray-300">Stakeholders</p>
-                <p className="text-xl font-bold">—</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-5 border border-white/10">
-            <div className="flex items-center gap-3">
-              <FileText className="w-6 h-6 text-brand-orange" />
-              <div>
-                <p className="text-xs text-gray-300">Reports</p>
-                <p className="text-xl font-bold">—</p>
-              </div>
-            </div>
-          </div>
-        </div>
+            <Section title="Financials">
+              <Rows rows={[
+                ['Gross sales', formatCurrency(d.finance.grossSales)],
+                ['Revenue (all time)', formatCurrency(d.company.totalRevenue)],
+                ['Revenue this month', formatCurrency(d.company.monthlyRevenue)],
+                ['Revenue this year', formatCurrency(d.company.yearlyRevenue)],
+                ['Platform commission', formatCurrency(d.finance.platformCommission)],
+                ['Commission collected', formatCurrency(d.finance.commissionCollected)],
+                ['Refunds', formatCurrency(d.finance.refunds)],
+              ]} />
+            </Section>
 
-        <div className="bg-white/10 rounded-xl p-6 border border-white/10">
-          <h2 className="font-bold text-lg mb-3">Executive Overview</h2>
-          <p className="text-sm text-gray-300">Chairman controls placeholder. Connect backend APIs to populate live metrics.</p>
-        </div>
-      </div>
-    </div>
+            <Section title="Seller Settlement">
+              <Rows rows={[
+                ['Seller payable', formatCurrency(d.finance.sellerPayable)],
+                ['Seller settled', formatCurrency(d.finance.sellerSettled)],
+                ['Pending settlement', formatCurrency(d.finance.pendingSettlement)],
+                ['Failed transfers (count)', formatCount(d.payments.failedTransferTotal)],
+                ['Commission rules applied', formatCurrency(d.payments.commissionCollected)],
+              ]} />
+            </Section>
+
+            <Section title="Payments">
+              <Rows rows={[
+                ['Payment records', formatCount(d.payments.totalPayments)],
+                ['Collected', formatCurrency(d.payments.totalCollected)],
+                ['Razorpay (online)', formatCurrency(d.payments.razorpay)],
+                ['COD (expected)', formatCurrency(d.payments.cod)],
+                ['Failed payments', formatCount(d.payments.failedPayments)],
+                ['Refunded', formatCurrency(d.payments.refunds)],
+              ]} />
+            </Section>
+
+            <Section title="Orders & Risk">
+              <Rows rows={[
+                ['Total orders', formatCount(d.company.totalOrders)],
+                ['Completed', formatCount(d.company.completedOrders)],
+                ['Pending', formatCount(d.company.pendingOrders)],
+                ['Cancelled', formatCount(d.company.cancelledOrders)],
+                ['Refunded', formatCount(d.company.refundOrders)],
+                ['Returned shipments', formatCount(d.shipping.returned)],
+              ]} />
+            </Section>
+
+            <Section title="Governance & Security">
+              <Rows rows={[
+                ['Corporate sessions', formatCount(d.security.corporateSessions)],
+                ['JWT status', String(d.security.jwtStatus)],
+                ['Seller approvals pending', formatCount(d.pendingApprovals.sellers)],
+                ['Product approvals pending', formatCount(d.pendingApprovals.products)],
+                ['Coupons', formatCount(d.business.totalCoupons)],
+                ['Open support tickets', formatCount(d.support.open)],
+              ]} />
+            </Section>
+          </div>
+
+          <Section title="Revenue by month">
+            <RevenueByMonth rows={d.analytics.revenueByMonth} />
+          </Section>
+
+          <ListSection
+            title="Top categories by product count"
+            empty="No categories recorded yet."
+            rows={(d.analytics.topCategories || []).slice(0, 10).map((c: any) => ({
+              id: c.name, label: c.name, value: formatCount(c.productCount),
+            }))}
+          />
+
+          <ListSection
+            title="Top products by sales"
+            empty="No product sales recorded yet."
+            rows={(d.analytics.topProducts || []).slice(0, 10).map((p: any) => ({
+              id: p.id, label: `${p.title} (${formatCount(p.soldCount)} sold)`, value: formatCurrency(p.sales),
+            }))}
+          />
+        </>
+      )}
+    </ExecutiveDashboardShell>
   );
 }
