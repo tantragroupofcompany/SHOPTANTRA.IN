@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Building2, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -50,6 +50,49 @@ export default function CorporateAccess() {
     setPassword('');
     setRemember(false);
     setError(null);
+  }, [selectedRole]);
+
+  // BROWSER AUTOFILL
+  // -----------------
+  // The reported symptom was `founder_2026` already sitting in the Username box
+  // before the user typed anything. Nothing in this application ever wrote that
+  // value into the field: React state starts as '', the input is controlled, and
+  // there is no defaultValue. So the text came from the BROWSER's own credential
+  // store - Chrome/Edge fill a login form from whatever they saved for this origin,
+  // and `autoComplete="off"` is advisory that Chrome is free to ignore on a form
+  // whose very shape (username + password) advertises a login.
+  //
+  // The fix is a `readOnly` that is lifted the moment the field receives focus.
+  // Browsers skip autofill on read-only inputs, so nothing can be injected before
+  // the user interacts, and the attribute is removed on focus so typing works
+  // normally. `autoComplete` is kept deliberately neutral rather than
+  // "username"/"current-password", which are the very tokens that ask a password
+  // manager to fill the form in.
+  const [usernameReadOnly, setUsernameReadOnly] = useState(true);
+  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Belt and braces: clear any value the browser may have injected after mount.
+  useEffect(() => {
+    const clear = () => {
+      if (usernameRef.current && usernameRef.current.value) {
+        usernameRef.current.value = '';
+        setUsername('');
+      }
+      if (passwordRef.current && passwordRef.current.value) {
+        passwordRef.current.value = '';
+        setPassword('');
+      }
+    };
+    clear();
+    // Runs after paint, so it also defeats autofill applied post-hydration.
+    const t = setTimeout(clear, 120);
+    window.addEventListener('pageshow', clear);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('pageshow', clear);
+    };
   }, [selectedRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,17 +199,29 @@ export default function CorporateAccess() {
                     load. The placeholder is deliberately neutral - it must never
                     name an executive, because the sign-in screen is public.
                   */}
+                  {/*
+                    readOnly until focus: browsers do not autofill a read-only
+                    input, and the attribute is removed on focus so the user can
+                    type normally. React state is '' and there is no defaultValue,
+                    so the shipped HTML carries no value attribute at all.
+                  */}
                   <input
+                    ref={usernameRef}
                     id="exec-username"
                     name="username"
                     type="text"
                     value={username}
+                    onFocus={() => setUsernameReadOnly(false)}
+                    onBlur={() => setUsernameReadOnly(true)}
+                    readOnly={usernameReadOnly}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="none"
                     spellCheck={false}
+                    data-1p-ignore
+                    data-lpignore="true"
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none"
                     placeholder="Enter username"
                   />
@@ -178,13 +233,19 @@ export default function CorporateAccess() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input
+                    ref={passwordRef}
                     id="exec-password"
                     name="password"
                     type="password"
                     value={password}
+                    onFocus={() => setPasswordReadOnly(false)}
+                    onBlur={() => setPasswordReadOnly(true)}
+                    readOnly={passwordReadOnly}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    autoComplete="current-password"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
                     className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-orange focus:border-transparent outline-none"
                     placeholder="Enter password"
                   />

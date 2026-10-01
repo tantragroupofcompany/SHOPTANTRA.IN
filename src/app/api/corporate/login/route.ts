@@ -70,8 +70,25 @@ async function ensureExecutiveAccounts() {
 
   for (const exec of EXECUTIVE_SEEDS) {
     // No bootstrap password configured for this role -> leave it alone entirely.
+    //
+    // DIAGNOSIS (this branch caused the production outage): the skip used to be
+    // completely silent. With the three EXECUTIVE_*_PASSWORD variables absent
+    // from the runtime, every request logged only "rejected wrong password",
+    // because the rows kept the inert sentinel from the migration and
+    // verifyPassword(allowPlaintext: false) correctly refused them. Nothing
+    // anywhere said "the password variable is not set", so the failure looked
+    // like a wrong owner password rather than a missing configuration value.
+    //
+    // The names are logged, never the values.
     const passwordPlain = process.env[exec.passwordEnvKey];
-    if (!passwordPlain || passwordPlain.trim().length === 0) continue;
+    if (!passwordPlain || passwordPlain.trim().length === 0) {
+      console.error(
+        `[corporate/login] ${exec.passwordEnvKey} is not set - the ${exec.role} ` +
+          `account CANNOT be provisioned and any sign-in for it will fail with ` +
+          `the generic 401. Set it in the Vercel Production environment.`
+      );
+      continue;
+    }
 
     const hashedPw = hashPasswordBcrypt(passwordPlain);
 
