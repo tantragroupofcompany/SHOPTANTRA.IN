@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { requireRole } from '../../../../middleware/index';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 // Order payment states that count towards live marketplace revenue
 const PAID_PAYMENT_STATUSES = ['PAID', 'COD_PENDING', 'UPI_VERIFICATION_PENDING'];
@@ -435,33 +436,34 @@ const data = {
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('Corporate dashboard error:', error);
+
+    // SECURITY / CORRECTNESS
+    // This handler used to answer HTTP 200 with `success: false` and a body of
+    // all zeroes. Two problems:
+    //
+    // 1. It shipped the raw Prisma/driver message (`error.message`) to the
+    //    browser, which can disclose table names, the connection host and the
+    //    shape of the schema.
+    // 2. HTTP 200 + zeros is indistinguishable from a genuinely empty
+    //    marketplace, so a database outage rendered as a real "0 users,
+    //    0 orders" board. That is exactly the silent-zero failure the
+    //    dashboards are required to avoid.
+    //
+    // It now answers a real 5xx with a generic message, and a known DB outage is
+    // reported as 503 so an operator can tell it apart from a code defect. The
+    // detail stays in the server log.
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[corporate/dashboard] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        { success: false, error: 'Dashboard data is temporarily unavailable. Please try again shortly.' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to load dashboard data',
-        data: {
-          today: { revenue: 0, orders: 0, payments: 0, newUsers: 0, newSellers: 0, newBuyers: 0 },
-          company: { totalRevenue: 0, monthlyRevenue: 0, yearlyRevenue: 0, totalOrders: 0, completedOrders: 0, pendingOrders: 0, cancelledOrders: 0, refundOrders: 0 },
-          marketplace: { totalProducts: 0, approvedProducts: 0, pendingProducts: 0, blockedProducts: 0, rejectedProducts: 0, outOfStockProducts: 0, draftProducts: 0, totalCategories: 0, lowStockProducts: 0, totalInventory: 0 },
-          sellers: { total: 0, approved: 0, pending: 0, rejected: 0, suspended: 0, blocked: 0, newToday: 0, newThisWeek: 0, newThisMonth: 0, pendingApprovalSellers: [], topSellers: [] },
-          buyers: { total: 0, newToday: 0, active: 0, inactive: 0, topBuyers: [] },
-          customers: { total: 0, newToday: 0, active: 0, inactive: 0 },
-          payments: { totalCollected: 0, pendingSettlement: 0, failedPayments: 0, refunds: 0, razorpay: 0, cod: 0, other: 0, commissionCollected: 0, totalPayments: 0 },
-          shipping: { ready: 0, packed: 0, shipped: 0, inTransit: 0, delivered: 0, returned: 0, cancelled: 0 },
-          shipments: { total: 0, byStatus: {} },
-          support: { open: 0, resolved: 0, pending: 0 },
-          analytics: { topProducts: [], topCategories: [], revenueByMonth: [], ordersByMonth: [] },
-          visitors: { today: 0, weekly: 0, monthly: 0 },
-          business: { totalBranches: 0, totalEmployees: 0, totalAdvertisements: 0, totalCoupons: 0, totalReviews: 0 },
-          security: { failedLogins: 0, blockedAccounts: 0, corporateSessions: 0, recentLogins: 0, jwtStatus: 'Unknown' },
-          pendingApprovals: { sellers: 0, products: 0, total: 0 },
-          recentOrders: [],
-          recentSellers: [],
-          recentProducts: [],
-          totalUsers: 0,
-        },
-      },
-      { status: 200 }
+      { success: false, error: 'Unable to load dashboard data. Please try again.' },
+      { status: 500 }
     );
   }
 }

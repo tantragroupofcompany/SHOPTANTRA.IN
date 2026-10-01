@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { requireRole } from '../../../../middleware/index';
 import { prisma } from '../../../../lib/prisma';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 export async function GET(request: NextRequest) {
   const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
@@ -56,14 +57,25 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Founder dashboard error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to load dashboard',
-      metrics: {
-        users: 0, sellers: 0, pendingSellers: 0, approvedSellers: 0,
-        products: 0, pendingProducts: 0, approvedProducts: 0,
-        orders: 0, todayOrders: 0, revenue: 0, todayRevenue: 0,
-      },
-    }, { status: 200 });
+
+    // Same defect as the corporate dashboard handler, fixed the same way: this
+    // used to return HTTP 200 with all zeroes and the raw `error.message`. A
+    // database outage therefore rendered as a real "0 users / 0 orders" board
+    // (the silent-zero failure), and the Prisma/driver text reached the browser.
+    // A known DB outage is 503; anything else is a generic 500. Detail stays in
+    // the server log.
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[founder/dashboard] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        { success: false, error: 'Dashboard data is temporarily unavailable. Please try again shortly.' },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Unable to load dashboard data. Please try again.' },
+      { status: 500 }
+    );
   }
 }
