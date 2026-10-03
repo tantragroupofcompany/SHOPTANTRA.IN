@@ -186,10 +186,33 @@ export async function GET(request: any) {
       prisma.sellerSettlement.groupBy({ by: ['status'], _sum: { sellerAmount: true, commissionAmount: true, grossAmount: true } }).catch(() => []),
     ]);
 // ---- Normalize grouping results into lookup maps ----
+    // CASE NORMALISATION (why this is not cosmetic):
+    //
+    // `Product.status` is written UPPER-CASE by every writer in the app - the
+    // corporate approval endpoint writes 'ACTIVE'/'REJECTED'/'BLOCKED'/'DRAFT',
+    // the polyfill upper-cases on insert and update, and the Admin product
+    // screen writes status: 'ACTIVE'. Sellers, orders and tickets are written
+    // upper-case too.
+    //
+    // This map used to be keyed by the RAW stored string, while the product
+    // lookups below asked for 'active' / 'pending' / 'draft' / 'rejected' /
+    // 'blocked' (lower-case). Because Prisma's groupBy is case-SENSITIVE, every
+    // one of those lookups missed and the dashboard reported a hard 0 for
+    // approved / pending / rejected / blocked / draft products - and, because
+    // `pendingApprovals.products` is derived from the same value, the
+    // "Product approvals" card always read 0 even when products were awaiting
+    // review. That is exactly the silent fake-zero this dashboard must never
+    // show.
+    //
+    // Keys are now upper-cased so a legacy lower-case row (written before the
+    // casing was standardised, or by a seller form posting 'draft') is counted
+    // the same as its upper-case twin instead of vanishing from the metrics.
     const byStatus = (rows: any[]) => {
       const map: Record<string, number> = {};
       rows.forEach((row: any) => {
-        map[row.status] = row._count._all || 0;
+        const key = String(row.status ?? '').toUpperCase();
+        if (!key) return;
+        map[key] = (map[key] || 0) + (row._count._all || 0);
       });
       return map;
     };
@@ -234,11 +257,14 @@ export async function GET(request: any) {
     const failedTransferTotal = settlementAmounts['FAILED'] || 0;
     const cancelledSettlementTotal = settlementAmounts['CANCELLED'] || 0;
 
-    const approvedProducts = productCounts['active'] || 0;
-    const pendingProducts = productCounts['pending'] || 0;
-    const blockedProducts = productCounts['blocked'] || 0;
-    const rejectedProducts = productCounts['rejected'] || 0;
-    const draftProducts = productCounts['draft'] || 0;
+    // Keys are UPPER-CASE (see byStatus above). 'APPROVED' is accepted as a
+    // synonym of 'ACTIVE' so a row stored under either spelling is counted as
+    // live rather than silently disappearing from the marketplace figures.
+    const approvedProducts = (productCounts['ACTIVE'] || 0) + (productCounts['APPROVED'] || 0);
+    const pendingProducts = productCounts['PENDING'] || 0;
+    const blockedProducts = productCounts['BLOCKED'] || 0;
+    const rejectedProducts = productCounts['REJECTED'] || 0;
+    const draftProducts = productCounts['DRAFT'] || 0;
 
     const approvedSellers = (sellerCounts['ACTIVE'] || 0) + (sellerCounts['APPROVED'] || 0);
     const pendingSellers = sellerCounts['PENDING'] || 0;

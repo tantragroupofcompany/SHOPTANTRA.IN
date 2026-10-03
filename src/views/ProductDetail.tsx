@@ -91,10 +91,18 @@ export default function ProductDetail() {
 
       // Try database query
       try {
+        // Enforce the storefront visibility rule on the direct product page.
+        //
+        // This lookup used to fetch by id alone, so `/product/<id>` served a
+        // seller DRAFT, a PENDING product, and anything an executive had
+        // REJECTED or BLOCKED - the listing pages hid those rows but the detail
+        // page happily rendered them. The filter below matches the listing
+        // pages exactly: only ACTIVE is customer visible.
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('id', id)
+          .eq('status', 'ACTIVE')
           .single();
 
         if (data && !error) {

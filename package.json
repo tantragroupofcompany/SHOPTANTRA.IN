@@ -8,9 +8,11 @@
     "build": "prisma generate && next build",
     "migrate:deploy": "node scripts/migrate-deploy.cjs",
     "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node scripts/test-executive-auth.cjs",
+    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs",
     "test:executives": "node scripts/test-executive-auth.cjs",
+    "test:dashboards": "node scripts/test-dashboard-regressions.cjs",
     "seed:executives": "node scripts/seed-executives.cjs"
   },
   "dependencies": {

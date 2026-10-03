@@ -13,7 +13,7 @@
  * ChairmanGuard) plus `requireRole` on every endpoint. Inventing per-role menu
  * differences would misrepresent what the server actually permits.
  */
-import { useCallback, useContext, useState, createContext } from 'react';
+import { useCallback, useContext, useState, createContext, useMemo } from 'react';
 import { LayoutDashboard, Users, Building2, Package, ShoppingCart, CreditCard,
   Percent, Wallet, RefreshCw, LogOut, Shield, X } from 'lucide-react';
 import ExecutiveSidebar, { type NavItem } from './ExecutiveSidebar';
@@ -70,6 +70,21 @@ export default function ExecutiveShell({
   const openDetail = useCallback((key: string) => setDetailKey(key), []);
   const closeDetail = useCallback(() => setDetailKey(null), []);
 
+  // The builder output MUST be referentially stable.
+  //
+  // `DETAIL_BUILDERS[key]()` returns a brand-new object literal on every call.
+  // Passing that straight through re-created the `request` prop on every parent
+  // render, and `ExecutiveDetailPanel` keys BOTH its reset effect and its fetch
+  // effect on `request`. The panel therefore tore down its own state and
+  // restarted the fetch on every render: the drawer showed the loading skeleton
+  // forever and never displayed the rows it had already loaded. Memoising on
+  // `detailKey` makes the prop change only when the user actually opens a
+  // different card, which is what the effect dependency is meant to express.
+  const detailRequest = useMemo(
+    () => (detailKey ? DETAIL_BUILDERS[detailKey]?.() ?? null : null),
+    [detailKey]
+  );
+
   const onSelect = (id: string) => {
     setActive(id);
     const target = NAV_TO_DETAIL[id];
@@ -123,7 +138,7 @@ export default function ExecutiveShell({
       </div>
 
       <ExecutiveDetailPanel
-        request={detailKey ? DETAIL_BUILDERS[detailKey]?.() ?? null : null}
+        request={detailRequest}
         onClose={closeDetail}
       />
       </div>

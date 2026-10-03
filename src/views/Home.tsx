@@ -67,9 +67,24 @@ export default function Home() {
   useEffect(() => {
     const fetchDbProducts = async () => {
       try {
+        // STOREFRONT VISIBILITY RULE.
+        //
+        // This query used to be `.select('*')` with no status filter, so the
+        // homepage published EVERY product row - seller drafts, products still
+        // awaiting review, and products an executive had explicitly rejected or
+        // blocked. That is the "unapproved products leak onto the storefront"
+        // defect, and it is also why a legitimately published product was
+        // indistinguishable from the noise around it.
+        //
+        // The site's own rule (see /products and the vendor store page, which
+        // both filter on status) is that only ACTIVE products are customer
+        // visible. `mode: 'insensitive'` in the polyfill means a row stored as
+        // 'ACTIVE' or 'active' is matched, so legacy casing cannot hide a
+        // legitimately published product either.
         const { data, error } = await supabase
           .from('products')
-          .select('*');
+          .select('*')
+          .eq('status', 'ACTIVE');
 
         if (data && !error) {
           const formatted: Product[] = [];

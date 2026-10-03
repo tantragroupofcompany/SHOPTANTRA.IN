@@ -190,6 +190,29 @@ export async function POST(request: Request) {
     const imagesJson = normalizeImages(images);
     const variantsJson = typeof variants === 'string' ? variants : JSON.stringify(variants || []);
 
+    // STATUS CASING (must match every other writer in the app).
+    //
+    // `Product.status` is upper-case everywhere else: the polyfill upper-cases on
+    // insert/update, the corporate approval endpoint writes 'ACTIVE'/'REJECTED'/
+    // 'BLOCKED'/'DRAFT', and the Admin screen writes status: 'ACTIVE'. The seller
+    // form posts a lower-case option value ('draft' / 'pending'), and this route
+    // stored it verbatim - so a seller-created product landed in the table as
+    // 'draft' while an approved one was 'ACTIVE'.
+    //
+    // That split casing is what broke the storefront: the dashboard's product
+    // groupBy is case-sensitive, and `Product.status` lookups that expect a
+    // single canonical spelling silently missed rows. Normalising here keeps the
+    // seller's intent ('publish'/'pending'/'draft') intact while guaranteeing one
+    // canonical storage form, so an approved product becomes visible
+    // automatically instead of needing a manual data fix.
+    const requestedStatus = String(status || 'DRAFT').trim().toUpperCase();
+    // Only states the seller is allowed to choose at creation time. A seller must
+    // not be able to self-approve into 'ACTIVE' and bypass executive review.
+    const ALLOWED_ON_CREATE = ['DRAFT', 'PENDING'];
+    const initialStatus = ALLOWED_ON_CREATE.includes(requestedStatus)
+      ? requestedStatus
+      : 'PENDING';
+
     const newProduct = await prisma.product.create({
       data: {
         sellerId,
@@ -202,7 +225,7 @@ export async function POST(request: Request) {
         description: description || null,
         sku: sku || null,
         barcode: barcode || null,
-        status: status || 'DRAFT',
+        status: initialStatus,
         images: imagesJson,
         variants: variantsJson,
         tags: tags || null,
@@ -275,7 +298,15 @@ export async function PUT(request: Request) {
     if (description !== undefined) updatePayload.description = description;
     if (sku !== undefined) updatePayload.sku = sku;
     if (barcode !== undefined) updatePayload.barcode = barcode;
-    if (status !== undefined) updatePayload.status = status;
+    // Same canonical-casing rule as the create path above: normalise whatever the
+    // seller posted so an edit cannot re-introduce a lower-case status that the
+    // dashboard's case-sensitive aggregation would then miss. The value is still
+    // clamped to the states a seller may set themselves - approving a product
+    // into ACTIVE remains an executive action (see /api/corporate/product-action).
+    if (status !== undefined) {
+      const requested = String(status).trim().toUpperCase();
+      updatePayload.status = ['DRAFT', 'PENDING'].includes(requested) ? requested : 'PENDING';
+    }
     if (tags !== undefined) updatePayload.tags = tags;
     if (weight !== undefined) updatePayload.weight = weight ? parseFloat(weight) : null;
     if (weightUnit !== undefined) updatePayload.weightUnit = weightUnit;

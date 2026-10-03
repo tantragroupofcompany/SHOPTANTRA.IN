@@ -1,7 +1,42 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+  "//": [
+    "STRICT TYPE-CHECK GATE FOR THE EXECUTIVE / CORPORATE DASHBOARD TREE.",
+    "",
+    "WHY THIS FILE EXISTS",
+    "-------------------",
+    "The root `tsconfig.json` is a Vite-style solution stub (`files: []` plus",
+    "project references). Running `npx tsc --noEmit` therefore compiled ZERO files",
+    "and always exited 0, and `next build` skipped type checking entirely.",
+    "That vacuous pass is precisely why `ExecutiveDashboardShell` could ship with",
+    "a bare `loading` identifier (TS2304 'Cannot find name') - a fatal",
+    "ReferenceError that took down all three executive dashboards at render time",
+    "while every gate in the pipeline still reported green.",
+    "",
+    "This config type checks the dashboard tree for real. It inherits the app",
+    "config's strictness but disables only `noUnusedLocals`/`noUnusedParameters`,",
+    "which are style rules, not correctness rules - the dashboard files carry a",
+    "handful of harmless unused imports (TS6133) that would otherwise mask real",
+    "errors. Everything that can actually break at runtime is still checked:",
+    "undefined names, wrong argument/return types, missing properties, and",
+    "invalid JSX.",
+    "",
+    "Run it with:  npm run typecheck"
+  ],
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": [
+    "src/views/executive",
+    "src/views/corporate",
+    "src/views/founder",
+    "src/views/ceo",
+    "src/views/chairman",
+    "src/lib/executiveDashboard.ts",
+    "src/lib/useExecutiveDashboard.ts",
+    "src/lib/corporateAuth.ts",
+    "src/app/api/corporate"
   ]
 }
