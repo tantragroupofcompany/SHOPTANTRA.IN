@@ -100,6 +100,11 @@ import BlogManagement from './views/admin/BlogManagement';
 import AdminReports from './views/admin/Reports';
 import AdminSecurityLogs from './views/admin/SecurityLogs';
 import AdminPickupLocations from './views/admin/PickupLocations';
+// Settlements.tsx exists and renders real SellerSettlement records via
+// /api/admin/settlements, but it was never imported or routed - so the sidebar
+// link rendered and then hit the catch-all 404. Registering it here closes that
+// dead navigation item.
+import AdminSettlements from './views/admin/Settlements';
 
 // Corporate dashboards
 import FounderDashboard from './views/founder/Dashboard';
@@ -231,6 +236,7 @@ export default function ClientApp() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="shipments" element={<AdminShipments />} />
               <Route path="pickup-locations" element={<AdminPickupLocations />} />
+              <Route path="settlements" element={<AdminSettlements />} />
               <Route path="categories" element={<AdminCategories />} />
               <Route path="leads" element={<AdminLeads />} />
               <Route path="subscriptions" element={<AdminSubscriptions />} />

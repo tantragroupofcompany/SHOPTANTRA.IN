@@ -275,6 +275,106 @@ check('every sidebar drill-down target maps to a real detail builder', () => {
     assert.ok(keys.includes(key), 'sidebar target must have a detail builder: ' + key);
   });
 });
+// ---------------------------------------------------------------------------
+console.log('\n[5] API authorization coverage (no public data leak)');
+
+const mw = read('src/middleware.ts');
+
+check('/api/analytics is inside a guarded RBAC branch', () => {
+  assert.ok(
+    /path === '\/api\/analytics'/.test(mw),
+    '/api/analytics matched NO guarded prefix and answered 200 anonymously'
+  );
+  assert.ok(
+    /path\.startsWith\('\/api\/analytics'\)/.test(mw),
+    'the analytics branch must actually apply requireRole'
+  );
+});
+check('the analytics guard runs before the response is returned', () => {
+  const branch = mw.slice(mw.indexOf("path.startsWith('/api/analytics')"));
+  assert.ok(
+    /requireRole\(request, \[[^\]]*'SELLER'/.test(branch) &&
+      /if \(guard instanceof NextResponse\) return guard;/.test(branch),
+    'the analytics branch must require a role and return the 401/403 guard'
+  );
+});
+check('SELLER is still permitted on analytics (not over-restricted)', () => {
+  const branch = mw.slice(mw.indexOf("path.startsWith('/api/analytics')"));
+  assert.ok(
+    branch.includes("'SELLER'"),
+    'sellers must retain access to their own analytics'
+  );
+});
+check('executives and admin retain analytics access', () => {
+  const branch = mw.slice(mw.indexOf("path.startsWith('/api/analytics')"));
+  ['ADMIN', 'FOUNDER', 'CEO_MD'].forEach((role) => {
+    assert.ok(branch.includes("'" + role + "'"), role + ' must keep analytics access');
+  });
+});
+check('the analytics route itself also requires a session', () => {
+  const src = read('src/app/api/analytics/route.ts');
+  assert.ok(
+    /requireRole\(request, \[/.test(src),
+    'defence in depth: the route must guard itself, not rely on middleware alone'
+  );
+});
+check('a seller cannot read another seller analytics (403 isolation)', () => {
+  const src = read('src/app/api/analytics/route.ts');
+  assert.ok(
+    /role === 'SELLER' && sellerIdParam/.test(src),
+    'the route must scope ?sellerId to the requesting seller'
+  );
+  assert.ok(
+    /status: 403/.test(src),
+    'a cross-seller request must be refused with 403'
+  );
+  assert.ok(
+    !/requireRole\(request, \['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD'\]\);\s*\n\s*if \(guard instanceof NextResponse\) return guard;\s*\n\s*const \{ searchParams \}/.test(src),
+    'the ownership check must run BEFORE the sellerId is trusted'
+  );
+});
+check('every guarded namespace still has its own requireRole branch', () => {
+  ['/api/founder', '/api/admin', '/api/corporate', '/api/seller', '/api/shipment', '/api/buyer'].forEach(
+    (p) => {
+      // lastIndexOf, not indexOf: each namespace also appears in the earlier
+      // "which prefixes are guarded?" condition list, so the first match is that
+      // list, not the branch that actually calls requireRole.
+      const i = mw.lastIndexOf("path.startsWith('" + p + "')");
+      assert.ok(i > -1, 'missing guard branch for ' + p);
+      // Scan the branch with comments stripped: a guard may legitimately be
+      // preceded by a long explanatory comment (the /api/shipment branch has
+      // one), and comment length must not be mistaken for a missing guard.
+      const seg = mw
+        .slice(i, i + 900)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '');
+      assert.ok(
+        /requireRole\(request, \[/.test(seg),
+        p + ' must call requireRole in its guard branch'
+      );
+    }
+  );
+});
+
+// ---------------------------------------------------------------------------
+console.log('\n[6] Dead navigation (no link lands on the 404 catch-all)');
+
+const app = read('src/ClientApp.tsx');
+
+check('the admin Settlements route is registered', () => {
+  assert.ok(
+    /<Route path="settlements" element=\{<AdminSettlements \/>\} \/>/.test(app),
+    "Settlements.tsx existed but was never routed, so the admin link 404'd"
+  );
+  assert.ok(
+    /import AdminSettlements from '\.\/views\/admin\/Settlements'/.test(app),
+    'AdminSettlements must be imported'
+  );
+});
+check('the admin settlements view file actually exists', () => {
+  assert.ok(fs.existsSync(path.join(root, 'src/views/admin/Settlements.tsx')));
+});
+
 // --- Summary -----------------------------------------------------------------
 console.log('\n----------------------------------------');
 console.log('  passed: ' + passed + '   failed: ' + failed);

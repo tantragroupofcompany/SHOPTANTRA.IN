@@ -1,11 +1,48 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { classifyDbError } from '../../../lib/authUtils';
+import { requireRole } from '../../../middleware/index';
 
-export async function GET(request: Request) {
+export async function GET(request: any) {
   try {
+    // AUTHENTICATION (added - this route was reachable with no session at all).
+    //
+    // /api/analytics matched none of the middleware RBAC prefixes, so anyone
+    // could read company-wide revenue, customer/seller/product totals, top
+    // products and the payout ledger anonymously.
+    const guard = await requireRole(request, [
+      'SELLER',
+      'ADMIN',
+      'FOUNDER',
+      'CEO_MD',
+      'CHAIRMAN',
+    ]);
+    if (guard instanceof NextResponse) return guard;
+    const role: string = (guard as any).role;
+    const sessionUserId: string | undefined = (guard as any).userId;
+
     const { searchParams } = new URL(request.url);
     const sellerIdParam = searchParams.get('sellerId'); // Optional: filter by seller for vendor dashboard analytics
+
+    // SELLER ISOLATION.
+    //
+    // A SELLER may only ever read their OWN figures. Previously this route took
+    // `?sellerId=` at face value, so any seller could pass another seller's id
+    // and read that seller's revenue and orders. Executives and admins retain
+    // company-wide access, which is what the admin dashboard and revenue page
+    // rely on.
+    if (role === 'SELLER' && sellerIdParam && sellerIdParam !== sessionUserId) {
+      const ownsSellerProfile = await prisma.seller.findFirst({
+        where: { OR: [{ id: sellerIdParam }, { userId: sellerIdParam }] },
+        select: { userId: true },
+      });
+      if (!ownsSellerProfile || ownsSellerProfile.userId !== sessionUserId) {
+        return NextResponse.json(
+          { error: 'You can only view analytics for your own seller account.' },
+          { status: 403 }
+        );
+      }
+    }
 
     // Resolve user ID or seller profile ID to seller profile ID
     let sellerId = sellerIdParam;

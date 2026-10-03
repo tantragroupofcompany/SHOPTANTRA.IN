@@ -101,7 +101,9 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/api/corporate') ||
     path.startsWith('/api/seller') ||
     path.startsWith('/api/shipment') ||
-    path.startsWith('/api/buyer')
+    path.startsWith('/api/buyer') ||
+    path === '/api/analytics' ||
+    path.startsWith('/api/analytics/')
   ) {
     // Sign-out must stay reachable even when the session has already expired,
     // otherwise a stale executive cookie could never be cleared. The route
@@ -132,6 +134,21 @@ export async function middleware(request: NextRequest) {
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/buyer')) {
       const guard = await requireRole(request, ['BUYER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      if (guard instanceof NextResponse) return guard;
+    } else if (path.startsWith('/api/analytics')) {
+      // This endpoint matched NONE of the guarded prefixes above, so it fell
+      // through completely unauthenticated: anyone could read company-wide
+      // revenue, customer/seller/product totals, top products and the payout
+      // ledger - and could pass ?sellerId=<any id> to read one seller's private
+      // figures. It is consumed only by the admin dashboard, the admin revenue
+      // page and the seller dashboard/analytics, which authenticate as ADMIN,
+      // FOUNDER, CEO_MD or SELLER.
+      //
+      // Requiring a session here closes the leak without weakening anything:
+      // SELLER keeps access because sellers legitimately read their own
+      // analytics, and the role check is repeated inside the route (see the
+      // sellerId scoping below) so one seller cannot read another's numbers.
+      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     }
   }
