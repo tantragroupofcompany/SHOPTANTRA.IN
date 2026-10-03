@@ -156,7 +156,12 @@ export default function ExecutiveDashboardShell({
       title={title}
       subtitle={subtitle}
       role={title.replace(' Dashboard', '')}
-      loading={loading}
+      /* Reached only when `state === 'ready'`: the loading and error branches
+         above already returned. `loading` was previously referenced as a free
+         variable here (TS2304: Cannot find name 'loading'), which threw a
+         ReferenceError while rendering and took down all three executive
+         dashboards (they share this shell). */
+      loading={false}
       refreshing={refreshing}
       onRefresh={reload}
       onSignOut={signOut}

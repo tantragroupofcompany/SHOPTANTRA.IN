@@ -37,6 +37,12 @@ export interface DetailRequest {
   columns: DetailColumn<any>[];
   /** Optional filter chips, e.g. order status. */
   filters?: { id: string; label: string; value: string }[];
+  /**
+   * Query-string parameter the chip value is sent as. Every corporate detail
+   * endpoint reads `status`, and the finance endpoint additionally reads `view`,
+   * so this defaults to `status`.
+   */
+  filterParam?: string;
   /** Path in the response holding the row array. Defaults to `items`. */
   itemsKey?: string;
 }
@@ -93,7 +99,18 @@ export default function ExecutiveDetailPanel({
   useEffect(() => {
     if (!request) return;
     let cancelled = false;
-    const url = filter === 'all' ? request.url : `${request.url}?${request.itemsKey === 'items' ? 'status' : 'view'}=${encodeURIComponent(filter)}`;
+    // Build the filtered URL.
+    // Every corporate detail endpoint reads `?status=` for the chip value, and
+    // some builder URLs already carry a query string (e.g. `?view=payments`), so
+    // the separator has to be `&` in that case. The previous code sent
+    // `?view=<value>` (the wrong parameter name for the list endpoints) and
+    // produced a malformed `...?view=payments?view=paid` URL for the finance
+    // views, so every filter chip silently returned unfiltered data.
+    const filterParam = request.filterParam || 'status';
+    const url =
+      filter === 'all'
+        ? request.url
+        : `${request.url}${request.url.includes('?') ? '&' : '?'}${filterParam}=${encodeURIComponent(filter)}`;
     (async () => {
       try {
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
