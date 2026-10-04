@@ -345,15 +345,29 @@ check('no /api/shipment route is left without any authorization guard', () => {
   assert.deepStrictEqual(offenders, [], 'unguarded shipment routes: ' + offenders.join(', '));
 });
 
-check('the public tracking route exposes only AWB status, not account data', () => {
+check('the public tracking route never returns buyer PII', () => {
   const code = stripComments(read('src/app/api/tracking/route.ts'));
+
+  // The route may legitimately READ shippingAddress to verify the phone a
+  // buyer typed (a knowledge factor). What must never happen is RETURNING it.
+  // So assert on the serialised response, not on the presence of the field.
+  const jsonBlocks = code.match(/NextResponse\.json\([\s\S]*?\n\s*\}\);/g) || [];
+  assert.ok(jsonBlocks.length > 0, 'no JSON response blocks found to inspect');
+  for (const block of jsonBlocks) {
+    assert.ok(
+      !/\b(shippingAddress|phone|buyerId|buyerName|email)\b\s*:/.test(block),
+      'a tracking response serialises buyer PII:\n' + block.slice(0, 200),
+    );
+  }
+});
+
+check('the AWB branch selects only the fields it returns', () => {
+  const code = stripComments(read('src/app/api/tracking/route.ts'));
+  // `include: { order: true }` pulls the entire order (address, totals, buyer
+  // link) into memory for a public endpoint. Select the named columns instead.
   assert.ok(
-    !/include:\s*\{[^}]*buyer: true/.test(code),
-    'tracking route joins buyer PII',
-  );
-  assert.ok(
-    !/shippingAddress/.test(code),
-    'tracking route returns a shipping address',
+    !/include:\s*\{\s*order:\s*true/.test(code),
+    'the AWB branch still joins the whole Order row on a public route',
   );
 });
 

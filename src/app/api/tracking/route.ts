@@ -18,9 +18,22 @@ export async function GET(request: Request) {
             { shipmentNumber: awb },
           ],
         },
-        include: {
-          order: true,
-          courierPartner: true,
+        select: {
+          id: true,
+          shipmentNumber: true,
+          awbNumber: true,
+          trackingNumber: true,
+          status: true,
+          codAmount: true,
+          weight: true,
+          dispatchDate: true,
+          estimatedDelivery: true,
+          trackingLink: true,
+          courierPartner: { select: { name: true } },
+          // Only the order NUMBER is returned below. Selecting the whole order
+          // row would pull the buyer's address, totals and buyer link into
+          // memory on an unauthenticated endpoint for no reason.
+          order: { select: { orderNumber: true } },
           trackingUpdates: { orderBy: { timestamp: 'desc' } },
         },
       });
