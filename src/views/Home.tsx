@@ -42,20 +42,20 @@ export default function Home() {
       link: "/products"
     },
     {
-      title: "🌾 Pampore Saffron & Gir Cow Ghee Flat 50% Off!",
-      description: "Get pure Vedic Bilona churned A2 Ghee and original Grade-A Kashmiri Mongra Kesar. Limited festive batch.",
+      title: "Everyday essentials from verified sellers",
+      description: "Browse the live catalogue published by approved ShopTantra sellers, with clear stock and delivery information.",
       bg: "from-brand-orange via-brand-orange-hover to-amber-600",
+      tag: "GROCERY",
       cta: "Shop Groceries",
-      tag: "SWADESHI FARMS SPECIAL",
       link: "/products?category=Grocery"
     },
     {
-      title: "🎧 TantraSound Pro 500 Noise Cancelling Audio",
-      description: "Experience active hybrid noise cancellation with 50-hour battery life. Designed for audiophiles.",
+      title: "Open a ShopTantra store today",
+      description: "List your products, reach buyers across India, and get paid through the seller settlement cycle.",
       bg: "from-brand-navy-light via-brand-navy-dark to-slate-900",
-      cta: "Grab ANC Headset",
-      tag: "NEW ELECTRONICS LAUNCH",
-      link: "/product/prod-1"
+      cta: "Become a Seller",
+      tag: "FOR SELLERS",
+      link: "/products?role=seller"
     }
   ];
 

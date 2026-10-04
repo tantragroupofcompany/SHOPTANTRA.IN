@@ -95,17 +95,56 @@ export function Navbar() {
     setShowSuggestions(false);
   };
 
-  // Mock Voice Search
+  // Voice search.
+  //
+  // The previous implementation was a FAKE: after a fixed 2.5s delay it picked a
+  // random entry from a hardcoded list ('Wireless ANC Headphones', 'Pure Ghee',
+  // ...) and navigated to it. That silently sent shoppers to a search for a
+  // product they never asked for, presenting fabricated behaviour as a working
+  // microphone. It is now backed by the real Web Speech API, and the button is
+  // hidden entirely where the browser cannot actually do it, so the UI never
+  // offers a capability that does not exist.
+  const SpeechRecognitionRef =
+    typeof window !== 'undefined'
+      ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      : null;
+  const voiceSupported = !!SpeechRecognitionRef;
+
   const triggerVoiceSearch = () => {
+    if (!SpeechRecognitionRef) return;
     setIsListening(true);
-    // Simulate speech recognition
-    setTimeout(() => {
-      const speechResults = ['Wireless ANC Headphones', 'Kurta Set', 'Pure Ghee', 'STEM Robotics'];
-      const randomQuery = speechResults[Math.floor(Math.random() * speechResults.length)];
-      setSearchQuery(randomQuery);
+
+    const recognition: any = new SpeechRecognitionRef();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
       setIsListening(false);
-      navigate(`/products?search=${encodeURIComponent(randomQuery)}`);
-    }, 2500);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event?.results?.[0]?.[0]?.transcript;
+      const query = typeof transcript === 'string' ? transcript.trim() : '';
+      finish();
+      if (query) {
+        setSearchQuery(query);
+        setShowSuggestions(false);
+        navigate(`/products?search=${encodeURIComponent(query)}`);
+      }
+    };
+    recognition.onerror = () => finish();
+    recognition.onend = () => finish();
+
+    try {
+      recognition.start();
+    } catch {
+      // Starting twice throws; treat it as already-finished rather than a crash.
+      finish();
+    }
   };
 
   const handleSignOut = async () => {
@@ -130,8 +169,13 @@ export function Navbar() {
       <div className="w-full bg-gradient-to-r from-brand-navy to-brand-navy-light text-white text-xs py-2 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <span className="hidden sm:inline text-gray-300">Welcome to India's Premium Marketplace</span>
-          <Link to="/products?category=Grocery" className="text-brand-orange hover:underline font-semibold">
-            🌾 Organic Pampore Kesar Flat 50% Off!
+          {/* No promotional claim here unless it is backed by real data.
+              This previously advertised a hardcoded "Organic Pampore Kesar
+              Flat 50% Off!" linking into the grocery category. That offer was
+              not driven by any coupon, product or promotion record, so it was a
+              fabricated discount claim on a live marketplace. */}
+          <Link to="/products" className="text-brand-orange hover:underline font-semibold">
+            Shop verified sellers
           </Link>
         </div>
         <div className="flex items-center gap-4">
@@ -236,15 +280,18 @@ export function Navbar() {
                   className="w-full bg-gray-100 dark:bg-brand-navy-light/30 text-gray-800 dark:text-gray-200 pl-4 pr-20 py-2.5 rounded-r-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange/50 dark:focus:ring-brand-orange/30 border-0 transition-all"
                 />
                 
-                {/* Voice Search Icon */}
-                <button
-                  type="button"
-                  onClick={triggerVoiceSearch}
-                  className={`absolute right-12 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-brand-navy-light/50 transition-colors ${isListening ? 'text-brand-orange animate-pulse' : 'text-gray-400 dark:text-gray-500'}`}
-                  title="Voice Search"
-                >
-                  <Mic size={16} />
-                </button>
+                {/* Voice Search Icon - only rendered where the browser can do it */}
+                {voiceSupported && (
+                  <button
+                    type="button"
+                    onClick={triggerVoiceSearch}
+                    className={`absolute right-12 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-brand-navy-light/50 transition-colors ${isListening ? 'text-brand-orange animate-pulse' : 'text-gray-400 dark:text-gray-500'}`}
+                    title="Voice Search"
+                    aria-label="Voice search"
+                  >
+                    <Mic size={16} />
+                  </button>
+                )}
 
                 {/* Search submit button */}
                 <button

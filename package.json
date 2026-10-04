@@ -10,9 +10,10 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs",
+    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs && node scripts/test-product-approval.cjs",
     "test:executives": "node scripts/test-executive-auth.cjs",
     "test:dashboards": "node scripts/test-dashboard-regressions.cjs",
+    "test:product-approval": "node scripts/test-product-approval.cjs",
     "seed:executives": "node scripts/seed-executives.cjs"
   },
   "dependencies": {

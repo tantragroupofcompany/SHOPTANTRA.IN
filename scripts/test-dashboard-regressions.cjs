@@ -172,32 +172,48 @@ check('the product detail page applies the ACTIVE storefront filter', () => {
   );
 });
 // ---------------------------------------------------------------------------
-console.log('\n[3] Seller write-path status canonicalisation');
+console.log('\n[3] Seller write-path publication policy');
 
-const ALLOWED_ON_CREATE = ['DRAFT', 'PENDING'];
-function initialStatus(posted) {
-  const requested = String(posted || 'DRAFT').trim().toUpperCase();
-  return ALLOWED_ON_CREATE.includes(requested) ? requested : 'PENDING';
+// The write path no longer derives publication from the posted `status` field.
+// Publication is decided by the seller's real account status, so these checks
+// model that policy. The "seller cannot self-approve" guarantee still holds and
+// is now enforced server-side against the seller row rather than a whitelist.
+function initialStatus(seller) {
+  const eligible =
+    !!seller &&
+    ['ACTIVE', 'APPROVED'].includes(String(seller.status || '').toUpperCase()) &&
+    String(seller.verificationStatus || '').toUpperCase() === 'VERIFIED';
+  return eligible ? 'ACTIVE' : 'PENDING';
 }
 
-check("a seller posting 'draft' stores the canonical DRAFT", () => {
-  assert.strictEqual(initialStatus('draft'), 'DRAFT');
+check('a verified ACTIVE seller publishes immediately', () => {
+  assert.strictEqual(
+    initialStatus({ status: 'ACTIVE', verificationStatus: 'VERIFIED' }),
+    'ACTIVE'
+  );
 });
-check("a seller posting 'pending' stores PENDING", () => {
-  assert.strictEqual(initialStatus('pending'), 'PENDING');
+check('a blocked seller is held PENDING regardless of what they post', () => {
+  assert.strictEqual(
+    initialStatus({ status: 'BLOCKED', verificationStatus: 'VERIFIED' }),
+    'PENDING'
+  );
 });
-check('a missing status defaults to DRAFT, never to a live state', () => {
-  assert.strictEqual(initialStatus(undefined), 'DRAFT');
+check('a suspended seller is held PENDING', () => {
+  assert.strictEqual(
+    initialStatus({ status: 'SUSPENDED', verificationStatus: 'VERIFIED' }),
+    'PENDING'
+  );
 });
-check("a seller cannot self-approve by posting 'active'", () => {
-  assert.notStrictEqual(initialStatus('active'), 'ACTIVE');
-  assert.strictEqual(initialStatus('active'), 'PENDING');
+check('an unverified seller is held PENDING', () => {
+  assert.strictEqual(
+    initialStatus({ status: 'ACTIVE', verificationStatus: 'PENDING_VERIFICATION' }),
+    'PENDING'
+  );
 });
-check('whitespace or casing cannot smuggle a live status through', () => {
-  assert.notStrictEqual(initialStatus('  active  '), 'ACTIVE');
-  assert.notStrictEqual(initialStatus('ACTIVE'), 'ACTIVE');
+check('a seller with no account row fails closed to PENDING', () => {
+  assert.strictEqual(initialStatus(null), 'PENDING');
 });
-check('an approved product becomes visible once an executive approves it', () => {
+check('an approved product becomes visible once it is ACTIVE', () => {
   // The executive approval endpoint writes the canonical ACTIVE value.
   assert.strictEqual(isCustomerVisible({ status: 'ACTIVE' }), true);
 });
@@ -209,22 +225,38 @@ check('the executive approval endpoint still writes the canonical ACTIVE', () =>
   );
 });
 
-check('seller create path canonicalises status before writing', () => {
+check('seller create path derives status from the shared policy, not the request', () => {
   const src = read('src/app/api/seller/products/route.ts');
+  // The old behaviour upper-cased and clamped whatever the seller posted, which
+  // is what trapped every product in DRAFT. Publication is now decided by the
+  // shared server-side policy, so the route must call it and must NOT derive the
+  // stored status from the posted `status` field.
   assert.ok(
-    /const requestedStatus = String\(status \|\| 'DRAFT'\)\.trim\(\)\.toUpperCase\(\)/.test(src),
-    'seller create must upper-case the posted status'
+    /isSellerEligibleForAutoPublish\(/.test(src) &&
+      /resolvePublicationState\(/.test(src),
+    'seller create must resolve publication through the shared eligibility policy'
   );
   assert.ok(
     /status: initialStatus/.test(src),
-    'seller create must persist the canonical status, not the raw posted value'
+    'seller create must persist the policy-resolved status, not the raw posted value'
+  );
+  assert.ok(
+    /\n\s+approvalStatus,\n/.test(src),
+    'seller create must persist approvalStatus alongside status'
   );
 });
-check('seller update path cannot write a live ACTIVE status', () => {
+
+check('seller update path cannot publish a product from a forged status', () => {
   const src = read('src/app/api/seller/products/route.ts');
+  // An edit must never be able to push a product live by posting status=active,
+  // and an edit to an already-live product must not silently unpublish it.
   assert.ok(
-    /\['DRAFT',\s*'PENDING'\]\.includes\(requested\)/.test(src),
-    'seller update must clamp status to the states a seller may set themselves'
+    !/updatePayload\.status = requested/.test(src),
+    'seller update must not assign a status taken from the request body'
+  );
+  assert.ok(
+    src.includes("currentStatus === 'ACTIVE'"),
+    'seller update must preserve an existing ACTIVE product rather than forcing it back to PENDING'
   );
 });
 

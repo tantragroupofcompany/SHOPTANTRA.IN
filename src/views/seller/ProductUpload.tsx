@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, X, Plus } from 'lucide-react';
+import { Upload, X, Plus, CheckCircle } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input, Textarea, Select } from '../../components/ui/Input';
@@ -50,7 +50,9 @@ const ProductUpload = () => {
     countryOfOrigin: 'India',
     hsnCode: '',
     estimatedPackingTime: '24',
-    status: 'DRAFT',
+    // NOTE: there is deliberately no `status` field any more. The form used to
+    // collect a Draft/Pending choice that the API ignored, which misrepresented
+    // what would happen to the product. Publication is now server-side.
   });
 
   const [images, setImages] = useState<Image[]>([
@@ -161,7 +163,6 @@ const ProductUpload = () => {
           description: formData.description,
           sku: formData.sku,
           barcode: formData.barcode,
-          status: formData.status,
           images: validImages,
           variants: variants,
           tags: formData.tags,
@@ -185,7 +186,17 @@ const ProductUpload = () => {
         throw new Error(errData.error || 'Failed to upload product');
       }
 
-      alert('Product created successfully!');
+      // Report the ACTUAL stored state returned by the API rather than assuming
+      // success, so a seller is never told "published" when the product is still
+      // awaiting review (e.g. an unverified or restricted account).
+      const result = await res.json();
+      if (result.autoPublished) {
+        alert('Product published successfully! It is now live on the storefront.');
+      } else {
+        alert(
+          'Product submitted successfully. It is held for review and will go live once your seller account is verified.'
+        );
+      }
       navigate('/seller/inventory');
     } catch (error: any) {
       console.error('Error uploading product:', error);
@@ -619,17 +630,37 @@ const ProductUpload = () => {
           )}
         </Card>
 
-        {/* Status */}
+        {/*
+          PUBLICATION STATE
+          ---------------------
+          This panel previously offered a "Draft / Pending Review" dropdown whose
+          value the API then clamped anyway, while the submit button next to it
+          said "Publish Product". The two contradicted each other: a seller who
+          clicked "Publish Product" could never publish anything, because the
+          API hard-clamped every create into DRAFT/PENDING and only an executive
+          could later move it to ACTIVE. That is the root cause of products
+          appearing as DRAFT in the corporate Products drawer.
+
+          Publication is now decided server-side by the seller's account status
+          (see lib/productPolicy.ts): a verified, active seller publishes
+          immediately, and an unverified/blocked seller is held for review. So
+          this is no longer a choice - it is a statement of what will happen.
+        */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Status</h2>
-          <Select
-            name="status"
-            value={formData.status}
-            onChange={handleInputChange}
-          >
-            <option value="draft">Draft</option>
-            <option value="pending">Pending Review</option>
-          </Select>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Publication</h2>
+          <p className="text-sm text-gray-600 mb-3">
+            This product is published automatically once you submit it. Publication
+            is decided by your verified seller account - if your account is pending
+            verification or restricted, the product is held for review instead of
+            going live.
+          </p>
+          <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+            <CheckCircle size={16} className="mt-0.5 shrink-0" />
+            <span>
+              No separate corporate approval step is required for a valid, verified
+              seller account.
+            </span>
+          </div>
         </Card>
 
         {/* Submit Button */}

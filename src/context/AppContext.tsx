@@ -61,24 +61,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [couponCode, setCouponCode] = useState<string>('');
   const [couponDiscount, setCouponDiscount] = useState<number>(0);
 
-  const [notifications, setNotifications] = useState<AppNotification[]>([
-    {
-      id: 'n-1',
-      title: 'Welcome to SHOPTANTRA!',
-      message: 'Explore millions of products directly from Indian manufacturers.',
-      type: 'system',
-      read: false,
-      time: 'Just now'
-    },
-    {
-      id: 'n-2',
-      title: 'Mega Flash Sale Live',
-      message: 'Get up to 50% off on premium local brands. Use coupon WELCOME.',
-      type: 'promo',
-      read: false,
-      time: '2 hours ago'
-    }
-  ]);
+  // Notifications start EMPTY.
+  //
+  // This previously shipped two hardcoded notifications, including
+  // "Mega Flash Sale Live - Get up to 50% off on premium local brands. Use coupon
+  // WELCOME." That is fabricated marketing presented as real account activity:
+  // the sale did not exist, the coupon may not be valid, and a shopper could act
+  // on it. The real notification systems are the seller/admin/buyer API-backed
+  // views, and cart/wishlist actions push genuine entries in via addNotification.
+  // An empty initial state makes "No new notifications" truthful instead of
+  // implying activity that never happened.
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   useEffect(() => {
     localStorage.setItem('shoptantra_cart', JSON.stringify(cart));
