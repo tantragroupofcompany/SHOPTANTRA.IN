@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireRole } from '../../../../middleware/index';
 
 // Fetch all payout requests
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: the platform payout queue is admin-only financial data.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const payouts = await prisma.payoutRequest.findMany({
       include: {
         seller: {
@@ -37,6 +42,10 @@ export async function GET() {
 // Approve/Reject/Hold payout request
 export async function PUT(request: Request) {
   try {
+    // AUTHORIZATION: approving/rejecting seller payouts is an admin money action.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { payoutId, action, notes, transactionId } = await request.json();
 
     if (!payoutId || !action) {

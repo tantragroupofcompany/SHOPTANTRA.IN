@@ -1,32 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSeller(id: string | null) {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    },
-    include: {
-      pickupAddress: true,
-      user: true
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' },
-      include: {
-        pickupAddress: true,
-        user: true
-      }
-    });
-  }
-  return seller;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 // GET /api/seller/store-settings
 export async function GET(request: Request) {
@@ -38,7 +12,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const seller = await resolveSeller(sellerIdParam);
+    // AUTHORIZATION: a seller may only read their OWN store settings. This
+    // route previously trusted the query parameter and fell back to an
+    // arbitrary ACTIVE seller, leaking a random store's GST / bank details.
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+
+    const seller = await prisma.seller.findUnique({
+      where: { id: scope.sellerId },
+      include: { pickupAddress: true, user: true },
+    });
     if (!seller) {
       return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
     }
@@ -128,7 +111,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
     }
 
-    const seller = await resolveSeller(idToResolve);
+    // AUTHORIZATION: a seller may only modify their OWN store. Previously this
+    // let a caller rewrite another store's GST / PAN / bank account details.
+    const scope = await requireSellerScope(request, idToResolve);
+    if (!scope.ok) return scope.response;
+
+    const seller = await prisma.seller.findUnique({
+      where: { id: scope.sellerId },
+      include: { pickupAddress: true, user: true },
+    });
     if (!seller) {
       return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
     }

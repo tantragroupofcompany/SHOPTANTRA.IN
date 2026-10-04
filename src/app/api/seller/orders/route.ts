@@ -1,24 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSellerId(id: string | null): Promise<string | null> {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
-  return seller ? seller.id : null;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 // GET /api/seller/orders
 export async function GET(request: Request) {
@@ -30,10 +12,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(sellerIdParam);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     const orders = await prisma.order.findMany({
       where: { sellerId },
@@ -149,16 +130,31 @@ export async function PUT(request: Request) {
       );
     }
 
+    // AUTHORIZATION: a seller may only change the status of their OWN orders.
+    // This handler previously accepted any order `id` with no ownership check,
+    // so one seller could cancel/refund another store's orders (and, via the
+    // restock logic below, inflate that store's inventory).
+    const scope = await requireSellerScope(request);
+    if (!scope.ok) return scope.response;
+
     const existing = await prisma.order.findUnique({
       where: { id },
       select: {
         id: true,
         status: true,
+        sellerId: true,
         items: { select: { productId: true, quantity: true } },
       },
     });
     if (!existing) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    if (!scope.elevated && existing.sellerId !== scope.sellerId) {
+      return NextResponse.json(
+        { error: 'Access Denied – this order belongs to another store.' },
+        { status: 403 }
+      );
     }
 
     // Restock when an order moves INTO the cancelled state.

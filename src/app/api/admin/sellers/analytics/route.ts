@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
+import { requireRole } from '../../../../../middleware/index';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: per-seller revenue analytics are admin-only.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const sellers = await prisma.seller.findMany({
       include: {
         products: {

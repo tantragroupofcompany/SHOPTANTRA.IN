@@ -1,24 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSellerId(id: string | null): Promise<string | null> {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
-  return seller ? seller.id : null;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 // GET /api/seller/earnings
 export async function GET(request: Request) {
@@ -34,10 +16,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(sellerIdParam);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     // Fetch wallet details
     const wallet = await prisma.vendorWallet.findUnique({
@@ -113,14 +94,16 @@ export async function POST(request: Request) {
     const { sellerId: sellerIdParam, userId, amount, paymentMethod, upiId, bankDetails } = body;
 
     const idToResolve = sellerIdParam || userId;
-    if (!idToResolve || !amount || amount <= 0) {
-      return NextResponse.json({ error: 'sellerId/userId and positive amount are required' }, { status: 400 });
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: 'A positive payout amount is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(idToResolve);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    // AUTHORIZATION: a payout may only be requested against the caller's own
+    // wallet. Previously the target store came from the request body unchecked,
+    // so any unauthenticated caller could drain another seller's balance.
+    const scope = await requireSellerScope(request, idToResolve);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     const wallet = await prisma.vendorWallet.findUnique({
       where: { sellerId }

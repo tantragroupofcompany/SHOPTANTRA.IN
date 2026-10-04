@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { classifyDbError } from '../../../../lib/authUtils';
+import { requireRole } from '../../../../middleware/index';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: the admin notification feed is admin-only.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     try {
       const notifications = await prisma.adminNotification.findMany({
         orderBy: { createdAt: 'desc' },

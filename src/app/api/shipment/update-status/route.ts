@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { requireRole } from '../../../../middleware/index';
 
 /**
  * The only status transitions an operator may record. Anything else is rejected
@@ -44,6 +45,32 @@ export async function POST(request: Request) {
 
     if (!shipment) {
       return NextResponse.json({ error: 'Shipment not found' }, { status: 404 });
+    }
+
+    // AUTHORIZATION: rolling a shipment to DELIVERED can flip the order's payment
+    // row to COD_COLLECTED, and every other transition drives the buyer's visible
+    // fulfilment state. Only the owning seller (or staff) may do so; the route
+    // previously accepted any shipmentId with no authentication.
+    const guard = await requireRole(request, [
+      'SELLER',
+      'ADMIN',
+      'FOUNDER',
+      'CEO_MD',
+      'CHAIRMAN',
+    ]);
+    if (guard instanceof NextResponse) return guard;
+    const actorRole = String((guard as any).role || '');
+    const actorId = (guard as any).userId as string | undefined;
+    if (!['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN'].includes(actorRole)) {
+      const own = actorId
+        ? await prisma.seller.findFirst({ where: { userId: actorId }, select: { id: true } })
+        : null;
+      if (!own || own.id !== shipment.sellerId) {
+        return NextResponse.json(
+          { error: 'Access Denied – this shipment belongs to another store.' },
+          { status: 403 }
+        );
+      }
     }
 
     const awb = trackingNumber || shipment.awbNumber || shipment.shipmentNumber;

@@ -1,30 +1,28 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 export async function POST(request: Request) {
   try {
     const { sellerId: sellerIdParam, amount, paymentMethod, bankDetails, upiId } = await request.json();
 
-    if (!sellerIdParam || !amount || amount <= 0 || !paymentMethod) {
+    if (!amount || amount <= 0 || !paymentMethod) {
       return NextResponse.json(
         { error: 'Invalid payload' },
         { status: 400 }
       );
     }
 
-    // Resolve user ID or seller profile ID to seller profile ID
-    let sellerId = sellerIdParam;
-    const associatedSeller = await prisma.seller.findFirst({
-      where: {
-        OR: [
-          { id: sellerIdParam },
-          { userId: sellerIdParam }
-        ]
-      }
-    });
-    if (associatedSeller) {
-      sellerId = associatedSeller.id;
-    }
+    // AUTHORIZATION: a seller may only withdraw from their OWN wallet.
+    //
+    // This route previously read `sellerId` straight from the request body with
+    // no authentication whatsoever — anyone could POST an arbitrary seller id
+    // and an amount and create a PENDING payout (deducting that seller's wallet
+    // balance) for a store they do not own. The scope guard authenticates the
+    // caller and requires the target store to belong to them.
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     // 1. Fetch vendor wallet
     const wallet = await prisma.vendorWallet.findUnique({

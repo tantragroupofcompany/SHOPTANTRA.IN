@@ -1,24 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSellerId(id: string | null): Promise<string | null> {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
-  return seller ? seller.id : null;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 // GET /api/seller/coupons
 export async function GET(request: Request) {
@@ -30,10 +12,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(sellerIdParam);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     const coupons = await prisma.coupon.findMany({
       where: { sellerId },
@@ -79,10 +60,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(idToResolve);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    // AUTHORIZATION: a seller may only create coupons on their OWN store.
+    const scope = await requireSellerScope(request, idToResolve);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     if (!code || !discountType || discountValue === undefined || !expiryDate) {
       return NextResponse.json({ error: 'Missing required fields: code, discountType, discountValue, expiryDate' }, { status: 400 });
@@ -136,6 +117,18 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Coupon ID is required for update' }, { status: 400 });
     }
 
+    // AUTHORIZATION: a seller may only edit their OWN coupons. This handler
+    // previously accepted any coupon `id` with no ownership check.
+    const scope = await requireSellerScope(request);
+    if (!scope.ok) return scope.response;
+    const ownedCoupon = await prisma.coupon.findUnique({ where: { id }, select: { sellerId: true } });
+    if (!ownedCoupon) {
+      return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
+    }
+    if (!scope.elevated && ownedCoupon.sellerId !== scope.sellerId) {
+      return NextResponse.json({ error: 'Access Denied – this coupon belongs to another store.' }, { status: 403 });
+    }
+
     const updatePayload: any = {};
     if (code !== undefined) {
       updatePayload.code = code.toUpperCase().replace(/\s+/g, '');
@@ -166,6 +159,17 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'Coupon ID is required for deletion' }, { status: 400 });
+    }
+
+    // AUTHORIZATION: a seller may only delete their OWN coupons.
+    const scope = await requireSellerScope(request);
+    if (!scope.ok) return scope.response;
+    const ownedCoupon = await prisma.coupon.findUnique({ where: { id }, select: { sellerId: true } });
+    if (!ownedCoupon) {
+      return NextResponse.json({ error: 'Coupon not found' }, { status: 404 });
+    }
+    if (!scope.elevated && ownedCoupon.sellerId !== scope.sellerId) {
+      return NextResponse.json({ error: 'Access Denied – this coupon belongs to another store.' }, { status: 403 });
     }
 
     const deleted = await prisma.coupon.delete({

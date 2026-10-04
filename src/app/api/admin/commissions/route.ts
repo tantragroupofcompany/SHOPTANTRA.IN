@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireRole } from '../../../../middleware/index';
 
 // Fetch global settings and list of commission payouts
 export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: platform commission + settlement configuration is admin-only.
+    // This route previously had no guard at all, so anyone could read the
+    // commission ledger and rewrite the global commission rate.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'reports'; // 'reports' or 'settings'
 
@@ -63,6 +70,10 @@ export async function GET(request: Request) {
 // Update global commission configurations
 export async function POST(request: Request) {
   try {
+    // AUTHORIZATION: changing the global commission rate is admin-only.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { defaultCommissionRate, categoryCommissions, settlementDelayDays } = await request.json();
 
     const catCommStr = categoryCommissions !== undefined

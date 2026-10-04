@@ -1,24 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSellerId(id: string | null): Promise<string | null> {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
-  return seller ? seller.id : null;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 // GET /api/seller/reviews
 export async function GET(request: Request) {
@@ -30,10 +12,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(sellerIdParam);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     const reviews = await prisma.review.findMany({
       where: {

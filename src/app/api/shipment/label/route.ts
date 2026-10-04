@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { generateBarcodeSVG, getQRCodeUrl } from '../../../../lib/barcodeQrGenerator';
+import { requireShipmentAccess } from '../../../../lib/sellerAuth';
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +11,15 @@ export async function GET(request: Request) {
 
     if (shipmentIds.length === 0) {
       return new Response('Shipment ID(s) are required', { status: 400 });
+    }
+
+    // AUTHORIZATION: the label renders the BUYER's full name, address, pincode
+    // and phone number, plus COD amounts. This route previously had no
+    // authentication, so anyone could enumerate shipment ids and harvest
+    // customer PII. Every requested shipment must now be authorised.
+    for (const shipmentId of shipmentIds) {
+      const access = await requireShipmentAccess(request, shipmentId);
+      if (!access.ok) return access.response;
     }
 
     const labelsHtml: string[] = [];

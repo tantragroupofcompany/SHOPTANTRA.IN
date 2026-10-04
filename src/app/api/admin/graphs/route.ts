@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireRole } from '../../../../middleware/index';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: platform-wide sales/commission graphs are admin-only.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const now = new Date();
 
     // 1. Daily Sales & Commission (Last 30 Days)

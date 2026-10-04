@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireRole } from '../../../../middleware/index';
 
 export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: the settlement ledger is company-financial data. This route
+    // previously exposed every seller's commission and payout history anonymously.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { searchParams } = new URL(request.url);
     const sellerId = searchParams.get('sellerId');
 
@@ -52,6 +58,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // AUTHORIZATION: releasing seller settlements is an admin money action.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { commissionId, action, notes } = await request.json();
 
     if (!commissionId || !action) {

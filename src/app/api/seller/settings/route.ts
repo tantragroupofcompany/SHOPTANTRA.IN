@@ -1,24 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-// Helper to resolve user ID or seller profile ID to seller profile ID
-async function resolveSellerId(id: string | null): Promise<string | null> {
-  if (!id) return null;
-  let seller = await prisma.seller.findFirst({
-    where: {
-      OR: [
-        { id: id },
-        { userId: id }
-      ]
-    }
-  });
-  if (!seller) {
-    seller = await prisma.seller.findFirst({
-      where: { status: 'ACTIVE' }
-    });
-  }
-  return seller ? seller.id : null;
-}
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 export async function GET(request: Request) {
   try {
@@ -29,10 +11,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(sellerIdParam);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     let settings = await prisma.sellerSettings.findUnique({
       where: { sellerId }
@@ -80,10 +61,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
     }
 
-    const sellerId = await resolveSellerId(idToResolve);
-    if (!sellerId) {
-      return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
-    }
+    // AUTHORIZATION: a seller may only change their OWN settings.
+    const scope = await requireSellerScope(request, idToResolve);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     const updateData: any = {};
     if (notificationPrefs !== undefined) {

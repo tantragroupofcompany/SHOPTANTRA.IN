@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { requireShipmentAccess } from '../../../../lib/sellerAuth';
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +10,12 @@ export async function POST(request: Request) {
     if (!shipmentId) {
       return NextResponse.json({ error: 'Shipment ID is required' }, { status: 400 });
     }
+
+    // AUTHORIZATION: mutates a real shipment (status + dispatch date) and raises
+    // a pickup with the carrier. It previously accepted any shipmentId from an
+    // anonymous caller.
+    const access = await requireShipmentAccess(request, shipmentId);
+    if (!access.ok) return access.response;
 
     // 1. Fetch current shipment details with seller's pickup address
     const shipment = await prisma.shipment.findUnique({

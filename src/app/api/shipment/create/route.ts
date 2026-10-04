@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { classifyDbError } from '../../../../lib/authUtils';
 import { isShippingEnabled, getShippingConfig } from '../../../../lib/shipping/config';
 import { createShipmentsForOrder } from '../../../../lib/shipping/shipmentService';
+import { requireOrderAccess } from '../../../../lib/sellerAuth';
 
 /**
  * POST /api/shipment/create
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
+
+    // AUTHORIZATION: booking a real shipment with the carrier costs money and
+    // creates a real AWB. The route previously accepted ANY orderId from an
+    // anonymous caller. A seller may only book for orders containing their own
+    // products; staff may book for any order.
+    const access = await requireOrderAccess(request, orderId);
+    if (!access.ok) return access.response;
 
     // Load the order only to derive the payment mode and to answer 404 early.
     let order: any = null;

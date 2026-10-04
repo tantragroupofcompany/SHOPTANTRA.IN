@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 export async function GET(request: Request) {
   try {
@@ -13,19 +14,12 @@ export async function GET(request: Request) {
       );
     }
 
-    // Resolve user ID or seller profile ID to seller profile ID
-    let sellerId = sellerIdParam;
-    const associatedSeller = await prisma.seller.findFirst({
-      where: {
-        OR: [
-          { id: sellerIdParam },
-          { userId: sellerIdParam }
-        ]
-      }
-    });
-    if (associatedSeller) {
-      sellerId = associatedSeller.id;
-    }
+    // AUTHORIZATION: a seller may only read their OWN wallet. This route
+    // previously trusted the `sellerId` query parameter with no authentication
+    // at all, exposing every store's balance, payout history and revenue.
+    const scope = await requireSellerScope(request, sellerIdParam);
+    if (!scope.ok) return scope.response;
+    const sellerId = scope.sellerId;
 
     // 1. Fetch wallet details and transaction logs
     const wallet = await prisma.vendorWallet.findUnique({

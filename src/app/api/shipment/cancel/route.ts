@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { MasterCourierService } from '../../../../lib/masterCourierService';
+import { requireShipmentAccess } from '../../../../lib/sellerAuth';
 
 export async function POST(request: Request) {
   try {
-    const { shipmentId, userId, role } = await request.json();
+    // The body-supplied userId/role are untrusted and no longer used for the
+    // audit trail; strip them so they cannot be mistaken for the actor.
+    const { shipmentId } = await request.json();
 
     if (!shipmentId) {
       return NextResponse.json({ error: 'Shipment ID is required' }, { status: 400 });
     }
+
+    // AUTHORIZATION: this route cancels an order AND increments stock back into
+    // inventory. It previously had no authentication at all, so an anonymous
+    // caller could cancel any customer's order by id and inflate stock. The
+    // actor is now derived from the verified session, never from the body.
+    const access = await requireShipmentAccess(request, shipmentId);
+    if (!access.ok) return access.response;
+    const actorUserId = access.userId || 'SYSTEM';
+    const actorRole = access.role;
 
     const shipment = await prisma.shipment.findUnique({
       where: { id: shipmentId },
@@ -105,7 +117,7 @@ export async function POST(request: Request) {
       });
 
       // 5. Add audit trail entry
-      await MasterCourierService.logAction(tx, shipment.id, 'SHIPMENT_CANCELLED', userId || 'SYSTEM', role || 'ADMIN', {
+      await MasterCourierService.logAction(tx, shipment.id, 'SHIPMENT_CANCELLED', actorUserId, actorRole, {
         awbNumber: shipment.awbNumber,
         providerCancelled,
         response: providerNotice

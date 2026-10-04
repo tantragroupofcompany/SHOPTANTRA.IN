@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { requireRole } from '../../../../middleware/index';
 
 export async function GET(request: Request) {
   try {
+    // AUTHORIZATION: revenue reports contain company-wide financials.
+    const guard = await requireRole(request, ['ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+    if (guard instanceof NextResponse) return guard;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'revenue';
     const fromStr = searchParams.get('from');
