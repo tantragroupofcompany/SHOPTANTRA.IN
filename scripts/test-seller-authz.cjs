@@ -380,6 +380,54 @@ check('the AWB branch selects only the fields it returns', () => {
   );
 });
 
+check('every field named in the tracking select exists on Shipment', () => {
+  // REGRESSION GUARD. `estimatedDelivery` is not a column on Shipment. It was
+  // read off an `include`, where a missing key silently yielded `undefined`, so
+  // the public /track page worked. Narrowing the query to an explicit `select`
+  // made Prisma THROW on the unknown field and turned /api/tracking into a 500
+  // for every AWB lookup. This test parses the real Prisma schema and fails if
+  // any selected field is not an actual column.
+  const schema = read('prisma/schema.prisma');
+  const modelBody = (name) => {
+    const start = schema.indexOf(`model ${name} {`);
+    assert.ok(start > -1, `model ${name} not found in schema`);
+    const end = schema.indexOf('\n}', start);
+    return schema.slice(start, end);
+  };
+
+  const shipmentColumns = new Set(
+    modelBody('Shipment')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^\w+\s+\w+/.test(l))
+      .map((l) => l.split(/\s+/)[0]),
+  );
+
+  const code = stripComments(read('src/app/api/tracking/route.ts'));
+  const selectBlock = code.match(/select:\s*\{[\s\S]*?trackingUpdates:/);
+  assert.ok(selectBlock, 'could not locate the Shipment select block');
+
+  // Match only `field: true` (a scalar column). Nested relation selections such
+  // as `order: { select: { ... } }` have deeper indentation, so anchoring to the
+  // block's own two-space indent and requiring the literal `true` avoids
+  // capturing the nested `select` key itself.
+  const block = selectBlock[0];
+  const fields = [...block.matchAll(/^ {10}(\w+): true,/gm)].map((m) => m[1]);
+  assert.ok(fields.length > 0, 'no scalar fields parsed from the select block');
+
+  const unknown = fields.filter((f) => !shipmentColumns.has(f));
+  assert.deepStrictEqual(
+    unknown,
+    [],
+    `tracking select names non-existent Shipment columns: ${unknown.join(', ')}`,
+  );
+
+  // Sanity: the guard must have parsed the columns we know exist, otherwise it
+  // would pass vacuously and never catch a regression.
+  assert.ok(fields.includes('awbNumber'), 'expected awbNumber among the selected fields');
+  assert.ok(fields.includes('shipmentNumber'), 'expected shipmentNumber among the selected fields');
+});
+
 check('no /api/seller route still defines the vulnerable local resolver', () => {
   const dir = path.join(root, 'src/app/api/seller');
   const offenders = [];
