@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 import { prisma } from '../../../../lib/prisma';
+import { resolveBuyerId } from '../../../../lib/buyerAuth';
 
 // Initialize Razorpay SDK
 const keyId = process.env.RAZORPAY_KEY_ID;
@@ -39,6 +40,17 @@ export async function POST(request: Request) {
 
     const { amount, currency = 'INR', orderData } = body;
 
+    // SECURITY: the buyer is the SESSION, never the request body.
+    // `orderData.buyerId` is attacker-controlled and used to be passed straight
+    // through into the order. An authenticated customer could therefore post
+    // `buyerId: '<someone else's user id>'` and have the resulting order filed
+    // under that other customer (order-history pollution, and their
+    // fullName/phone overwritten by the user upsert in orderProcessor).
+    // resolveBuyerId returns the session user when one exists and only falls
+    // back to the guest id for a genuinely anonymous checkout.
+    const buyerId = await resolveBuyerId(request, orderData?.buyerId);
+    if (orderData) orderData.buyerId = buyerId;
+
     // SECURITY: compute the payable amount server-side from the product catalogue.
     // Never accept a client-supplied total directly.
     if (!orderData || !Array.isArray(orderData.items) || orderData.items.length === 0) {
@@ -60,13 +72,24 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      if (item.quantity > dbProduct.stock) {
+      // SECURITY: reject a non-positive / fractional quantity BEFORE any amount is
+      // computed or the gateway is called. A negative quantity previously passed
+      // the `> stock` test and produced a negative subtotal here, which would
+      // create a Razorpay order for a negative amount.
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return NextResponse.json(
+          { error: `Invalid quantity for "${dbProduct.title}". Quantity must be a positive whole number.` },
+          { status: 400 }
+        );
+      }
+      if (qty > dbProduct.stock) {
         return NextResponse.json(
           { error: `Insufficient stock for "${dbProduct.title}". Available: ${dbProduct.stock}.` },
           { status: 400 }
         );
       }
-      subtotal += dbProduct.price * item.quantity;
+      subtotal += dbProduct.price * qty;
     }
 
     const computedSubtotal = round2(subtotal);
@@ -80,6 +103,29 @@ export async function POST(request: Request) {
     const shippingAmount = round2(Number(orderData.shippingAmount) || 0);
     const taxAmount = round2(Number(orderData.taxAmount) || 0);
     const discountAmount = round2(Number(orderData.discountAmount) || 0);
+
+    // SECURITY: shipping, tax and discount are all browser-supplied and were
+    // accepted verbatim. A negative shipping/tax value simply reduced the total,
+    // and `discountAmount` was only bounded by the `totalAmount > 0` check below —
+    // so posting `discountAmount: 99999` bought the whole basket for ₹1. These
+    // three must never make the payable amount negative, and a discount may not
+    // exceed the goods value it discounts.
+    if (!Number.isFinite(shippingAmount) || shippingAmount < 0) {
+      return NextResponse.json({ error: 'Invalid shipping charge.' }, { status: 400 });
+    }
+    if (!Number.isFinite(taxAmount) || taxAmount < 0) {
+      return NextResponse.json({ error: 'Invalid tax amount.' }, { status: 400 });
+    }
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      return NextResponse.json({ error: 'Invalid discount amount.' }, { status: 400 });
+    }
+    if (discountAmount > computedSubtotal) {
+      return NextResponse.json(
+        { error: 'Discount cannot exceed the order subtotal.' },
+        { status: 400 }
+      );
+    }
+
     const totalAmount = round2(computedSubtotal + shippingAmount + taxAmount - discountAmount);
 
     if (totalAmount <= 0) {

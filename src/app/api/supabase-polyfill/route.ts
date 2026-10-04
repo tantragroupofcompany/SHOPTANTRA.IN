@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma';
 import { classifyDbError } from '../../../lib/authUtils';
+import {
+  authorizePolyfillRequest,
+  body0,
+  enforceOwnership,
+} from '../../../lib/polyfillAuth';
 
 // Define categories list for static mapping
 const STATIC_CATEGORIES = [
@@ -200,6 +205,32 @@ async function ensureSeeded() {
 // Main polyfill POST handler
 export async function POST(request: Request) {
   try {
+    // AUTHORIZATION — READ THIS BEFORE ADDING A TABLE.
+    //
+    // This route is a generic "table gateway" on behalf of the browser: the
+    // caller names a table, an action, arbitrary filters and arbitrary update /
+    // delete payloads, and the handler forwards them straight to Prisma. It is
+    // on the public allowlist in middleware.ts, which is correct — the
+    // storefront must be able to READ the public catalogue without a session.
+    //
+    // That made every table reachable by anyone. Confirmed in production: an
+    // anonymous POST `{table:'profiles',action:'select',filters:[]}` returned all
+    // 17 customer/seller profiles with names and phone numbers, and an
+    // anonymous `{table:'profiles',action:'update',...}` was accepted (it also
+    // exposes `delete` → `deleteMany` with caller-chosen filters).
+    //
+    // So access is now decided by THREE questions, in order:
+    //   1. Is this table PUBLIC?          → catalog tables, read-only, no session
+    //   2. Does this action WRITE?         → always requires an authenticated session
+    //   3. Does the caller OWN the rows?  → the session user is forced into the
+    //                                         query, so a caller cannot ask for
+    //                                         someone else's order/address.
+    //
+    // The public set is deliberately small and is the exact set the storefront
+    // reads before login. Anything not listed must not be silently public.
+    const auth = await authorizePolyfillRequest(request, await body0(request));
+    if (!auth.ok) return auth.response;
+
     // Make sure additive marketplace schema exists before client queries run
     const { ensureSchema } = await import('../../../lib/dbBootstrap');
     await ensureSchema();
@@ -207,7 +238,7 @@ export async function POST(request: Request) {
     // Run auto-seed check
     await ensureSeeded();
 
-    const body = await request.json();
+    const body = auth.body;
     const {
       table,
       action,
@@ -223,21 +254,64 @@ export async function POST(request: Request) {
       userId,
     } = body;
 
+    // The caller-supplied userId must NEVER be trusted for a self-scoped table.
+    // If a session exists, the session IS the identity (see enforceOwnership).
+    const sessionUserId = auth.userId;
+
     // Handle authentication updates specifically
+    //
+    // SECURITY — this is a credential write. It previously took `userId` and the
+    // new password straight from the request body with NO authentication, which
+    // meant an anonymous caller could set the password on ANY account and then
+    // log in as that user (full account takeover, including admin/executive
+    // accounts). It also stored the supplied password VERBATIM: `password` is
+    // NOT NULL and every other auth path writes a bcrypt/pbkdf2 hash via
+    // `hashPassword()`, so this path also wrote a plaintext credential that
+    // `verifyPassword()` would then reject — breaking the feature outright.
+    //
+    // Now: the session must exist, the target must BE the session user (staff may
+    // manage another account), and the password is hashed exactly like every
+    // other write in the app.
     if (table === 'profiles_auth' && action === 'update_auth') {
+      const deny = NextResponse.json(
+        { error: 'Unauthorized access. Please login.' },
+        { status: 401 },
+      );
+      if (!sessionUserId) return deny;
+
+      const targetId = String(userId || sessionUserId);
+      if (targetId !== sessionUserId && !auth.isStaff) {
+        return NextResponse.json(
+          { error: 'Access Denied - you may only update your own account.' },
+          { status: 403 },
+        );
+      }
+
+      const { hashPassword } = await import('../../../lib/authUtils');
+
       const updatePayload: any = {};
-      if (updateData.password) {
-        updatePayload.password = updateData.password;
+      if (updateData?.password) {
+        if (String(updateData.password).length < 6) {
+          return NextResponse.json(
+            { error: 'Password must be at least 6 characters long.' },
+            { status: 400 },
+          );
+        }
+        updatePayload.password = hashPassword(String(updateData.password));
       }
-      if (updateData.email) {
-        updatePayload.email = updateData.email;
+      if (updateData?.email) {
+        updatePayload.email = String(updateData.email).toLowerCase();
       }
-      if (updateData.full_name) {
-        updatePayload.fullName = updateData.full_name;
+      if (updateData?.full_name) {
+        updatePayload.fullName = String(updateData.full_name);
+      }
+
+      if (Object.keys(updatePayload).length === 0) {
+        return NextResponse.json({ error: 'Nothing to update.' }, { status: 400 });
       }
 
       const updatedUser = await prisma.user.update({
-        where: { id: userId },
+        where: { id: targetId },
         data: updatePayload,
       });
 
@@ -329,8 +403,23 @@ export async function POST(request: Request) {
     }
 
     // 2. Build Where Clauses
+    //
+    // OWNERSHIP FIRST. For self-scoped tables the session user is pinned into the
+    // query and any caller-supplied owner filter is discarded, so Customer A can
+    // never read or write Customer B's orders / addresses / profile / tickets,
+    // even by sending `filters: [{ column: 'user_id', value: '<other id>' }]`.
+    // Staff keep the unfiltered behaviour their admin screens depend on.
+    const owned = enforceOwnership(table, filters, sessionUserId, auth.isStaff);
+    if (owned.denied) {
+      return NextResponse.json(
+        { error: 'Unauthorized access. Please login.' },
+        { status: 401 },
+      );
+    }
+    const scopedFilters = owned.filters;
+
     const where: any = {};
-    for (const filter of filters) {
+    for (const filter of scopedFilters) {
       // The browser sends Supabase column names; translate them to the Prisma
       // field (see resolveFieldName). An unknown FILTER column is deliberately
       // left untouched so Prisma reports it instead of silently widening the

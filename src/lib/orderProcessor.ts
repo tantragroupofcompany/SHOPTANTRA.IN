@@ -156,23 +156,30 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
       //    For authenticated buyers the user row already exists (update path).
       //    For edge-case guest/anonymous IDs we generate a locked placeholder password
       //    so the record can be created without exposing a usable credential.
+      //
+      //    SECURITY: the update branch must NOT overwrite an EXISTING account's
+      //    identity from the request body. `buyerName`/`buyerPhone` come from the
+      //    checkout form, so before this was pinned to the session (buyerAuth) an
+      //    attacker could post someone else's user id together with their own name
+      //    and phone and silently rewrite that customer's profile. A real account
+      //    is now left completely untouched; only the guest rows this processor
+      //    creates itself get their details filled in.
       const { hashPassword: hp } = await import('./authUtils');
       const lockedPassword = hp(`LOCKED_${buyerId}_${Date.now()}`);
-      const user = await tx.user.upsert({
+      const existingUser = await tx.user.findUnique({
         where: { id: buyerId },
-        update: {
-          fullName: buyerName,
-          phone: buyerPhone,
-        },
-        create: {
-          id: buyerId,
-          email: buyerEmail,
-          password: lockedPassword,
-          fullName: buyerName,
-          phone: buyerPhone,
-          role: 'BUYER',
-        },
+        select: { id: true },
       });
+      const user = existingUser
+        ? await tx.user.findUniqueOrThrow({ where: { id: buyerId } })
+        : await tx.user.create({
+            id: buyerId,
+            email: buyerEmail,
+            password: lockedPassword,
+            fullName: buyerName,
+            phone: buyerPhone,
+            role: 'BUYER',
+          });
 
       // 2. Ensure Seller profile exists.
       //    Pickup address verification is enforced by the Shipping Xpress integration
@@ -204,7 +211,19 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         if (dbProduct.status === 'BLOCKED') {
           throw new Error(`Product "${dbProduct.title}" is currently unavailable.`);
         }
-        if (item.quantity > dbProduct.stock) {
+        // SECURITY: quantity is browser-supplied and was only ever compared with
+        // `> stock`. A NEGATIVE quantity therefore slipped through: it satisfied
+        // `quantity > stock`, produced a negative line total, and - because the
+        // stock write below uses `decrement` - INVENTED stock (-3 became +3).
+        // A fractional quantity likewise corrupted the ledger. Require a
+        // positive whole number before anything is computed or written.
+        const qty = Number(item.quantity);
+        if (!Number.isInteger(qty) || qty <= 0) {
+          throw new Error(
+            `Invalid quantity for "${dbProduct.title}". Quantity must be a positive whole number.`
+          );
+        }
+        if (qty > dbProduct.stock) {
           throw new Error(`Insufficient stock for "${dbProduct.title}". Available: ${dbProduct.stock}.`);
         }
       }
@@ -228,6 +247,24 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         throw new Error(
           `Order total mismatch. Server recomputed ₹${computedTotal} but received ₹${totalAmount}.`
         );
+      }
+
+      // SECURITY: these three are browser-supplied. `discountAmount` was only
+      // bounded by the total check above, so a caller could claim a discount
+      // large enough to make the payable amount near-zero (or, with a negative
+      // shipping/tax value, negative) and still have it written to the ledger.
+      // Reject negatives and any discount larger than the goods it discounts.
+      for (const [label, value] of [
+        ['discount', discountAmount],
+        ['shipping', shippingAmount],
+        ['tax', taxAmount],
+      ] as const) {
+        if (!Number.isFinite(Number(value)) || Number(value) < 0) {
+          throw new Error(`Invalid ${label} amount.`);
+        }
+      }
+      if (Number(discountAmount) > computedSubtotal) {
+        throw new Error('Discount cannot exceed the order subtotal.');
       }
 
       // 4. Persist verified products / decrement stock within the transaction

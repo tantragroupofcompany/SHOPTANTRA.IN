@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { isRetiredGateway } from '../../../../lib/orderProcessor';
+import { resolveBuyerId } from '../../../../lib/buyerAuth';
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +25,15 @@ export async function POST(request: Request) {
         { error: 'A JSON request body is required.' },
         { status: 400 }
       );
+    }
+
+    // SECURITY: bind the order to the SESSION, never to the browser.
+    // This route is public by necessity (Razorpay's callback arrives from the
+    // browser, and COD needs no login), so `orderData.buyerId` used to be taken
+    // at face value and passed into the order. Any caller could file an order
+    // under an arbitrary account. A valid session now always wins.
+    if (body.orderData && typeof body.orderData === 'object') {
+      body.orderData.buyerId = await resolveBuyerId(request, body.orderData.buyerId);
     }
 
     // 0. RETIRED GATEWAYS. Cashfree and PhonePe are no longer offered by
