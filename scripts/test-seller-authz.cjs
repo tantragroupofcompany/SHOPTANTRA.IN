@@ -309,6 +309,15 @@ check('shipment/create cannot book a carrier shipment anonymously', () => {
   assert.ok(guardAt < bookAt, 'the authorization check runs AFTER the carrier is contacted');
 });
 
+check('vendor/withdraw authenticates BEFORE validating the payload', () => {
+  const src = stripComments(read('src/app/api/vendor/withdraw/route.ts'));
+  const guardAt = src.indexOf('await requireSellerScope(');
+  const validateAt = src.indexOf("error: 'Invalid payload'");
+  assert.ok(guardAt > -1, 'no requireSellerScope call');
+  assert.ok(validateAt > -1, 'payload validation not found');
+  assert.ok(guardAt < validateAt, 'payload validation runs before authentication');
+});
+
 check('no /api/shipment route is left without any authorization guard', () => {
   const dir = path.join(root, 'src/app/api/shipment');
   // Routes that are deliberately public, each justified:

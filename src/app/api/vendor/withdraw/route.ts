@@ -6,13 +6,6 @@ export async function POST(request: Request) {
   try {
     const { sellerId: sellerIdParam, amount, paymentMethod, bankDetails, upiId } = await request.json();
 
-    if (!amount || amount <= 0 || !paymentMethod) {
-      return NextResponse.json(
-        { error: 'Invalid payload' },
-        { status: 400 }
-      );
-    }
-
     // AUTHORIZATION: a seller may only withdraw from their OWN wallet.
     //
     // This route previously read `sellerId` straight from the request body with
@@ -20,9 +13,19 @@ export async function POST(request: Request) {
     // and an amount and create a PENDING payout (deducting that seller's wallet
     // balance) for a store they do not own. The scope guard authenticates the
     // caller and requires the target store to belong to them.
+    //
+    // The guard runs BEFORE payload validation so an anonymous caller always
+    // gets 401 rather than a validation error that reveals this route's shape.
     const scope = await requireSellerScope(request, sellerIdParam);
     if (!scope.ok) return scope.response;
     const sellerId = scope.sellerId;
+
+    if (!amount || amount <= 0 || !paymentMethod) {
+      return NextResponse.json(
+        { error: 'Invalid payload' },
+        { status: 400 }
+      );
+    }
 
     // 1. Fetch vendor wallet
     const wallet = await prisma.vendorWallet.findUnique({
