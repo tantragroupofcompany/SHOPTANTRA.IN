@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { requireRole } from '../../../../middleware/index';
+import { classifyDbError } from '../../../../lib/authUtils';
 
 export async function POST(request: any) {
   const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
@@ -56,7 +57,19 @@ export async function POST(request: any) {
 
     return NextResponse.json({ success: true, message: `Product ${status} successfully` });
   } catch (error: any) {
+    // Never ship the raw Prisma/driver message to the browser: it can disclose
+    // table names, column names and the connection host. A known DB outage is
+    // reported as 503; anything else gets a generic 500. Detail stays in the
+    // server log — same contract as the other corporate routes.
     console.error('Product action error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Failed to update product' }, { status: 500 });
+    const classified = classifyDbError(error);
+    if (classified) {
+      console.error('[corporate/product-action] DB error:', error?.code || error?.message);
+      return NextResponse.json(
+        { success: false, error: 'Unable to update this product right now. Please try again.' },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ success: false, error: 'Failed to update product' }, { status: 500 });
   }
 }

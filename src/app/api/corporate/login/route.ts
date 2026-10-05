@@ -182,12 +182,26 @@ async function ensureExecutiveAccounts() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { username, password } = body;
-
-    if (!username || !password) {
+    // A malformed / non-JSON body is a BAD REQUEST, not a server error. Without
+    // this guard `request.json()` throws and the caller sees an opaque 500 for
+    // what is simply an invalid payload.
+    let body: any = null;
+    try {
+      body = await request.json();
+    } catch {
       return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
     }
+
+    // Validate TYPES before use: a numeric/boolean/object value for username
+    // used to reach `.toLowerCase().trim()` and crash as an unhandled 500.
+    const { username, password, remember } = (body && typeof body === 'object' ? body : {});
+    if (
+      typeof username !== 'string' || !username.trim() ||
+      typeof password !== 'string' || !password
+    ) {
+      return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
+    }
+
 
     // Ensure additive marketplace schema exists (Seller columns etc.).
     // Best-effort: a database outage must not turn a sign-in attempt into an
@@ -284,6 +298,24 @@ export async function POST(request: Request) {
       return NextResponse.json(GENERIC_LOGIN_ERROR, { status: 401 });
     }
 
+    // DEACTIVATED ACCOUNT CHECK.
+    //
+    // `User.isActive` is the admin Users screen's enable/disable flag. An
+    // executive row that has been switched off must not be able to sign in even
+    // with the correct password. The check sits AFTER password verification so
+    // the disabled message can never be used to probe which accounts exist —
+    // only someone who already proved the password ever sees it.
+    //
+    // `=== false` is deliberate: rows that predate the column read as undefined
+    // (the dbBootstrap default is true), and only an explicit disable counts.
+    if (dbUser.isActive === false) {
+      console.warn('[corporate/login] rejected deactivated account');
+      return NextResponse.json(
+        { error: 'This account has been disabled. Contact support for assistance.' },
+        { status: 403 }
+      );
+    }
+
     // Step 4: Verify corporate role. CORPORATE_ROLES in lib/corporateAuth.ts is
     // the single source of truth; the legacy 'ceo' / 'md' spellings collapse to
     // the one stored role 'CEO_MD'.
@@ -314,7 +346,7 @@ export async function POST(request: Request) {
     // session below the 8-hour baseline and it carries no authority of its own.
     const SESSION_SECONDS = 8 * 60 * 60; // 8 hours - baseline
     const REMEMBER_ME_SECONDS = 30 * 24 * 60 * 60; // 30 days - explicit opt-in
-    const requestedRemember = body.remember === true;
+    const requestedRemember = remember === true;
     const sessionSeconds = requestedRemember
       ? Math.max(SESSION_SECONDS, REMEMBER_ME_SECONDS)
       : SESSION_SECONDS;
