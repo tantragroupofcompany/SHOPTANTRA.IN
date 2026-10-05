@@ -44,11 +44,11 @@ export default function CorporateCustomers() {
   const activeFilter = FILTERS.find((f) => f.key === status)?.label || 'All';
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark">
       <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/corporate/dashboard')} className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition" title="Back to dashboard">
+            <button onClick={() => navigate('/corporate/dashboard')} className="p-2 rounded-lg bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 transition" title="Back to dashboard">
               <ArrowLeft size={18} />
             </button>
             <div>
@@ -56,7 +56,7 @@ export default function CorporateCustomers() {
               <p className="text-xs text-gray-400">{total} customer{total === 1 ? '' : 's'} · Filter: <span className="font-bold text-orange-400">{activeFilter}</span></p>
             </div>
           </div>
-          <button onClick={load} className="px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 text-xs font-bold flex items-center gap-2">
+          <button onClick={load} className="px-3 py-2 rounded-lg bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 text-xs font-bold flex items-center gap-2">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
@@ -66,14 +66,14 @@ export default function CorporateCustomers() {
             <button
               key={f.key}
               onClick={() => selectFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${status === f.key ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${status === f.key ? 'bg-orange-500 text-white' : 'bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30'}`}
             >
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-brand-navy rounded-xl border border-gray-100 dark:border-brand-navy-light/10 shadow-sm overflow-hidden">
           {loading ? (
             <div className="p-10 text-center"><RefreshCw className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></div>
           ) : items.length === 0 ? (
@@ -85,7 +85,7 @@ export default function CorporateCustomers() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-900/60 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <tr className="bg-gray-100 dark:bg-brand-navy-dark text-left text-[10px] uppercase tracking-wider text-gray-400">
                     <th className="px-4 py-3">Customer</th>
                     <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Phone</th>
@@ -96,7 +96,7 @@ export default function CorporateCustomers() {
                 </thead>
                 <tbody>
 {items.map((c) => (
-                    <tr key={c.id} className="border-t border-gray-700/60 hover:bg-gray-700/40 transition">
+                    <tr key={c.id} className="border-t border-gray-100 dark:border-brand-navy-light/10 hover:bg-gray-50 dark:hover:bg-brand-navy-light/20 transition">
                       <td className="px-4 py-3">
                         <p className="font-bold">{c.name}</p>
                         <p className="text-[10px] text-gray-400">{c.id.slice(0, 8)}…</p>
@@ -105,7 +105,7 @@ export default function CorporateCustomers() {
                       <td className="px-4 py-3 text-xs">{c.phone || '—'}</td>
                       <td className="px-4 py-3 text-center font-bold">{c.orderCount}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.active ? 'bg-green-500/20 text-green-400' : 'bg-gray-600/30 text-gray-300'}`}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${c.active ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : 'bg-gray-600/30 text-gray-500 dark:text-gray-400'}`}>
                           {c.active ? 'Active' : 'Inactive'}
                         </span>
                       </td>

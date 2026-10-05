@@ -13,16 +13,16 @@ const FILTERS = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  ACTIVE: 'bg-green-500/20 text-green-400',
-  active: 'bg-green-500/20 text-green-400',
-  APPROVED: 'bg-green-500/20 text-green-400',
-  PENDING: 'bg-yellow-500/20 text-yellow-400',
-  pending: 'bg-yellow-500/20 text-yellow-400',
-  REJECTED: 'bg-red-500/20 text-red-400',
-  rejected: 'bg-red-500/20 text-red-400',
-  BLOCKED: 'bg-gray-600/30 text-gray-300',
-  DRAFT: 'bg-blue-500/20 text-blue-400',
-  draft: 'bg-blue-500/20 text-blue-400',
+  ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  active: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  APPROVED: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
+  pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
+  REJECTED: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+  rejected: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400',
+  BLOCKED: 'bg-gray-600/30 text-gray-500 dark:text-gray-400',
+  DRAFT: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+  draft: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
 };
 
 function formatCurrency(value: number): string {
@@ -86,11 +86,11 @@ export default function CorporateProducts() {
   const activeFilter = FILTERS.find((f) => f.key === status)?.label || 'All';
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark">
       <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/corporate/dashboard')} className="p-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition" title="Back to dashboard">
+            <button onClick={() => navigate('/corporate/dashboard')} className="p-2 rounded-lg bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 transition" title="Back to dashboard">
               <ArrowLeft size={18} />
             </button>
             <div>
@@ -98,7 +98,7 @@ export default function CorporateProducts() {
               <p className="text-xs text-gray-400">{total} product{total === 1 ? '' : 's'} · Filter: <span className="font-bold text-orange-400">{activeFilter}</span></p>
             </div>
           </div>
-          <button onClick={load} className="px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 text-xs font-bold flex items-center gap-2">
+          <button onClick={load} className="px-3 py-2 rounded-lg bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 text-xs font-bold flex items-center gap-2">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
@@ -108,14 +108,14 @@ export default function CorporateProducts() {
             <button
               key={f.key}
               onClick={() => selectFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${status === f.key ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${status === f.key ? 'bg-orange-500 text-white' : 'bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30'}`}
             >
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-brand-navy rounded-xl border border-gray-100 dark:border-brand-navy-light/10 shadow-sm overflow-hidden">
           {loading ? (
             <div className="p-10 text-center"><RefreshCw className="w-6 h-6 animate-spin text-orange-500 mx-auto" /></div>
           ) : items.length === 0 ? (
@@ -127,7 +127,7 @@ export default function CorporateProducts() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-900/60 text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <tr className="bg-gray-100 dark:bg-brand-navy-dark text-left text-[10px] uppercase tracking-wider text-gray-400">
                     <th className="px-4 py-3">Product</th>
                     <th className="px-4 py-3">Seller</th>
                     <th className="px-4 py-3">Category</th>
@@ -140,7 +140,7 @@ export default function CorporateProducts() {
                 </thead>
                 <tbody>
 {items.map((p) => (
-                    <tr key={p.id} className="border-t border-gray-700/60 hover:bg-gray-700/40 transition">
+                    <tr key={p.id} className="border-t border-gray-100 dark:border-brand-navy-light/10 hover:bg-gray-50 dark:hover:bg-brand-navy-light/20 transition">
                       <td className="px-4 py-3">
                         <p className="font-bold">{p.title}</p>
                         <p className="text-[10px] text-gray-400">{p.id.slice(0, 8)}…</p>
@@ -148,9 +148,9 @@ export default function CorporateProducts() {
                       <td className="px-4 py-3 text-xs">{p.seller?.storeName || '—'}</td>
                       <td className="px-4 py-3 text-xs">{p.category || 'General'}</td>
                       <td className="px-4 py-3 text-right font-bold text-cyan-400 whitespace-nowrap">{formatCurrency(p.price)}</td>
-                      <td className={`px-4 py-3 text-center font-bold ${p.stock === 0 ? 'text-red-400' : 'text-gray-200'}`}>{p.stock}</td>
+                      <td className={`px-4 py-3 text-center font-bold ${p.stock === 0 ? 'text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>{p.stock}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${STATUS_STYLES[p.status] || 'bg-gray-700 text-gray-300'}`}>{p.status}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${STATUS_STYLES[p.status] || 'bg-gray-100 dark:bg-brand-navy-light/30 text-gray-600 dark:text-gray-300'}`}>{p.status}</span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400">{p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN') : '—'}</td>
                       <td className="px-4 py-3">

@@ -93,7 +93,7 @@ export default function ExecutiveShell({
 
   return (
     <DetailContext.Provider value={openDetail}>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+      <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark">
       <div className="flex">
         <ExecutiveSidebar
           items={NAV}
@@ -104,10 +104,10 @@ export default function ExecutiveShell({
 
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Header */}
-          <header className="hidden lg:flex items-center justify-between gap-4 px-6 h-16 border-b border-white/10 bg-gray-900/60 backdrop-blur sticky top-0 z-30">
+          <header className="hidden lg:flex items-center justify-between gap-4 px-6 h-16 border-b border-gray-100 dark:border-brand-navy-light/10 bg-white dark:bg-brand-navy backdrop-blur sticky top-0 z-30">
             <div className="min-w-0">
               <h1 className="text-xl font-extrabold tracking-tight truncate">{title}</h1>
-              <p className="text-xs text-gray-400 truncate">{subtitle}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{subtitle}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-brand-orange/15 text-brand-orange whitespace-nowrap">
@@ -118,14 +118,14 @@ export default function ExecutiveShell({
                 onClick={onRefresh}
                 disabled={refreshing || loading}
                 aria-label="Refresh dashboard data"
-                className={`${TOUCH} px-3 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-50 ${EASE} ${FOCUS}`}
+                className={`${TOUCH} px-3 rounded-lg text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 disabled:opacity-50 ${EASE} ${FOCUS}`}
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={onSignOut}
-                className={`${TOUCH} px-3 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 ${EASE} ${FOCUS}`}
+                className={`${TOUCH} px-3 rounded-lg text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 ${EASE} ${FOCUS}`}
               >
                 <LogOut className="w-4 h-4" aria-hidden="true" />
                 <span className="sr-only">Sign out</span>

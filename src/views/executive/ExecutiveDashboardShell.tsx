@@ -21,8 +21,8 @@ import ExecutiveShell from './ExecutiveShell';
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="bg-white/10 rounded-xl p-6 border border-white/10">
-      <h2 className="font-bold text-lg mb-4">{title}</h2>
+    <section className="bg-white dark:bg-brand-navy rounded-xl p-6 border border-gray-100 dark:border-brand-navy-light/10 shadow-sm">
+      <h2 className="font-bold text-lg mb-4 text-gray-900 dark:text-gray-100">{title}</h2>
       {children}
     </section>
   );
@@ -30,9 +30,9 @@ export function Section({ title, children }: { title: string; children: ReactNod
 
 export function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2 border-b border-white/5 last:border-0">
-      <span className="text-sm text-gray-300">{label}</span>
-      <span className="text-sm font-semibold text-white text-right break-words">{value}</span>
+    <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-brand-navy-light/10 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 text-right break-words">{value}</span>
     </div>
   );
 }
@@ -77,15 +77,15 @@ function LoadingSkeleton() {
       <span className="sr-only">Loading dashboard metrics</span>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="bg-white/10 rounded-xl p-5 border border-white/10 animate-pulse">
-            <div className="h-3 w-20 bg-white/10 rounded mb-3" />
-            <div className="h-6 w-16 bg-white/10 rounded" />
+          <div key={i} className="bg-white dark:bg-brand-navy rounded-xl p-5 border border-gray-100 dark:border-brand-navy-light/10 shadow-sm animate-pulse">
+            <div className="h-3 w-20 bg-gray-200 dark:bg-brand-navy-light/25 rounded mb-3" />
+            <div className="h-6 w-16 bg-gray-200 dark:bg-brand-navy-light/25 rounded" />
           </div>
         ))}
       </div>
-      <div className="bg-white/10 rounded-xl p-6 border border-white/10 animate-pulse">
-        <div className="h-5 w-48 bg-white/10 rounded mb-4" />
-        <div className="h-32 w-full bg-white/5 rounded" />
+      <div className="bg-white dark:bg-brand-navy rounded-xl p-6 border border-gray-100 dark:border-brand-navy-light/10 shadow-sm animate-pulse">
+        <div className="h-5 w-48 bg-gray-200 dark:bg-brand-navy-light/25 rounded mb-4" />
+        <div className="h-32 w-full bg-gray-200 dark:bg-brand-navy-light/25 rounded" />
       </div>
     </div>
   );
@@ -117,7 +117,7 @@ export default function ExecutiveDashboardShell({
 
   if (state === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+      <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark">
         <LoadingSkeleton />
       </div>
     );
@@ -125,23 +125,23 @@ export default function ExecutiveDashboardShell({
 
   if (state === 'error') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark p-6">
         <div
           role="alert"
           className="max-w-2xl mx-auto mt-16 bg-red-500/10 border border-red-400/30 rounded-xl p-6 flex items-start gap-3"
         >
           <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" aria-hidden="true" />
           <div>
-            <h1 className="text-lg font-bold text-red-200">{title}</h1>
-            <p className="text-sm text-red-200/90 mt-1">{error}</p>
+            <h1 className="text-lg font-bold text-red-700 dark:text-red-300">{title}</h1>
+            <p className="text-sm text-red-600 mt-1">{error}</p>
             <div className="mt-4 flex gap-3">
               <button
                 onClick={reload}
-                className="inline-flex items-center gap-2 text-sm text-red-200 hover:text-white"
+                className="inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-800"
               >
                 <RefreshCw className="w-4 h-4" aria-hidden="true" /> Try again
               </button>
-              <button onClick={onBack} className="text-sm text-gray-300 hover:text-white">
+              <button onClick={onBack} className="text-sm text-gray-500 dark:text-gray-400 hover:text-white">
                 Back to site
               </button>
             </div>
@@ -180,11 +180,11 @@ export function RevenueByMonth({ rows }: { rows: { month: string; revenue: numbe
     <div className="space-y-2">
       {list.map((r) => (
         <div key={r.month} className="flex items-center gap-3">
-          <span className="text-xs text-gray-300 w-16 shrink-0">{r.month}</span>
-          <div className="flex-1 h-2 rounded bg-white/5 overflow-hidden">
+          <span className="text-xs text-gray-500 dark:text-gray-400 w-16 shrink-0">{r.month}</span>
+          <div className="flex-1 h-2 rounded bg-gray-100 dark:bg-brand-navy-light/20 overflow-hidden">
             <div className="h-full bg-brand-orange" style={{ width: `${Math.max((Number(r.revenue || 0) / max) * 100, 2)}%` }} />
           </div>
-          <span className="text-xs text-gray-200 w-24 text-right shrink-0">{Number(r.revenue || 0).toLocaleString('en-IN')}</span>
+          <span className="text-xs text-gray-800 dark:text-gray-200 w-24 text-right shrink-0">{Number(r.revenue || 0).toLocaleString('en-IN')}</span>
         </div>
       ))}
     </div>

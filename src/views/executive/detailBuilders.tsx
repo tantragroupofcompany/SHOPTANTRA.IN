@@ -23,7 +23,7 @@ const date = (v?: string | null) =>
   v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const badge = (v?: string | null) => (
-  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-gray-200 whitespace-nowrap">
+  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-brand-navy-light/30 dark:text-gray-200 whitespace-nowrap">
     {v || '—'}
   </span>
 );

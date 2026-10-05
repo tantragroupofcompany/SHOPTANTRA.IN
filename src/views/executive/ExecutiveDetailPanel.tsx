@@ -51,7 +51,7 @@ function Skeleton() {
   return (
     <div className="p-4 space-y-2" aria-hidden="true">
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="h-10 rounded-lg bg-white/5 animate-pulse" />
+        <div key={i} className="h-10 rounded-lg bg-gray-200 dark:bg-brand-navy-light/20 animate-pulse" />
       ))}
     </div>
   );
@@ -162,15 +162,15 @@ export default function ExecutiveDetailPanel({
         aria-modal="true"
         aria-label={request?.title || 'Details'}
         className={[
-          'fixed z-50 bg-gray-900 border-l border-white/10 flex flex-col',
+          'fixed z-50 bg-white dark:bg-brand-navy border-l border-gray-100 dark:border-brand-navy-light/10 flex flex-col',
           'inset-y-0 right-0 w-full sm:w-[min(46rem,92vw)]',
           EASE,
           open ? 'translate-x-0 shadow-2xl' : 'translate-x-full pointer-events-none',
         ].join(' ')}
       >
-        <div className="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-white/10">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 dark:border-brand-navy-light/10">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-white truncate">{request?.title}</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">{request?.title}</h2>
             {request?.description ? (
               <p className="text-xs text-gray-400 mt-0.5">{request.description}</p>
             ) : null}
@@ -180,14 +180,14 @@ export default function ExecutiveDetailPanel({
             type="button"
             onClick={onClose}
             aria-label="Close details"
-            className={`${TOUCH} shrink-0 px-3 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 ${EASE} ${FOCUS}`}
+            className={`${TOUCH} shrink-0 px-3 rounded-lg text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 ${EASE} ${FOCUS}`}
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
         {request?.filters?.length ? (
-          <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2 border-b border-white/10">
+          <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-brand-navy-light/10">
             {request.filters.map((f) => (
               <button
                 key={f.id}
@@ -199,7 +199,7 @@ export default function ExecutiveDetailPanel({
                   EASE, FOCUS,
                   filter === f.value
                     ? 'bg-brand-orange text-white border-brand-orange'
-                    : 'text-gray-300 border-white/15 hover:border-white/40 hover:text-white',
+                    : 'text-gray-600 border-gray-200 dark:border-brand-navy-light/30 hover:border-gray-300 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-800 dark:text-gray-200',
                 ].join(' ')}
               >
                 {f.label}
@@ -209,7 +209,7 @@ export default function ExecutiveDetailPanel({
               type="button"
               onClick={() => setNonce((n) => n + 1)}
               aria-label="Reload data"
-              className={`ml-auto px-3 rounded-lg text-xs text-gray-300 hover:text-white hover:bg-white/10 ${EASE} ${FOCUS} min-h-[32px]`}
+              className={`ml-auto px-3 rounded-lg text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 ${EASE} ${FOCUS} min-h-[32px]`}
             >
               <RefreshCw className="w-3.5 h-3.5 inline" aria-hidden="true" /> Refresh
             </button>
@@ -222,11 +222,11 @@ export default function ExecutiveDetailPanel({
             <div role="alert" className="m-4 p-4 rounded-lg bg-red-500/10 border border-red-400/30 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-300 shrink-0 mt-0.5" aria-hidden="true" />
               <div>
-                <p className="text-sm font-semibold text-red-200">Unable to load this data. Please try again.</p>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-300">Unable to load this data. Please try again.</p>
                 <button
                   type="button"
                   onClick={() => setNonce((n) => n + 1)}
-                  className={`mt-3 inline-flex items-center gap-2 text-sm text-red-200 hover:text-white ${EASE} ${FOCUS}`}
+                  className={`mt-3 inline-flex items-center gap-2 text-sm text-red-600 hover:text-red-800 ${EASE} ${FOCUS}`}
                 >
                   <RefreshCw className="w-4 h-4" aria-hidden="true" /> Try again
                 </button>
@@ -243,7 +243,7 @@ export default function ExecutiveDetailPanel({
 
           {state === 'ready' && items.length ? (
             <>
-              <div className="px-4 sm:px-6 py-3 text-xs text-gray-400 border-b border-white/5">
+              <div className="px-4 sm:px-6 py-3 text-xs text-gray-400 border-b border-gray-100 dark:border-brand-navy-light/10">
                 {typeof data?.total === 'number'
                   ? `${data.total} record${data.total === 1 ? '' : 's'}`
                   : `${items.length} shown`}
@@ -262,9 +262,9 @@ export default function ExecutiveDetailPanel({
                   </thead>
                   <tbody>
                     {items.map((row: any, i: number) => (
-                      <tr key={row?.id ?? i} className="border-t border-white/5 hover:bg-white/5">
+                      <tr key={row?.id ?? i} className="border-t border-gray-100 dark:border-brand-navy-light/10 hover:bg-gray-50 dark:hover:bg-brand-navy-light/20">
                         {request!.columns.map((c) => (
-                          <td key={c.key} className="px-4 sm:px-6 py-3 text-gray-200 align-top">
+                          <td key={c.key} className="px-4 sm:px-6 py-3 text-gray-800 dark:text-gray-200 align-top">
                             {c.render(row)}
                           </td>
                         ))}
@@ -273,7 +273,7 @@ export default function ExecutiveDetailPanel({
                   </tbody>
                 </table>
               </div>
-              <ul className="sm:hidden divide-y divide-white/5">
+              <ul className="sm:hidden divide-y divide-gray-100 dark:divide-brand-navy-light/10">
                 {items.map((row: any, i: number) => (
                   <li key={row?.id ?? i} className="p-4 space-y-1.5">
                     {request!.columns
@@ -281,7 +281,7 @@ export default function ExecutiveDetailPanel({
                       .map((c) => (
                         <div key={c.key} className="flex justify-between gap-3 text-sm">
                           <span className="text-gray-400 shrink-0">{c.header}</span>
-                          <span className="text-gray-100 text-right break-words">{c.render(row)}</span>
+                          <span className="text-gray-800 dark:text-gray-200 text-right break-words">{c.render(row)}</span>
                         </div>
                       ))}
                   </li>
@@ -292,10 +292,10 @@ export default function ExecutiveDetailPanel({
         </div>
 
         {totals ? (
-          <div className="px-4 sm:px-6 py-3 border-t border-white/10 text-xs text-gray-400">
+          <div className="px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-brand-navy-light/10 text-xs text-gray-400">
             {Object.entries(totals).map(([k, v]) => (
               <span key={k} className="mr-4">
-                {k}: <span className="text-gray-200 font-semibold">{String(v)}</span>
+                {k}: <span className="text-gray-800 dark:text-gray-200 font-semibold">{String(v)}</span>
               </span>
             ))}
           </div>

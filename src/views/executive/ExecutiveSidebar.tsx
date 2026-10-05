@@ -83,8 +83,8 @@ export default function ExecutiveSidebar({
             'relative w-full flex items-center gap-3 rounded-lg px-3 text-sm',
             TOUCH, EASE, FOCUS,
             active
-              ? 'bg-brand-orange/15 text-white font-semibold'
-              : 'text-gray-300 hover:text-white hover:bg-white/5',
+              ? 'bg-orange-500 text-white font-medium'
+              : 'text-gray-300 hover:text-white hover:bg-white/10',
             item.disabled ? 'opacity-40 cursor-not-allowed' : '',
           ].join(' ')}
         >
@@ -111,7 +111,7 @@ export default function ExecutiveSidebar({
   return (
     <>
       {/* Mobile top bar */}
-      <div className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-gray-900/95 backdrop-blur border-b border-white/10">
+      <div className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-[#1B3A6B]/95 backdrop-blur border-b border-white/10">
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
@@ -145,7 +145,7 @@ export default function ExecutiveSidebar({
         className={[
           'fixed z-50 lg:sticky lg:top-0 lg:z-20 lg:h-screen',
           'inset-y-0 left-0 w-72 max-w-[85vw] lg:max-w-none lg:w-64',
-          'bg-gray-900 border-r border-white/10 flex flex-col',
+          'bg-[#1B3A6B] border-r border-white/10 flex flex-col',
           EASE,
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0',
           width,

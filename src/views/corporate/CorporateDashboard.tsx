@@ -131,13 +131,13 @@ export default function CorporateDashboard() {
   const roleLabel = corpUser?.role === 'FOUNDER' ? 'Founder' : corpUser?.role === 'CEO_MD' ? 'CEO & MD' : 'Chairman';
   const isEmpty = !data || Object.keys(data).length === 0;
 
-  if (loading) return <div className="min-h-screen bg-gray-900 flex items-center justify-center"><RefreshCw className="w-8 h-8 animate-spin text-orange-500" /></div>;
+  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><RefreshCw className="w-8 h-8 animate-spin text-orange-500" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex">
+    <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark flex">
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-gray-800 z-40 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
-        <div className="p-5 border-b border-gray-700">
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-[#1B3A6B] z-40 text-white transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+        <div className="p-5 border-b border-gray-100 dark:border-brand-navy-light/10">
           <div className="flex items-center gap-3">
             <img src="/SHOPTANTRA.png" alt="ShopTantra" className="h-10 w-auto object-contain" />
             <span className="font-bold text-sm">Corporate ERP</span>
@@ -157,34 +157,34 @@ export default function CorporateDashboard() {
                 setActiveTab(item.id);
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition cursor-pointer ${activeTab === item.id ? 'bg-orange-500/20 text-orange-400' : 'text-gray-300 hover:bg-gray-700'}`}>
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition cursor-pointer ${activeTab === item.id ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
               <item.icon size={18} /> {item.label}
               {item.id === 'sellers' && data?.sellers.pending ? <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{data.sellers.pending}</span> : null}
               {item.id === 'products' && data?.marketplace.pendingProducts ? <span className="ml-auto bg-yellow-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{data.marketplace.pendingProducts}</span> : null}
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-gray-700">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-700 transition"><LogOut size={18} /> Sign Out</button>
+        <div className="p-3 border-t border-gray-100 dark:border-brand-navy-light/10">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition"><LogOut size={18} /> Sign Out</button>
         </div>
       </aside>
 
       <div className="flex-1 lg:ml-64">
-        <header className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur border-b border-gray-800 px-4 lg:px-6 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-20 bg-white dark:bg-brand-navy backdrop-blur border-b border-gray-100 dark:border-brand-navy-light/10 px-4 lg:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-300"><Menu size={20} /></button>
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 dark:text-gray-400"><Menu size={20} /></button>
             <h1 className="font-bold text-lg">Corporate Control Center</h1>
           </div>
           <div className="flex items-center gap-3">
             {refreshing && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
-            <button onClick={loadDashboard} className="p-1.5 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700"><RefreshCw size={16} /></button>
+            <button onClick={loadDashboard} className="p-1.5 rounded-lg bg-white dark:bg-brand-navy text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30"><RefreshCw size={16} /></button>
             <div className="relative"><Bell size={18} className="text-gray-400" />{data?.support.open ? <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center font-bold">{data.support.open}</span> : null}</div>
           </div>
         </header>
 
         <main className="p-4 lg:p-6 space-y-6">
           {isEmpty && !loading && (
-            <div className="p-8 bg-gray-800 rounded-xl border border-gray-700 text-center">
+            <div className="p-8 bg-white dark:bg-brand-navy rounded-xl border border-gray-100 dark:border-brand-navy-light/10 shadow-sm text-center">
               <Activity className="w-12 h-12 text-gray-500 mx-auto mb-3" />
               <p className="text-gray-400 font-bold">No business data available yet.</p>
               <p className="text-xs text-gray-500 mt-1">Metrics will appear here once orders, sellers, and products are added.</p>
@@ -206,7 +206,7 @@ export default function CorporateDashboard() {
                   <button
                     key={i}
                     onClick={() => navigate(card.to)}
-                    className="group bg-gray-800 rounded-xl p-3 border border-gray-700 hover:border-orange-500/70 hover:bg-gray-700/60 hover:shadow-lg hover:shadow-orange-500/10 transition-all cursor-pointer text-left relative"
+                    className="group bg-white dark:bg-brand-navy rounded-xl shadow-sm p-3 border border-gray-100 dark:border-brand-navy-light/10 hover:border-orange-500/70 hover:bg-gray-50 dark:hover:bg-brand-navy-light/20 hover:shadow-lg hover:shadow-orange-500/10 transition-all cursor-pointer text-left relative"
                     title={`View ${card.label}`}
                   >
                     <span className="absolute top-2 right-2 text-gray-600 group-hover:text-orange-400 transition">›</span>
@@ -219,7 +219,7 @@ export default function CorporateDashboard() {
 
               {/* Revenue + Orders */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 lg:col-span-2">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10 lg:col-span-2">
                   <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><TrendingUp size={16} className="text-orange-500" /> Revenue</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
@@ -228,7 +228,7 @@ export default function CorporateDashboard() {
                       { label: 'Yearly', value: formatCurrency(data.company.yearlyRevenue) },
                       { label: 'Today', value: formatCurrency(data.today.revenue) },
                     ].map((s, i) => (
-                      <div key={i} className="p-2.5 bg-gray-900/50 rounded-lg">
+                      <div key={i} className="p-2.5 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg">
                         <p className="text-base font-extrabold">{s.value}</p>
                         <p className="text-[10px] text-gray-400">{s.label}</p>
                       </div>
@@ -236,7 +236,7 @@ export default function CorporateDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><ShoppingCart size={16} className="text-orange-500" /> Orders</h2>
                   <div className="space-y-2 text-xs">
                     {[
@@ -245,9 +245,9 @@ export default function CorporateDashboard() {
                       { label: 'Cancelled', value: data.company.cancelledOrders, to: '/corporate/orders?status=cancelled' },
                       { label: 'Refunded', value: data.company.refundOrders, to: '/corporate/orders?status=refunded' },
                     ].map((o, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(o.to)} title="View orders">
-                        <span className="text-gray-300 group-hover:text-white">{o.label}</span>
-                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{o.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(o.to)} title="View orders">
+                        <span className="text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{o.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{o.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
                       </div>
                     ))}
                   </div>
@@ -256,7 +256,7 @@ export default function CorporateDashboard() {
 
               {/* Marketplace + Sellers + Buyers */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Package size={14} className="inline mr-1 text-orange-500" /> Products</h2>
                   <div className="space-y-2 text-xs">
                     {[
@@ -267,15 +267,15 @@ export default function CorporateDashboard() {
                       { label: 'Draft', value: data.marketplace.draftProducts, to: '/corporate/products?status=draft' },
                       { label: 'Out of Stock', value: data.marketplace.outOfStockProducts, to: '/corporate/products?status=outofstock' },
                     ].map((p, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(p.to)} title="View products">
-                        <span className="text-gray-400 group-hover:text-white">{p.label}</span>
-                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{p.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(p.to)} title="View products">
+                        <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{p.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{p.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Users size={14} className="inline mr-1 text-orange-500" /> Sellers</h2>
                   <div className="space-y-2 text-xs">
                     {[
@@ -286,16 +286,16 @@ export default function CorporateDashboard() {
                       { label: 'Suspended', value: data.sellers.suspended, to: '/corporate/sellers?status=suspended' },
                       { label: 'Blocked', value: data.sellers.blocked, to: '/corporate/sellers?status=blocked' },
                     ].map((s, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(s.to)} title="View sellers">
-                        <span className="text-gray-400 group-hover:text-white">{s.label}</span>
-                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{s.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(s.to)} title="View sellers">
+                        <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{s.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{s.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
                       </div>
                     ))}
-                    {data.sellers.newToday > 0 && <div className="mt-2 pt-2 border-t border-gray-700 text-green-400">+{data.sellers.newToday} today, +{data.sellers.newThisWeek} this week</div>}
+                    {data.sellers.newToday > 0 && <div className="mt-2 pt-2 border-t border-gray-100 dark:border-brand-navy-light/10 text-green-400">+{data.sellers.newToday} today, +{data.sellers.newThisWeek} this week</div>}
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><UserCog size={14} className="inline mr-1 text-orange-500" /> Customers</h2>
                   <div className="space-y-2 text-xs">
                     {[
@@ -304,9 +304,9 @@ export default function CorporateDashboard() {
                       { label: 'Active', value: data.buyers.active, to: '/corporate/customers?status=active' },
                       { label: 'Inactive', value: data.buyers.inactive, to: '/corporate/customers?status=inactive' },
                     ].map((b, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-700/50 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(b.to)} title="View customers">
-                        <span className="text-gray-400 group-hover:text-white">{b.label}</span>
-                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-700 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{b.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
+                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(b.to)} title="View customers">
+                        <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{b.label}</span>
+                        <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{b.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
                       </div>
                     ))}
                   </div>
@@ -315,7 +315,7 @@ export default function CorporateDashboard() {
 
               {/* Shipping + Payments */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Truck size={14} className="inline mr-1 text-orange-500" /> Shipping</h2>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {[
@@ -326,19 +326,19 @@ export default function CorporateDashboard() {
                       { label: 'Delivered', value: data.shipping.delivered },
                       { label: 'Returned', value: data.shipping.returned },
                     ].map((sh, i) => (
-                      <div key={i} className="p-2 bg-gray-900/50 rounded-lg text-center">
+                      <div key={i} className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center">
                         <p className="font-bold text-sm">{sh.value}</p><p className="text-[10px] text-gray-400">{sh.label}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><CreditCard size={14} className="inline mr-1 text-orange-500" /> Payments</h2>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between"><span className="text-gray-400">Total Collected</span><span className="font-bold">{formatCurrency(data.payments.totalCollected)}</span></div>
                     <div className="flex justify-between"><span className="text-gray-400">Commission</span><span className="font-bold">{formatCurrency(data.payments.commissionCollected)}</span></div>
-                    <div className="mt-2 pt-2 border-t border-gray-700 grid grid-cols-2 gap-2">
+                    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-brand-navy-light/10 grid grid-cols-2 gap-2">
                       <div><span className="text-gray-400">Razorpay</span><p className="font-bold">{formatCurrency(data.payments.razorpay)}</p></div>
                       <div><span className="text-gray-400">COD</span><p className="font-bold">{formatCurrency(data.payments.cod)}</p></div>
                       {data.payments.other > 0 && (
@@ -351,21 +351,21 @@ export default function CorporateDashboard() {
 
               {/* Support + Visitors */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Ticket size={14} className="inline mr-1 text-orange-500" /> Support</h2>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold text-red-400">{data.support.open}</p><p className="text-gray-400">Open</p></div>
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold text-green-400">{data.support.resolved}</p><p className="text-gray-400">Resolved</p></div>
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold text-yellow-400">{data.support.pending}</p><p className="text-gray-400">Pending</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold text-red-400">{data.support.open}</p><p className="text-gray-400">Open</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold text-green-400">{data.support.resolved}</p><p className="text-gray-400">Resolved</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold text-yellow-400">{data.support.pending}</p><p className="text-gray-400">Pending</p></div>
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Activity size={14} className="inline mr-1 text-orange-500" /> Visitors</h2>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.today}</p><p className="text-gray-400">Today</p></div>
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.weekly}</p><p className="text-gray-400">Weekly</p></div>
-                    <div className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold">{data.visitors.monthly}</p><p className="text-gray-400">Monthly</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold">{data.visitors.today}</p><p className="text-gray-400">Today</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold">{data.visitors.weekly}</p><p className="text-gray-400">Weekly</p></div>
+                    <div className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold">{data.visitors.monthly}</p><p className="text-gray-400">Monthly</p></div>
                   </div>
                 </div>
               </div>
@@ -373,18 +373,18 @@ export default function CorporateDashboard() {
               {/* Recent Activity */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {/* Recent Orders */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><ShoppingCart size={14} className="inline mr-1 text-orange-500" /> Recent Orders</h2>
                   <div className="space-y-2">
                     {data.recentOrders && data.recentOrders.length > 0 ? data.recentOrders.slice(0, 5).map((o: any) => (
-                      <div key={o.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                      <div key={o.id} className="bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg p-2.5">
                         <div className="flex justify-between items-center gap-2">
                           <span className="font-bold text-xs truncate">{o.orderNumber}</span>
                           <span className="font-bold text-xs text-green-400 whitespace-nowrap">{formatCurrency(o.totalAmount)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-2 mt-1">
                           <span className="text-[10px] text-gray-400 truncate">{o.buyer?.fullName || o.buyer?.email || 'Customer'}{o.seller?.storeName ? ` · ${o.seller.storeName}` : ''}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">{o.status}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-brand-navy-light/30 text-gray-600 dark:text-gray-300 whitespace-nowrap">{o.status}</span>
                         </div>
                       </div>
                     )) : <p className="text-xs text-gray-500">No orders yet.</p>}
@@ -392,14 +392,14 @@ export default function CorporateDashboard() {
                 </div>
 
                 {/* Recent Sellers */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Building2 size={14} className="inline mr-1 text-orange-500" /> Recent Sellers</h2>
                   <div className="space-y-2">
                     {data.recentSellers && data.recentSellers.length > 0 ? data.recentSellers.slice(0, 5).map((s: any) => (
-                      <div key={s.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                      <div key={s.id} className="bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg p-2.5">
                         <div className="flex justify-between items-center gap-2">
                           <span className="font-bold text-xs truncate">{s.storeName}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${s.status === 'ACTIVE' || s.status === 'APPROVED' ? 'bg-green-500/20 text-green-400' : s.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-700 text-gray-300'}`}>{s.status}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${s.status === 'ACTIVE' || s.status === 'APPROVED' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' : s.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : 'bg-gray-100 dark:bg-brand-navy-light/30 text-gray-600 dark:text-gray-300'}`}>{s.status}</span>
                         </div>
                         <div className="text-[10px] text-gray-400 mt-1 truncate">{s.user?.fullName || s.user?.email || '—'}{s.city ? ` · ${s.city}` : ''} · {s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '—'}</div>
                       </div>
@@ -408,18 +408,18 @@ export default function CorporateDashboard() {
                 </div>
 
                 {/* Recent Products */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 md:col-span-2 xl:col-span-1">
+                <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10 md:col-span-2 xl:col-span-1">
                   <h2 className="font-bold text-xs mb-3 uppercase tracking-wider text-gray-400"><Package size={14} className="inline mr-1 text-orange-500" /> Recent Products</h2>
                   <div className="space-y-2">
                     {data.recentProducts && data.recentProducts.length > 0 ? data.recentProducts.slice(0, 5).map((p: any) => (
-                      <div key={p.id} className="bg-gray-900/50 rounded-lg p-2.5">
+                      <div key={p.id} className="bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg p-2.5">
                         <div className="flex justify-between items-center gap-2">
                           <span className="font-bold text-xs truncate">{p.title}</span>
                           <span className="font-bold text-xs text-cyan-400 whitespace-nowrap">{formatCurrency(p.price)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-2 mt-1">
                           <span className="text-[10px] text-gray-400 truncate">{p.category || 'General'}{p.seller?.storeName ? ` · ${p.seller.storeName}` : ''}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">{p.status} · {p.stock} left</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-brand-navy-light/30 text-gray-600 dark:text-gray-300 whitespace-nowrap">{p.status} · {p.stock} left</span>
                         </div>
                       </div>
                     )) : <p className="text-xs text-gray-500">No products yet.</p>}
@@ -431,12 +431,12 @@ export default function CorporateDashboard() {
 
           {/* Seller Approval Center */}
           {data && activeTab === 'sellers' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-base mb-4 flex items-center gap-2"><UserCheck size={18} className="text-orange-500" /> Seller Approval Center</h2>
               {data.sellers.pendingApprovalSellers && data.sellers.pendingApprovalSellers.length > 0 ? (
                 <div className="space-y-3">
                   {data.sellers.pendingApprovalSellers.map((seller: any) => (
-                    <div key={seller.id} className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                    <div key={seller.id} className="bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg p-4 border border-gray-100 dark:border-brand-navy-light/10">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                         <div><span className="text-gray-400 block">Business</span><span className="font-bold">{seller.storeName}</span></div>
                         <div><span className="text-gray-400 block">Owner</span><span className="font-bold">{seller.user?.fullName || '—'}</span></div>
@@ -460,7 +460,7 @@ export default function CorporateDashboard() {
 
           {/* Product Approval Center */}
           {data && activeTab === 'products' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-base mb-4 flex items-center gap-2"><PackageCheck size={18} className="text-orange-500" /> Product Approval Center</h2>
               <p className="text-xs text-gray-400">Pending products: {data.marketplace.pendingProducts}. Approved: {data.marketplace.approvedProducts}. Blocked: {data.marketplace.blockedProducts}.</p>
             </div>
@@ -469,21 +469,21 @@ export default function CorporateDashboard() {
           {/* Finance */}
           {data && activeTab === 'finance' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                 <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><DollarSign size={16} className="text-orange-500" /> Revenue</h2>
                 <div className="space-y-3 text-xs">
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Total Revenue</span><span className="font-bold text-green-400">{formatCurrency(data.company.totalRevenue)}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Monthly Revenue</span><span className="font-bold">{formatCurrency(data.company.monthlyRevenue)}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Commission</span><span className="font-bold">{formatCurrency(data.payments.commissionCollected)}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Total Revenue</span><span className="font-bold text-green-400">{formatCurrency(data.company.totalRevenue)}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Monthly Revenue</span><span className="font-bold">{formatCurrency(data.company.monthlyRevenue)}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Commission</span><span className="font-bold">{formatCurrency(data.payments.commissionCollected)}</span></div>
                 </div>
               </div>
-              <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                 <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Globe size={16} className="text-orange-500" /> Gateway Wise</h2>
                 <div className="space-y-3 text-xs">
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Razorpay</span><span className="font-bold">{formatCurrency(data.payments.razorpay)}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">COD</span><span className="font-bold">{formatCurrency(data.payments.cod)}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Razorpay</span><span className="font-bold">{formatCurrency(data.payments.razorpay)}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">COD</span><span className="font-bold">{formatCurrency(data.payments.cod)}</span></div>
                   {data.payments.other > 0 && (
-                    <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Legacy (retired methods)</span><span className="font-bold">{formatCurrency(data.payments.other)}</span></div>
+                    <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Legacy (retired methods)</span><span className="font-bold">{formatCurrency(data.payments.other)}</span></div>
                   )}
                 </div>
               </div>
@@ -492,7 +492,7 @@ export default function CorporateDashboard() {
 
           {/* Shipping */}
           {data && activeTab === 'shipping' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Truck size={16} className="text-orange-500" /> Shipping Status</h2>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-xs">
                 {[
@@ -503,7 +503,7 @@ export default function CorporateDashboard() {
                   { label: 'Delivered', value: data.shipping.delivered },
                   { label: 'Returned', value: data.shipping.returned },
                 ].map((sh, i) => (
-                  <div key={i} className="p-2 bg-gray-900/50 rounded-lg text-center"><p className="font-bold text-sm">{sh.value}</p><p className="text-[10px] text-gray-400">{sh.label}</p></div>
+                  <div key={i} className="p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg text-center"><p className="font-bold text-sm">{sh.value}</p><p className="text-[10px] text-gray-400">{sh.label}</p></div>
                 ))}
               </div>
             </div>
@@ -511,12 +511,12 @@ export default function CorporateDashboard() {
 
           {/* Analytics */}
           {data && activeTab === 'analytics' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><BarChart3 size={16} className="text-orange-500" /> Business Analytics</h2>
               {data.analytics.topProducts.length > 0 ? (
                 <div className="space-y-2 text-xs">
                   {data.analytics.topProducts.map((p: any, i: number) => (
-                    <div key={i} className="flex justify-between p-2 bg-gray-900/50 rounded"><span>{p.title}</span><span className="font-bold">{p.soldCount} sold</span></div>
+                    <div key={i} className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span>{p.title}</span><span className="font-bold">{p.soldCount} sold</span></div>
                   ))}
                 </div>
               ) : <p className="text-gray-400 text-xs">No analytics available.</p>}
@@ -525,24 +525,24 @@ export default function CorporateDashboard() {
 
           {/* Support */}
           {data && activeTab === 'support' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Ticket size={16} className="text-orange-500" /> Support Tickets</h2>
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-4 bg-gray-900/50 rounded-lg"><p className="text-2xl font-bold text-red-400">{data.support.open}</p><p className="text-xs text-gray-400">Open</p></div>
-                <div className="p-4 bg-gray-900/50 rounded-lg"><p className="text-2xl font-bold text-green-400">{data.support.resolved}</p><p className="text-xs text-gray-400">Resolved</p></div>
-                <div className="p-4 bg-gray-900/50 rounded-lg"><p className="text-2xl font-bold text-yellow-400">{data.support.pending}</p><p className="text-xs text-gray-400">Pending</p></div>
+                <div className="p-4 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg"><p className="text-2xl font-bold text-red-400">{data.support.open}</p><p className="text-xs text-gray-400">Open</p></div>
+                <div className="p-4 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg"><p className="text-2xl font-bold text-green-400">{data.support.resolved}</p><p className="text-xs text-gray-400">Resolved</p></div>
+                <div className="p-4 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded-lg"><p className="text-2xl font-bold text-yellow-400">{data.support.pending}</p><p className="text-xs text-gray-400">Pending</p></div>
               </div>
             </div>
           )}
 
           {/* Security */}
           {data && activeTab === 'security' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Shield size={16} className="text-orange-500" /> Security Center</h2>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">JWT Status</span><span className="font-bold text-green-400">{data.security.jwtStatus}</span></div>
-                <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Current Role</span><span className="font-bold text-orange-400">{roleLabel}</span></div>
-                <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Logged in as</span><span className="font-bold">{corpUser?.email || '—'}</span></div>
+                <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">JWT Status</span><span className="font-bold text-green-400">{data.security.jwtStatus}</span></div>
+                <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Current Role</span><span className="font-bold text-orange-400">{roleLabel}</span></div>
+                <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Logged in as</span><span className="font-bold">{corpUser?.email || '—'}</span></div>
               </div>
             </div>
           )}
@@ -550,20 +550,20 @@ export default function CorporateDashboard() {
           {/* Business */}
           {data && activeTab === 'business' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                 <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Building2 size={16} className="text-orange-500" /> Operations</h2>
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Branches</span><span className="font-bold">{data.business.totalBranches}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Employees</span><span className="font-bold">{data.business.totalEmployees}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Active Ads</span><span className="font-bold">{data.business.totalAdvertisements}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Coupons</span><span className="font-bold">{data.business.totalCoupons}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Branches</span><span className="font-bold">{data.business.totalBranches}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Employees</span><span className="font-bold">{data.business.totalEmployees}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Active Ads</span><span className="font-bold">{data.business.totalAdvertisements}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Coupons</span><span className="font-bold">{data.business.totalCoupons}</span></div>
                 </div>
               </div>
-              <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
                 <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><ClipboardList size={16} className="text-orange-500" /> Reviews</h2>
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Total Reviews</span><span className="font-bold">{data.business.totalReviews}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-900/50 rounded"><span className="text-gray-400">Categories</span><span className="font-bold">{data.marketplace.totalCategories}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Total Reviews</span><span className="font-bold">{data.business.totalReviews}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-100/70 dark:bg-brand-navy-light/20 rounded"><span className="text-gray-400">Categories</span><span className="font-bold">{data.marketplace.totalCategories}</span></div>
                 </div>
               </div>
             </div>
@@ -571,7 +571,7 @@ export default function CorporateDashboard() {
 
           {/* Settings */}
           {activeTab === 'settings' && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div className="bg-white dark:bg-brand-navy rounded-xl shadow-sm p-4 border border-gray-100 dark:border-brand-navy-light/10">
               <h2 className="font-bold text-sm mb-3 flex items-center gap-2"><Settings size={16} className="text-orange-500" /> System Settings</h2>
               <p className="text-xs text-gray-400">System settings management coming soon. All core ERP dashboard modules are active.</p>
             </div>

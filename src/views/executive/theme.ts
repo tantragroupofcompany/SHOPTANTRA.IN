@@ -23,16 +23,16 @@
 export const EASE = 'transition-all duration-200 ease-out';
 
 /** Brand focus ring, used everywhere instead of the browser's blue default. */
-export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900';
+export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50';
 
 /** Minimum comfortable touch target. */
 export const TOUCH = 'min-h-[44px]';
 
 /** Card shell. Interactive cards extend this with press feedback. */
-export const CARD = 'bg-white/5 border border-white/10 rounded-xl';
+export const CARD = 'bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-xl shadow-sm';
 
 /** Interactive card: hover lift + press feedback, all keyboard/touch reachable. */
-export const CARD_ACTION = `${CARD} ${EASE} hover:bg-white/10 hover:border-brand-orange/40 active:scale-[0.98] cursor-pointer ${FOCUS}`;
+export const CARD_ACTION = `${CARD} ${EASE} hover:border-brand-orange/40 hover:shadow-md active:scale-[0.98] cursor-pointer ${FOCUS}`;
 
 /** A non-interactive stat panel (no cursor, no press effect). */
 export const CARD_STATIC = `${CARD} ${EASE}`;
