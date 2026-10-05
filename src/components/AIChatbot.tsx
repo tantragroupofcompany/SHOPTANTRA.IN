@@ -176,7 +176,7 @@ export default function AIChatbot() {
 
       {/* 2. Chatbot Dialog Panel */}
       {isOpen && (
-        <div className="bg-white dark:bg-brand-navy rounded-2xl w-[330px] sm:w-[360px] h-[480px] shadow-2xl border border-gray-100 dark:border-brand-navy-light/10 flex flex-col justify-between overflow-hidden animate-slide-up">
+        <div className="bg-white dark:bg-brand-navy rounded-2xl w-[330px] sm:w-[360px] max-w-[calc(100vw-3rem)] h-[480px] shadow-2xl border border-gray-100 dark:border-brand-navy-light/10 flex flex-col justify-between overflow-hidden animate-slide-up">
           
           {/* Header */}
           <div className="bg-brand-navy dark:bg-brand-navy-dark text-white p-4 flex justify-between items-center shrink-0 border-b border-white/5">
