@@ -46,6 +46,13 @@ export async function GET(request: Request) {
 }
 
 // PUT /api/seller/reviews (Update status or response)
+//
+// AUTHORIZATION: reviews belong to a store through their product. This
+// handler previously updated ANY review by id with no session, so a caller
+// could set their own competitor's review to REJECTED or post a fake
+// seller_response on another store's review. The caller must now be
+// authenticated and the target review must sit on their own product
+// (staff may moderate any review).
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
@@ -53,6 +60,23 @@ export async function PUT(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'Review ID is required' }, { status: 400 });
+    }
+
+    const scope = await requireSellerScope(request);
+    if (!scope.ok) return scope.response;
+
+    const target = await prisma.review.findUnique({
+      where: { id },
+      select: { product: { select: { sellerId: true } } },
+    });
+    if (!target) {
+      return NextResponse.json({ error: 'Review not found' }, { status: 404 });
+    }
+    if (!scope.elevated && target.product?.sellerId !== scope.sellerId) {
+      return NextResponse.json(
+        { error: 'Access Denied – this review belongs to another store.' },
+        { status: 403 },
+      );
     }
 
     const updatePayload: any = {};

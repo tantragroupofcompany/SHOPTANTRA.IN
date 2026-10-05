@@ -93,9 +93,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { sellerId: sellerIdParam, userId, amount, paymentMethod, upiId, bankDetails } = body;
 
-    const idToResolve = sellerIdParam || userId;
-    if (!amount || amount <= 0) {
+    // AUTHORIZATION FIRST: validate the amount shape before touching the DB,
+    // then scope the target store to the session (staff may act on any store).
+    // Previously the wallet was read BEFORE any check, so an anonymous caller
+    // could probe whether an arbitrary seller id rows exist via 400-vs-404…
+    const numericAmount = typeof amount === 'string' && amount.trim() !== '' ? Number(amount) : amount;
+    if (typeof numericAmount !== 'number' || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       return NextResponse.json({ error: 'A positive payout amount is required' }, { status: 400 });
+    }
+
+    const idToResolve = sellerIdParam || userId;
+    if (!idToResolve) {
+      return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
     }
 
     // AUTHORIZATION: a payout may only be requested against the caller's own
@@ -109,7 +118,7 @@ export async function POST(request: Request) {
       where: { sellerId }
     });
 
-    if (!wallet || wallet.balance < parseFloat(amount)) {
+    if (!wallet || wallet.balance < numericAmount) {
       return NextResponse.json({ error: 'Insufficient wallet balance for withdrawal request' }, { status: 400 });
     }
 
@@ -118,7 +127,7 @@ export async function POST(request: Request) {
       await tx.vendorWallet.update({
         where: { sellerId },
         data: {
-          balance: { decrement: parseFloat(amount) }
+          balance: { decrement: numericAmount }
         }
       });
 
@@ -126,7 +135,7 @@ export async function POST(request: Request) {
       await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
-          amount: parseFloat(amount),
+          amount: numericAmount,
           type: 'DEBIT',
           description: `Withdrawal request initiated`
         }
@@ -136,7 +145,7 @@ export async function POST(request: Request) {
       const payout = await tx.payoutRequest.create({
         data: {
           sellerId,
-          amount: parseFloat(amount),
+          amount: numericAmount,
           paymentMethod: paymentMethod || 'UPI',
           upiId: upiId || null,
           bankDetails: bankDetails ? JSON.stringify(bankDetails) : null,

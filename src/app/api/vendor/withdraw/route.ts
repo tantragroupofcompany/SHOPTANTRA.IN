@@ -20,7 +20,12 @@ export async function POST(request: Request) {
     if (!scope.ok) return scope.response;
     const sellerId = scope.sellerId;
 
-    if (!amount || amount <= 0 || !paymentMethod) {
+    // Coerce the amount once. `wallet.balance < amount` / `decrement: amount`
+    // silently coerce a numeric STRING (e.g. "50") in the comparison but then
+    // hand Prisma a string for a Float field, which throws → 500. Validate as
+    // a real finite positive number up front instead.
+    const numericAmount = typeof amount === 'string' && amount.trim() !== '' ? Number(amount) : amount;
+    if (typeof numericAmount !== 'number' || !Number.isFinite(numericAmount) || numericAmount <= 0 || !paymentMethod) {
       return NextResponse.json(
         { error: 'Invalid payload' },
         { status: 400 }
@@ -32,7 +37,7 @@ export async function POST(request: Request) {
       where: { sellerId },
     });
 
-    if (!wallet || wallet.balance < amount) {
+    if (!wallet || wallet.balance < numericAmount) {
       return NextResponse.json(
         { error: 'Insufficient balance available in wallet for withdrawal' },
         { status: 400 }
@@ -45,7 +50,7 @@ export async function POST(request: Request) {
       const updatedWallet = await tx.vendorWallet.update({
         where: { sellerId },
         data: {
-          balance: { decrement: amount },
+          balance: { decrement: numericAmount },
         },
       });
 
@@ -53,19 +58,26 @@ export async function POST(request: Request) {
       const transaction = await tx.walletTransaction.create({
         data: {
           walletId: wallet.id,
-          amount: amount,
+          amount: numericAmount,
           type: 'DEBIT',
           description: `Withdrawal request initiated via ${paymentMethod}`,
         },
       });
 
-      // Create Payout Request
+      // Create Payout Request.
+      // `PayoutRequest.bankDetails` is a String? column — the previous
+      // `bankDetails || {}` wrote an OBJECT into it whenever bankDetails was
+      // absent, which Prisma rejects at runtime (500 on every bank payout).
+      // Serialize objects to JSON and store null when nothing was supplied,
+      // matching /api/seller/earnings.
       const payout = await tx.payoutRequest.create({
         data: {
           sellerId,
-          amount,
+          amount: numericAmount,
           paymentMethod,
-          bankDetails: bankDetails || {},
+          bankDetails: bankDetails
+            ? (typeof bankDetails === 'string' ? bankDetails : JSON.stringify(bankDetails))
+            : null,
           upiId,
           status: 'PENDING',
         },

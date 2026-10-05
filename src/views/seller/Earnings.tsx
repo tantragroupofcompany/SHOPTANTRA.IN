@@ -252,9 +252,12 @@ const Earnings = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      payout.status === 'completed'
+                      // Admin payout actions write PAID / FAILED / PROCESSING;
+                      // legacy rows may still carry the old lowercase
+                      // 'completed' value. Paid must never render as red.
+                      payout.status === 'paid' || payout.status === 'completed'
                         ? 'bg-green-100 text-green-800'
-                        : payout.status === 'pending'
+                        : payout.status === 'pending' || payout.status === 'processing'
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
                     }`}>

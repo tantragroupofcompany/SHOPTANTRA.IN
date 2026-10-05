@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { requireSellerScope } from '../../../../lib/sellerAuth';
 
 /**
  * Lazily initialize the Supabase admin client inside the request handler so
@@ -41,9 +42,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File size exceeds the 5 MB limit.' }, { status: 400 });
     }
 
-    // 2. Save seller profile reference
+    // AUTHORIZATION: a seller may only upload a logo onto their OWN store.
+    // This route previously accepted any store's userId with no session, so an
+    // anonymous caller could enumerate user ids looking for stores and then
+    // overwrite the target store's branding with an arbitrary image.
+    const scope = await requireSellerScope(request, userId);
+    if (!scope.ok) return scope.response;
+
+    // 2. Save seller profile reference. Scoped to the authorised store so a
+    // staff session that passed another store's userId still writes there
+    // only when the scope guard explicitly allowed it.
     const seller = await prisma.seller.findUnique({
-      where: { userId }
+      where: { id: scope.sellerId }
     });
 
     if (!seller) {
@@ -61,6 +71,8 @@ export async function POST(request: Request) {
     }
 
     // 4. Generate unique filename
+    // Do this AFTER the seller lookup so an unknown userId never burns
+    // storage reads/deletes or reveals anything about the bucket.
     const fileExt = file.name.split('.').pop() || 'png';
     const fileName = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
 
@@ -105,9 +117,9 @@ export async function POST(request: Request) {
     const { data } = supabaseAdmin.storage.from('logos').getPublicUrl(fileName);
     const publicUrl = data.publicUrl;
 
-    // 10. Save logo URL inside Seller Profile
+    // 10. Save logo URL inside Seller Profile (scoped to the authorised store)
     const updatedSeller = await prisma.seller.update({
-      where: { id: seller.id },
+      where: { id: scope.sellerId },
       data: { logoUrl: publicUrl }
     });
 

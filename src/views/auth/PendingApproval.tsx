@@ -7,15 +7,22 @@ export default function PendingApproval() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    // The approval endpoint is session-scoped: with no userId it answers for
+    // the LOGGED-IN caller's own store, so we never pass an id here. (It
+    // returns 401 with no session — that is correct, not an error.)
+    const poll = async () => {
       try {
         const res = await fetch('/api/seller/approval-status');
         const data = await res.json();
-        if (data.status === 'APPROVED') {
+        // The corporate approval endpoint (/api/corporate/seller-action) writes
+        // Seller.status = 'ACTIVE' on approve — never the literal 'APPROVED' —
+        // so checking only for 'APPROVED' meant the redirect to the dashboard
+        // could NEVER fire after a real approval. Accept both spellings.
+        if (data.status === 'APPROVED' || data.status === 'ACTIVE') {
           setStatus('APPROVED');
           setMessage('Your seller account has been approved. Redirecting to dashboard...');
           setTimeout(() => {
-            window.location.href = '/seller/dashboard';
+            window.location.href = '/seller';
           }, 1500);
         } else if (data.status === 'REJECTED') {
           setStatus('REJECTED');
@@ -24,7 +31,9 @@ export default function PendingApproval() {
       } catch (e) {
         // ignore
       }
-    }, 15000);
+    };
+    poll();
+    const interval = setInterval(poll, 15000);
     return () => clearInterval(interval);
   }, []);
 

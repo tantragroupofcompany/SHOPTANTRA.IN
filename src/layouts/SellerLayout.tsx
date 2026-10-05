@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard, Store, Package, ShoppingBag, BarChart2, Star,
@@ -26,10 +26,44 @@ const navItems = [
 
 export function SellerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Approval gate — see effect below. Fail-open default: the seller APIs
+  // re-enforce status server-side, so a failed probe must never lock the
+  // layout out (worst case is the pre-existing 403-per-fetch behaviour).
+  const [approvalGate, setApprovalGate] = useState<'checking' | 'allowed' | 'redirect'>('checking');
   const { user, profile, loading, signOut } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Login intentionally lets PENDING sellers in ("...to see their pending-
+  // approval screen"), but nothing routed them there — they landed on this
+  // dashboard where every seller API answered 403. Send PENDING/REJECTED
+  // sellers to /seller/pending-approval; its session-scoped poll then
+  // forwards them to the dashboard once the status flips to ACTIVE.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/seller/approval-status');
+        if (!res.ok) {
+          if (!cancelled) setApprovalGate('allowed');
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        const status = String(data?.status || '').toUpperCase();
+        if (!cancelled) {
+          setApprovalGate(
+            status === 'PENDING' || status === 'REJECTED' ? 'redirect' : 'allowed',
+          );
+        }
+      } catch {
+        if (!cancelled) setApprovalGate('allowed');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading || approvalGate === 'checking') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
@@ -39,6 +73,10 @@ export function SellerLayout() {
 
   if (!user || profile?.role !== 'seller') {
     return <Navigate to="/login" replace />;
+  }
+
+  if (approvalGate === 'redirect') {
+    return <Navigate to="/seller/pending-approval" replace />;
   }
 
   const isActive = (to: string) => {

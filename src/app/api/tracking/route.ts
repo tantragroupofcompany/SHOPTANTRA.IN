@@ -89,7 +89,20 @@ export async function GET(request: Request) {
         const addrPhone = (address?.phone || '').replace(/\D/g, '');
         const searchPhone = phone.replace(/\D/g, '');
 
-        if (addrPhone.endsWith(searchPhone) || searchPhone.endsWith(addrPhone)) {
+        // Guard against degenerate matches. The previous check was
+        // `addrPhone.endsWith(searchPhone) || searchPhone.endsWith(addrPhone)`,
+        // and `'anything'.endsWith('')` is ALWAYS true — so a non-numeric
+        // phone (e.g. "abc" → "") passed verification for ANY order, letting
+        // anyone holding only an order number read that order's shipments.
+        // Both sides must now contain a real numeric tail before endsWith
+        // is allowed to decide.
+        const MIN_PHONE_DIGITS = 6;
+        const phoneMatches =
+          addrPhone.length >= MIN_PHONE_DIGITS &&
+          searchPhone.length >= MIN_PHONE_DIGITS &&
+          (addrPhone.endsWith(searchPhone) || searchPhone.endsWith(addrPhone));
+
+        if (phoneMatches) {
           return NextResponse.json({
             success: true,
             orderNumber: dbOrder.orderNumber,
@@ -103,7 +116,11 @@ export async function GET(request: Request) {
               courierName: ship.courierPartner?.name || 'Carrier not assigned',
               trackingLink: ship.trackingLink || `https://www.indiapost.gov.in/_layouts/15/dop.indiapost.tracking/tracksp.aspx?txtTrckNo=${ship.trackingNumber}`,
               dispatchDate: ship.dispatchDate,
-              estimatedDelivery: ship.estimatedDelivery,
+              // NOTE: `estimatedDelivery` is deliberately NOT read here. It is
+              // not a column on Shipment (verified against prisma/schema.prisma),
+              // so reading it off an `include` only ever yields `undefined` and
+              // JSON.stringify then drops the key. /views/Tracking.tsx types it
+              // as optional and guards the render, so omitting it is safe.
               updates: ship.trackingUpdates,
             })),
           });
