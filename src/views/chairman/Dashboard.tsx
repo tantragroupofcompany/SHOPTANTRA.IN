@@ -35,7 +35,7 @@ export default function ChairmanDashboard() {
     >
       {(d: any) => (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <MetricCard icon={DollarSign} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.company.monthlyRevenue)} this month`} onOpen={() => open('payments')} />
             <MetricCard icon={PieChart} label="Gross sales" value={formatCurrency(d.finance.grossSales)} sub="paid + COD expected" onOpen={() => open('payments')} />
             <MetricCard icon={CreditCard} label="Platform commission" value={formatCurrency(d.finance.platformCommission)} sub={`${formatCurrency(d.payments.commissionCollected)} collected`} onOpen={() => open('commission')} />

@@ -37,7 +37,7 @@ export default function FounderDashboard() {
     >
       {(d: any) => (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <MetricCard icon={Users} label="Users" value={formatCount(d.totalUsers)} sub={`${formatCount(d.buyers.total)} buyers`} onOpen={() => open('users')} />
             <MetricCard icon={Package} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.pendingProducts)} pending`} onOpen={() => open('products')} />
             <MetricCard icon={ShoppingCart} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.today.orders)} today`} onOpen={() => open('orders')} />

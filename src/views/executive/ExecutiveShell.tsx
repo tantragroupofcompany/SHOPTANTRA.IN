@@ -73,7 +73,10 @@ export default function ExecutiveShell({
   const [detailKey, setDetailKey] = useState<string | null>(null);
 
   // Cards call this to open the matching real-data detail panel.
-  const openDetail = useCallback((key: string) => setDetailKey(key), []);
+  const openDetail = useCallback((key: string) => {
+    console.log('[ST_RUNTIME] DETAIL_KEY', { key });
+    setDetailKey(key);
+  }, []);
   const closeDetail = useCallback(() => setDetailKey(null), []);
 
   // The builder output MUST be referentially stable.

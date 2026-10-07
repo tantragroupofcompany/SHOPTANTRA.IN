@@ -46,10 +46,16 @@ export default function MetricCard({
     );
   }
 
+  const handleOpen = () => {
+    console.log('[ST_RUNTIME] CARD_TOUCH', { label });
+    console.log('[ST_RUNTIME] OPEN_DETAIL', { label });
+    onOpen();
+  };
+
   return (
     <button
       type="button"
-      onClick={onOpen}
+      onClick={handleOpen}
       aria-label={detailLabel || `Open ${label.toLowerCase()} details`}
       className={[
         'bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-xl p-4 sm:p-5 shadow-sm w-full text-left',
