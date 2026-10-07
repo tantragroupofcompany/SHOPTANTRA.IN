@@ -3,12 +3,19 @@
 /**
  * A dashboard metric card.
  *
- * Renders as a real <button> when `onOpen` is supplied, so mouse, TOUCH, Enter
- * and Space all work and screen readers announce it as activatable. Without
- * `onOpen` it renders as a non-interactive panel, so nothing on the board looks
- * clickable unless it genuinely is (no dead affordances).
+ * Renders as a real <button> when `onOpen` or `detailKey` is supplied, so mouse,
+ * TOUCH, Enter and Space all work and screen readers announce it as activatable.
+ * Without either it renders as a non-interactive panel, so nothing on the board
+ * looks clickable unless it genuinely is (no dead affordances).
+ *
+ * WHY THE CARD RESOLVES `detailKey` ITSELF: the detail panel's context provider
+ * lives in ExecutiveShell, which renders the dashboard as its children - so a
+ * dashboard component sits ABOVE the provider and would read the default no-op
+ * (React context only flows downward). MetricCard is always mounted inside the
+ * provider, so it receives the real openDetail.
  */
 import { EASE, FOCUS, TOUCH } from './theme';
+import { useOpenDetail } from './ExecutiveShell';
 
 export default function MetricCard({
   icon: Icon,
@@ -16,17 +23,24 @@ export default function MetricCard({
   value,
   sub,
   onOpen,
+  detailKey,
   detailLabel,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   sub?: string;
-  /** Present => the card opens a detail panel. Absent => static panel. */
+  /** Present => run an action (e.g. navigate to a full page). */
   onOpen?: () => void;
+  /** Present => open the shell's real-data detail panel for this key. */
+  detailKey?: string;
   /** Announced by screen readers, e.g. "Open seller details". */
   detailLabel?: string;
 }) {
+  // Inside <DetailContext.Provider> this is the shell's real openDetail; outside
+  // a shell it is the documented no-op fallback.
+  const openDetail = useOpenDetail();
+
   const inner = (
     <>
       <div className="flex items-start gap-3">
@@ -40,16 +54,18 @@ export default function MetricCard({
     </>
   );
 
-  if (!onOpen) {
+  if (!onOpen && !detailKey) {
     return (
       <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-xl p-4 sm:p-5 shadow-sm">{inner}</div>
     );
   }
 
   const handleOpen = () => {
-    console.log('[ST_RUNTIME] CARD_TOUCH', { label });
-    console.log('[ST_RUNTIME] OPEN_DETAIL', { label });
-    onOpen();
+    if (onOpen) {
+      onOpen();
+      return;
+    }
+    if (detailKey) openDetail(detailKey);
   };
 
   return (

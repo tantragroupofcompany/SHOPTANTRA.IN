@@ -359,7 +359,13 @@ export function Navbar() {
                   <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-brand-navy rounded-xl shadow-xl border border-gray-100 dark:border-brand-navy-light/20 z-20 py-2 max-h-96 overflow-y-auto">
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-brand-navy-light/10 flex justify-between items-center">
                       <span className="font-bold text-gray-800 dark:text-gray-200">Notifications</span>
-                      <span className="text-xs text-brand-orange font-semibold cursor-pointer" onClick={() => markNotificationsAsRead()}>Mark all read</span>
+                    <button
+                      type="button"
+                      onClick={() => markNotificationsAsRead()}
+                      className="text-xs text-brand-orange font-semibold cursor-pointer hover:underline"
+                    >
+                      Mark all read
+                    </button>
                     </div>
                     {notifications.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">No new alerts</div>

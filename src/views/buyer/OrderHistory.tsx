@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, Download, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge, statusBadge } from '../../components/ui/Badge';
@@ -7,11 +7,14 @@ import { Button } from '../../components/ui/Button';
 import { Table } from '../../components/ui/Table';
 import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
-import { Order, OrderItem } from '../../types';
+import { Order, OrderItem, Product } from '../../types';
 
 const OrderHistory = () => {
   const { user } = useAuth();
+  const { addToCart } = useApp();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -30,7 +33,10 @@ const OrderHistory = () => {
     try {
       let query = supabase
         .from('orders')
-        .select('*')
+        // Embed the line items: without this the expanded order detail and the
+        // downloaded invoice rendered with NO items at all (order_items is a
+        // related table, not a column - see buyer/Invoices.tsx for the same embed).
+        .select('*, order_items(*)')
         .eq('buyer_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -76,6 +82,52 @@ const OrderHistory = () => {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+
+  // Reorder: put this order's items back into the cart from REAL product rows,
+  // skipping anything no longer storefront-visible, then open the cart.
+  const handleReorder = async (order: Order) => {
+    try {
+      let items = order.order_items;
+      if (!items || !items.length) {
+        const { data, error } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', order.id);
+        if (error) throw error;
+        items = (data as OrderItem[]) || [];
+      }
+      if (!items.length) {
+        alert('This order has no items to reorder.');
+        return;
+      }
+      const ids = Array.from(
+        new Set(items.map((it) => it.product_id).filter(Boolean))
+      );
+      const { data: productRows, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', ids);
+      if (productError) throw productError;
+      const byId = new Map((productRows || []).map((p: any) => [p.id, p]));
+      let added = 0;
+      for (const it of items) {
+        const product: any = byId.get(it.product_id);
+        if (!product || String(product.status || '').toUpperCase() !== 'ACTIVE') {
+          continue; // delisted or awaiting approval - cannot be re-added
+        }
+        addToCart(product as Product, it.quantity || 1);
+        added += 1;
+      }
+      if (!added) {
+        alert('The products from this order are no longer available.');
+        return;
+      }
+      navigate('/cart');
+    } catch (err) {
+      console.error('Reorder failed:', err);
+      alert('Could not add this order to your cart. Please try again.');
+    }
   };
 
   const columns = [
@@ -129,13 +181,17 @@ const OrderHistory = () => {
             size="sm"
             variant="ghost"
             icon={<Download className="w-4 h-4" />}
+            aria-label={`Download invoice for order ${row.order_number}`}
+            title="Download invoice"
             onClick={() => downloadInvoice(row)}
           />
           <Button
             size="sm"
             variant="ghost"
             icon={<RotateCcw className="w-4 h-4" />}
-            onClick={() => console.log('Reorder:', row.id)}
+            aria-label={`Reorder items from order ${row.order_number}`}
+            title="Reorder"
+            onClick={() => handleReorder(row)}
           />
         </div>
       ),

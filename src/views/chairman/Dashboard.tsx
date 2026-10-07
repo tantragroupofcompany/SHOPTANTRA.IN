@@ -19,13 +19,11 @@ import ExecutiveDashboardShell, {
   Section, Rows, ListSection, RevenueByMonth,
 } from '../executive/ExecutiveDashboardShell';
 import MetricCard from '../executive/MetricCard';
-import { useOpenDetail } from '../executive/ExecutiveShell';
 import { formatCurrency, formatCount } from '../../lib/executiveDashboard';
 
 export default function ChairmanDashboard() {
   const navigate = useNavigate();
   // Every card opens a real detail panel backed by a role-guarded endpoint.
-  const open = useOpenDetail();
 
   return (
     <ExecutiveDashboardShell
@@ -36,15 +34,15 @@ export default function ChairmanDashboard() {
       {(d: any) => (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <MetricCard icon={DollarSign} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.company.monthlyRevenue)} this month`} onOpen={() => open('payments')} />
-            <MetricCard icon={PieChart} label="Gross sales" value={formatCurrency(d.finance.grossSales)} sub="paid + COD expected" onOpen={() => open('payments')} />
-            <MetricCard icon={CreditCard} label="Platform commission" value={formatCurrency(d.finance.platformCommission)} sub={`${formatCurrency(d.payments.commissionCollected)} collected`} onOpen={() => open('commission')} />
-            <MetricCard icon={ShoppingCart} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.company.completedOrders)} completed`} onOpen={() => open('orders')} />
-            <MetricCard icon={Users} label="Stakeholders" value={formatCount(d.totalUsers)} sub={`${formatCount(d.buyers.total)} buyers`} onOpen={() => open('users')} />
-            <MetricCard icon={Building2} label="Sellers" value={formatCount(d.sellers.total)} sub={`${formatCount(d.sellers.approved)} approved`} onOpen={() => open('sellers')} />
-            <MetricCard icon={FileText} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.pendingProducts)} pending`} onOpen={() => open('products')} />
-            <MetricCard icon={DollarSign} label="Seller payable" value={formatCurrency(d.finance.sellerPayable)} sub={`${formatCurrency(d.finance.sellerSettled)} settled`} onOpen={() => open('settlements')} />
-            <MetricCard icon={RotateCcw} label="Refunds" value={formatCurrency(d.finance.refunds)} sub="refunded to buyers" onOpen={() => open('payments')} />
+            <MetricCard icon={DollarSign} label="Revenue" value={formatCurrency(d.company.totalRevenue)} sub={`${formatCurrency(d.company.monthlyRevenue)} this month`} detailKey="payments" />
+            <MetricCard icon={PieChart} label="Gross sales" value={formatCurrency(d.finance.grossSales)} sub="paid + COD expected" detailKey="payments" />
+            <MetricCard icon={CreditCard} label="Platform commission" value={formatCurrency(d.finance.platformCommission)} sub={`${formatCurrency(d.payments.commissionCollected)} collected`} detailKey="commission" />
+            <MetricCard icon={ShoppingCart} label="Orders" value={formatCount(d.company.totalOrders)} sub={`${formatCount(d.company.completedOrders)} completed`} detailKey="orders" />
+            <MetricCard icon={Users} label="Stakeholders" value={formatCount(d.totalUsers)} sub={`${formatCount(d.buyers.total)} buyers`} detailKey="users" />
+            <MetricCard icon={Building2} label="Sellers" value={formatCount(d.sellers.total)} sub={`${formatCount(d.sellers.approved)} approved`} detailKey="sellers" />
+            <MetricCard icon={FileText} label="Products" value={formatCount(d.marketplace.totalProducts)} sub={`${formatCount(d.marketplace.pendingProducts)} pending`} detailKey="products" />
+            <MetricCard icon={DollarSign} label="Seller payable" value={formatCurrency(d.finance.sellerPayable)} sub={`${formatCurrency(d.finance.sellerSettled)} settled`} detailKey="settlements" />
+            <MetricCard icon={RotateCcw} label="Refunds" value={formatCurrency(d.finance.refunds)} sub="refunded to buyers" detailKey="payments" />
             <MetricCard icon={Lock} label="Security" value={String(d.security.jwtStatus)} sub={`${formatCount(d.security.corporateSessions)} sessions`} />
             <MetricCard icon={UserCheck} label="Seller approvals" value={formatCount(d.pendingApprovals.sellers)} sub="awaiting review" onOpen={() => navigate('/corporate/sellers')} />
             <MetricCard icon={PackageCheck} label="Product approvals" value={formatCount(d.pendingApprovals.products)} sub="awaiting review" onOpen={() => navigate('/corporate/products')} />

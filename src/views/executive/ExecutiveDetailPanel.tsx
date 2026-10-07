@@ -67,11 +67,6 @@ export default function ExecutiveDetailPanel({
   request: DetailRequest | null;
   onClose: () => void;
 }) {
-  console.log('[ST_RUNTIME] PANEL_RENDER', { 
-    open: !!request, 
-    title: request?.title,
-    url: request?.url 
-  });
 
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
@@ -127,17 +122,14 @@ export default function ExecutiveDetailPanel({
         : `${request.url}${request.url.includes('?') ? '&' : '?'}${filterParam}=${encodeURIComponent(filter)}`;
     (async () => {
       try {
-        console.log('[ST_RUNTIME] API_REQUEST', { url, filter });
         const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
         if (cancelled) return;
-        console.log('[ST_RUNTIME] API_STATUS', { url, status: res.status, ok: res.ok });
         if (res.status === 401 || res.status === 403) {
           setState('error');
           setData(null);
           return;
         }
         const json = await res.json();
-        console.log('[ST_RUNTIME] API_RESPONSE', { url, success: json?.success, hasData: !!json?.data, itemsKey: request.itemsKey ?? 'items' });
         if (cancelled) return;
         if (!res.ok || !json?.success || !json.data) {
           setState('error');
@@ -147,7 +139,6 @@ export default function ExecutiveDetailPanel({
         setData(json.data);
         setState('ready');
       } catch (err) {
-        console.log('[ST_RUNTIME] API_ERROR', { url, error: String(err) });
         if (!cancelled) {
           setState('error');
           setData(null);
@@ -162,13 +153,6 @@ export default function ExecutiveDetailPanel({
   const items: any[] = (request && data?.[request.itemsKey ?? 'items']) || [];
   const totals = data?.totals;
 
-  if (state === 'ready' && items.length) {
-    console.log('[ST_RUNTIME] DATA_RENDER', { 
-      title: request?.title, 
-      count: items.length,
-      keys: items.slice(0, 3).map(r => r?.id || r?._id || 'no-id')
-    });
-  }
 
   return (
     <>

@@ -74,7 +74,6 @@ export default function ExecutiveShell({
 
   // Cards call this to open the matching real-data detail panel.
   const openDetail = useCallback((key: string) => {
-    console.log('[ST_RUNTIME] DETAIL_KEY', { key });
     setDetailKey(key);
   }, []);
   const closeDetail = useCallback(() => setDetailKey(null), []);

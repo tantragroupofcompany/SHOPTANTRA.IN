@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Lock, Shield, Trash2, AlertTriangle, LogOut, Eye, EyeOff } from 'lucide-react';
+import { Bell, Lock, Shield, AlertTriangle, LogOut, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 
@@ -87,8 +87,7 @@ const Settings = () => {
     },
   ]);
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   // Load preferences from database
@@ -150,15 +149,10 @@ const Settings = () => {
     saveSettings(notificationPrefs, updated2FA);
   };
 
-  const handleDeactivateStore = () => {
-    console.log('Deactivating store...');
-    setDeactivateModalOpen(false);
-  };
-
-  const handleDeleteAccount = () => {
-    console.log('Deleting account...');
-    setDeleteModalOpen(false);
-  };
+  // The former `handleDeactivateStore` / `handleDeleteAccount` only logged and
+  // closed their modals - a fake destructive action. Deactivation/deletion is a
+  // real server-side operation with no endpoint, so the Danger Zone below now
+  // routes the seller to the contact flow instead of pretending to act.
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -401,61 +395,24 @@ const Settings = () => {
           <AlertTriangle className="w-5 h-5 text-red-500" />
           Danger Zone
         </h2>
-        <div className="space-y-4 border-t border-red-200 pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Deactivate Store</p>
-              <p className="text-sm text-gray-600">Your store will be temporarily disabled</p>
-            </div>
-            <Button variant="danger" size="sm" onClick={() => setDeactivateModalOpen(true)}>
-              Deactivate
-            </Button>
-          </div>
-          <div className="flex items-center justify-between border-t border-red-200 pt-4">
-            <div>
-              <p className="font-medium text-gray-900">Delete Account</p>
-              <p className="text-sm text-gray-600">Permanently delete your account and all data</p>
-            </div>
-            <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => setDeleteModalOpen(true)}>
-              Delete
-            </Button>
-          </div>
+        <div className="border-t border-red-200 pt-6">
+          <p className="font-medium text-gray-900">Deactivate store or delete account</p>
+          <p className="text-sm text-gray-600 mt-1">
+            These requests are handled by the ShopTantra team so open orders,
+            payouts, and customer data are processed correctly. There is no
+            self-service delete while orders may be in flight - contact support
+            to start the request.
+          </p>
+          <Button
+            variant="danger"
+            size="sm"
+            className="mt-3"
+            onClick={() => navigate('/contact')}
+          >
+            Contact support
+          </Button>
         </div>
       </Card>
-
-      {/* Deactivate Modal */}
-      <Modal isOpen={deactivateModalOpen} onClose={() => setDeactivateModalOpen(false)} title="Deactivate Store" size="sm">
-        <div className="space-y-4">
-          <p className="text-gray-700">Are you sure you want to deactivate your store? You can reactivate it anytime.</p>
-          <div className="flex gap-3 pt-4">
-            <Button variant="danger" onClick={handleDeactivateStore}>
-              Deactivate Store
-            </Button>
-            <Button variant="outline" onClick={() => setDeactivateModalOpen(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Delete Account Modal */}
-      <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Delete Account" size="sm">
-        <div className="space-y-4">
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-900">This action cannot be undone. All your data will be permanently deleted.</p>
-          </div>
-          <p className="text-gray-700">Type your password to confirm account deletion:</p>
-          <input type="password" placeholder="Enter your password" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
-          <div className="flex gap-3 pt-4">
-            <Button variant="danger" onClick={handleDeleteAccount}>
-              Delete Account
-            </Button>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

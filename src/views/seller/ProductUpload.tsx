@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Upload, X, Plus, CheckCircle } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -21,6 +21,10 @@ interface Variant {
 
 const ProductUpload = () => {
   const navigate = useNavigate();
+  // Edit mode: /seller/products/:id/edit pre-fills this form from the real
+  // stored product and submits a PUT instead of a POST.
+  const { id: editId } = useParams();
+  const isEdit = Boolean(editId);
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
@@ -71,6 +75,12 @@ const ProductUpload = () => {
     priceAdjustment: 0,
     stock: 0,
   });
+  // Edit mode: GET /api/seller/products does not return variants, so the stored
+  // ones are left untouched unless the seller changes them in this form
+  // (sending `variants: []` would silently wipe them).
+  const [variantsTouched, setVariantsTouched] = useState(false);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(isEdit);
 
   // Fetch categories on mount
   useEffect(() => {
@@ -97,6 +107,68 @@ const ProductUpload = () => {
     fetchCategories();
   }, []);
 
+  // Edit mode: load the existing product so the seller edits REAL stored
+  // values instead of a blank form (this is what makes the edit route honest).
+  useEffect(() => {
+    if (!editId) return;
+    let cancelled = false;
+    const loadProduct = async () => {
+      try {
+        setEditLoading(true);
+        setEditLoadError(null);
+        const res = await fetch('/api/seller/products', { cache: 'no-store' });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || 'Failed to load this product');
+        }
+        const p = (json.data || []).find((x: any) => x.id === editId);
+        if (!p) throw new Error('This product was not found on your store.');
+        if (cancelled) return;
+        setFormData({
+          title: p.title ?? '',
+          shortDescription: p.short_description ?? '',
+          description: p.description ?? '',
+          category: p.category ?? '',
+          tags: p.tags ?? '',
+          price: p.price != null ? String(p.price) : '',
+          comparePrice: p.compare_price != null ? String(p.compare_price) : '',
+          sku: p.sku ?? '',
+          barcode: p.barcode ?? '',
+          stock: p.stock != null ? String(p.stock) : '',
+          lowStockAlert: '10',
+          weight: p.weight != null ? String(p.weight) : '',
+          weightUnit: p.weight_unit ?? 'kg',
+          dimensionLength: p.dimension_length != null ? String(p.dimension_length) : '',
+          dimensionWidth: p.dimension_width != null ? String(p.dimension_width) : '',
+          dimensionHeight: p.dimension_height != null ? String(p.dimension_height) : '',
+          packageType: p.package_type ?? 'box',
+          shippingClass: p.shipping_class ?? 'standard',
+          fragile: String(Boolean(p.fragile)),
+          dangerousGoods: String(Boolean(p.dangerous_goods)),
+          countryOfOrigin: p.country_of_origin ?? 'India',
+          hsnCode: p.hsn_code ?? '',
+          estimatedPackingTime:
+            p.estimated_packing_time != null ? String(p.estimated_packing_time) : '24',
+        });
+        const raw = (Array.isArray(p.product_images) ? p.product_images : [])
+          .filter((im: any) => im && typeof im.url === 'string' && im.url.trim())
+          .map((im: any) => ({ url: im.url as string, isPrimary: Boolean(im.isPrimary) }));
+        if (raw.length) {
+          if (!raw.some((im) => im.isPrimary)) raw[0].isPrimary = true;
+          setImages(raw);
+        }
+      } catch (err: any) {
+        if (!cancelled) setEditLoadError(err?.message || 'Failed to load this product');
+      } finally {
+        if (!cancelled) setEditLoading(false);
+      }
+    };
+    loadProduct();
+    return () => {
+      cancelled = true;
+    };
+  }, [editId]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -119,6 +191,7 @@ const ProductUpload = () => {
   const handleAddVariant = () => {
     if (newVariant.name && newVariant.value) {
       setVariants([...variants, { ...newVariant }]);
+      setVariantsTouched(true);
       setNewVariant({ name: '', value: '', priceAdjustment: 0, stock: 0 });
       setShowVariantForm(false);
     }
@@ -126,6 +199,7 @@ const ProductUpload = () => {
 
   const handleRemoveVariant = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
+    setVariantsTouched(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,9 +224,10 @@ const ProductUpload = () => {
 
       // Call local API to create product
       const res = await fetch('/api/seller/products', {
-        method: 'POST',
+        method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(isEdit ? { id: editId } : {}),
           userId: user.id,
           title: formData.title,
           price: formData.price,
@@ -164,7 +239,7 @@ const ProductUpload = () => {
           sku: formData.sku,
           barcode: formData.barcode,
           images: validImages,
-          variants: variants,
+          ...((!isEdit || variantsTouched) ? { variants } : {}),
           tags: formData.tags,
           weight: parseFloat(formData.weight),
           weightUnit: formData.weightUnit,
@@ -190,14 +265,16 @@ const ProductUpload = () => {
       // success, so a seller is never told "published" when the product is still
       // awaiting review (e.g. an unverified or restricted account).
       const result = await res.json();
-      if (result.autoPublished) {
+      if (isEdit) {
+        alert('Product updated successfully.');
+        navigate('/seller/products');
+      } else if (result.autoPublished) {
         alert('Product published successfully! It is now live on the storefront.');
       } else {
         alert(
           'Product submitted successfully. It is held for review and will go live once your seller account is verified.'
         );
       }
-      navigate('/seller/inventory');
     } catch (error: any) {
       console.error('Error uploading product:', error);
       alert(error.message || 'Failed to upload product');
@@ -209,8 +286,19 @@ const ProductUpload = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Add New Product</h1>
-        <p className="text-gray-600 mt-2">Create and list a new product in your store</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {isEdit ? 'Edit Product' : 'Add New Product'}
+        </h1>
+        <p className="text-gray-600 mt-2">
+          {isEdit
+            ? 'Update the details of this listing'
+            : 'Create and list a new product in your store'}
+        </p>
+        {editLoadError ? (
+          <p role="alert" className="mt-2 text-sm font-semibold text-red-600">
+            {editLoadError}
+          </p>
+        ) : null}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -675,11 +763,13 @@ const ProductUpload = () => {
           </Button>
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || editLoading}
             className="gap-2"
           >
             <Upload size={18} />
-            {loading ? 'Publishing...' : 'Publish Product'}
+            {loading
+              ? (isEdit ? 'Saving...' : 'Publishing...')
+              : (isEdit ? 'Save Changes' : 'Publish Product')}
           </Button>
         </div>
       </form>

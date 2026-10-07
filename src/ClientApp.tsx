@@ -183,6 +183,7 @@ export default function ClientApp() {
               <Route path="products" element={<SellerProducts />} />
               <Route path="product" element={<SellerProducts />} />
               <Route path="products/new" element={<ProductUpload />} />
+              <Route path="products/:id/edit" element={<ProductUpload />} />
               <Route path="products-new" element={<ProductUpload />} />
               <Route path="add-product" element={<ProductUpload />} />
               <Route path="products/add" element={<ProductUpload />} />
