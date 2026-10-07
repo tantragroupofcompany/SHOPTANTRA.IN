@@ -1,0 +1,6 @@
+scratch/
+node_modules/
+.next/
+.git/
+*.log
+*.local

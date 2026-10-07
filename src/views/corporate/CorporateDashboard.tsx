@@ -245,10 +245,15 @@ export default function CorporateDashboard() {
                       { label: 'Cancelled', value: data.company.cancelledOrders, to: '/corporate/orders?status=cancelled' },
                       { label: 'Refunded', value: data.company.refundOrders, to: '/corporate/orders?status=refunded' },
                     ].map((o, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(o.to)} title="View orders">
+                      <button
+                        key={i}
+                        onClick={() => navigate(o.to)}
+                        className="flex justify-between items-center group w-full text-left hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 transition cursor-pointer"
+                        title="View orders"
+                      >
                         <span className="text-gray-500 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{o.label}</span>
                         <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{o.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -267,10 +272,15 @@ export default function CorporateDashboard() {
                       { label: 'Draft', value: data.marketplace.draftProducts, to: '/corporate/products?status=draft' },
                       { label: 'Out of Stock', value: data.marketplace.outOfStockProducts, to: '/corporate/products?status=outofstock' },
                     ].map((p, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(p.to)} title="View products">
+                      <button
+                        key={i}
+                        onClick={() => navigate(p.to)}
+                        className="flex justify-between items-center group w-full text-left hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 transition cursor-pointer"
+                        title="View products"
+                      >
                         <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{p.label}</span>
                         <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{p.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -286,10 +296,15 @@ export default function CorporateDashboard() {
                       { label: 'Suspended', value: data.sellers.suspended, to: '/corporate/sellers?status=suspended' },
                       { label: 'Blocked', value: data.sellers.blocked, to: '/corporate/sellers?status=blocked' },
                     ].map((s, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(s.to)} title="View sellers">
+                      <button
+                        key={i}
+                        onClick={() => navigate(s.to)}
+                        className="flex justify-between items-center group w-full text-left hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 transition cursor-pointer"
+                        title="View sellers"
+                      >
                         <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{s.label}</span>
                         <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{s.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
-                      </div>
+                      </button>
                     ))}
                     {data.sellers.newToday > 0 && <div className="mt-2 pt-2 border-t border-gray-100 dark:border-brand-navy-light/10 text-green-400">+{data.sellers.newToday} today, +{data.sellers.newThisWeek} this week</div>}
                   </div>
@@ -304,10 +319,15 @@ export default function CorporateDashboard() {
                       { label: 'Active', value: data.buyers.active, to: '/corporate/customers?status=active' },
                       { label: 'Inactive', value: data.buyers.inactive, to: '/corporate/customers?status=inactive' },
                     ].map((b, i) => (
-                      <div key={i} className="flex justify-between items-center group hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 -mx-2 transition cursor-pointer" onClick={() => navigate(b.to)} title="View customers">
+                      <button
+                        key={i}
+                        onClick={() => navigate(b.to)}
+                        className="flex justify-between items-center group w-full text-left hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 rounded px-2 py-1 transition cursor-pointer"
+                        title="View customers"
+                      >
                         <span className="text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200">{b.label}</span>
                         <span className="font-bold flex items-center gap-1.5"><span className="bg-gray-200 dark:bg-brand-navy-light/30 text-orange-600 dark:text-orange-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold">{b.value}</span><span className="text-gray-600 group-hover:text-orange-400">›</span></span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
