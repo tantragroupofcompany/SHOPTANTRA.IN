@@ -16,11 +16,21 @@ function SellerDashboard() {
     withdrawableBalance: 0
   });
 
+  // Real daily sales data from the analytics API (last 7 days)
+  const [weeklyData, setWeeklyData] = useState<{ label: string; value: number }[]>([]);
+  // Real category data from the analytics API
+  const [categoryData, setCategoryData] = useState<{ name: string; count: number }[]>([]);
+
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   const [withdrawalInput, setWithdrawalInput] = useState('');
   const [withdrawalStatus, setWithdrawalStatus] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  // sellerId must be the authenticated seller's real ID. 'seller_placeholder'
+  // is intentionally kept as a last-resort fallback so the component renders
+  // even before the auth profile loads; every API call that uses it already
+  // validates the session server-side (requireSellerScope) so the placeholder
+  // never bypasses authorisation.
   const sellerId = profile?.id || 'seller_placeholder';
 
   useEffect(() => {
@@ -41,18 +51,32 @@ function SellerDashboard() {
             commissionsPaid: Math.round((analyticsData.data.revenue.totalRevenue * 10) / 100) || 0,
             withdrawableBalance: walletData.data?.wallet?.balance || 0,
           });
+
+          // Build real 7-day chart data from the analytics response.
+          // The API returns `data.dailyOrders` (array of { date, orders, revenue }).
+          const daily: any[] = analyticsData.data.dailyOrders || [];
+          if (daily.length) {
+            const last7 = daily.slice(-7);
+            setWeeklyData(last7.map((d: any) => ({
+              label: new Date(d.date).toLocaleDateString('en-IN', { weekday: 'short' }),
+              value: Number(d.revenue || 0),
+            })));
+          }
+
+          // Real category breakdown from analytics
+          const cats: any[] = analyticsData.data.topCategories || [];
+          if (cats.length) {
+            setCategoryData(cats.slice(0, 5).map((c: any) => ({
+              name: c.name || c.category || 'Other',
+              count: Number(c.count || c.productCount || 0),
+            })));
+          }
         }
 
         const storeRes = await fetch(`/api/seller/store-settings?userId=${sellerId}`);
         const storeData = await storeRes.json();
         if (storeData.success && storeData.data) {
           setLogoUrl(storeData.data.store_logo_url || null);
-        }
-
-        // Fetch real recent orders from database
-        const ordersRes = await fetch(`/api/analytics?sellerId=${sellerId}`);
-        if (analyticsData.data.topProducts) {
-          // Recent orders will come from the orders page; dashboard shows stats only
         }
       } catch (err) {
         console.error('Failed to load seller analytics:', err);
@@ -82,7 +106,8 @@ function SellerDashboard() {
           sellerId,
           amount: val,
           paymentMethod: 'UPI',
-          upiId: 'nilesh@okaxis', // UPI details matching user profile
+          // UPI ID comes from the seller's verified bank/UPI details stored on
+          // the server — never hardcoded in the client.
         }),
       });
 
@@ -289,51 +314,68 @@ function SellerDashboard() {
 
       </div>
 
-      {/* SVG Analytics Charts */}
+      {/* Analytics Charts — driven by real API data from /api/analytics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* Sales Trend Chart */}
+
+        {/* Daily Sales Revenue Chart — real 7-day data */}
         <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-2xl p-5 shadow-sm space-y-4">
-          <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wide">Sales Analytics Ledger</h4>
-          <div className="h-48 flex items-end justify-between gap-2 border-b border-l border-gray-100 dark:border-brand-navy-light/15 p-2">
-            {[45, 62, 55, 80, 75, 95, 110].map((val, idx) => (
-              <div key={idx} className="flex-grow flex flex-col items-center gap-1.5 h-full justify-end">
-                <span className="text-[9px] text-brand-orange font-bold font-mono">₹{val}K</span>
-                <div
-                  className="bg-brand-orange hover:bg-brand-orange-hover rounded-t w-full transition-all cursor-pointer"
-                  style={{ height: `${(val / 120) * 80}%` }}
-                />
-                <span className="text-[9px] text-gray-400 font-semibold">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][idx]}</span>
-              </div>
-            ))}
-          </div>
+          <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wide">Sales Analytics — Last 7 Days</h4>
+          {weeklyData.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-xs text-gray-400">
+              No sales data yet for this period.
+            </div>
+          ) : (
+            <div className="h-48 flex items-end justify-between gap-2 border-b border-l border-gray-100 dark:border-brand-navy-light/15 p-2">
+              {weeklyData.map((d, idx) => {
+                const maxVal = Math.max(...weeklyData.map((x) => x.value), 1);
+                const heightPct = Math.max((d.value / maxVal) * 80, 2);
+                const displayVal = d.value >= 1000
+                  ? `₹${(d.value / 1000).toFixed(1)}K`
+                  : `₹${d.value}`;
+                return (
+                  <div key={idx} className="flex-grow flex flex-col items-center gap-1.5 h-full justify-end">
+                    <span className="text-[9px] text-brand-orange font-bold font-mono">{displayVal}</span>
+                    <div
+                      className="bg-brand-orange hover:bg-brand-orange-hover rounded-t w-full transition-all"
+                      style={{ height: `${heightPct}%` }}
+                    />
+                    <span className="text-[9px] text-gray-400 font-semibold">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Category distribution chart */}
-        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
-          <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wide">Category Sales Distribution</h4>
-          
-          <div className="flex items-center justify-around gap-4 h-full py-4">
-            {/* Simple CSS-based circular Pie segment representation */}
-            <div className="w-28 h-28 rounded-full border-8 border-brand-orange border-r-brand-navy border-b-brand-gold flex items-center justify-center shadow-inner relative">
-              <span className="text-[10px] font-bold text-brand-navy dark:text-gray-200">12 Categories</span>
+        {/* Category breakdown — real data from analytics */}
+        <div className="bg-white dark:bg-brand-navy border border-gray-100 dark:border-brand-navy-light/10 rounded-2xl p-5 shadow-sm space-y-4">
+          <h4 className="font-bold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wide">Top Categories by Products</h4>
+          {categoryData.length === 0 ? (
+            <div className="flex items-center justify-center py-10 text-xs text-gray-400">
+              No category data yet.
             </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-brand-orange rounded" />
-                <span>Electronics (50%)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-brand-navy rounded" />
-                <span>Fashion (30%)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-brand-gold rounded" />
-                <span>Ayurveda (20%)</span>
-              </div>
+          ) : (
+            <div className="space-y-3">
+              {categoryData.map((cat, idx) => {
+                const maxCount = Math.max(...categoryData.map((c) => c.count), 1);
+                const COLORS = ['bg-brand-orange', 'bg-brand-navy', 'bg-brand-gold', 'bg-blue-500', 'bg-green-500'];
+                return (
+                  <div key={cat.name} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-gray-700 dark:text-gray-300 truncate">{cat.name}</span>
+                      <span className="text-gray-400 ml-2 shrink-0">{cat.count} products</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-brand-navy-dark h-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${COLORS[idx] || 'bg-gray-400'}`}
+                        style={{ width: `${Math.max((cat.count / maxCount) * 100, 4)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
 
       </div>

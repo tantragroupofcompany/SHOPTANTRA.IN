@@ -180,15 +180,19 @@ export default function AdminDashboard() {
         }
 
         if (sellers.success) {
-          // Enhance with mock payable / last order dates
-          const enhanced = (sellers.data || []).map((s: any, idx: number) => ({
+          // Map real API fields — never invent paidPayout, pendingPayout or
+          // lastOrderDate. If those fields are absent from the API response they
+          // are shown as 0 / '—' rather than a fabricated number.
+          const enhanced = (sellers.data || []).map((s: any) => ({
             ...s,
-            city: s.city || 'Delhi',
-            state: s.state || 'Delhi',
+            city: s.city || '—',
+            state: s.state || '—',
             country: 'India',
-            paidPayout: Math.round(s.grossSales * 0.8),
-            pendingPayout: Math.round(s.grossSales * 0.1),
-            lastOrderDate: idx % 2 === 0 ? '2026-06-27' : '2026-06-26'
+            // Use real settlement fields returned by the API where available.
+            // Do NOT compute fake percentages of grossSales.
+            paidPayout: s.paidPayout ?? s.netEarnings ?? 0,
+            pendingPayout: s.pendingPayout ?? s.pendingEarnings ?? 0,
+            lastOrderDate: s.lastOrderDate || '—',
           }));
           setSellersDetailed(enhanced);
         }
@@ -686,13 +690,13 @@ export default function AdminDashboard() {
                   {sellersDetailed.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50/50 dark:hover:bg-brand-navy-light/5 transition-colors">
                       <td className="px-3 py-3 font-bold text-brand-navy dark:text-brand-orange">{s.storeName}</td>
-                      <td className="px-3 py-3 font-black text-gray-800 dark:text-gray-200">₹{s.paidPayout.toLocaleString()}</td>
+                      <td className="px-3 py-3 font-black text-gray-800 dark:text-gray-200">₹{(s.paidPayout || 0).toLocaleString()}</td>
                       <td className="px-3 py-3">
-                        <span className="font-semibold block">BANK Settlement</span>
-                        <span className="text-[10px] text-gray-400 block mt-0.5">Auto-release gateway</span>
+                        <span className="font-semibold block">{s.payoutGateway || 'Bank / UPI'}</span>
+                        <span className="text-[10px] text-gray-400 block mt-0.5">{s.payoutDestination || '—'}</span>
                       </td>
-                      <td className="px-3 py-3 font-mono text-gray-400">TXN-{s.id.substring(0, 8).toUpperCase()}</td>
-                      <td className="px-3 py-3 font-medium text-gray-450">{s.lastOrderDate}</td>
+                      <td className="px-3 py-3 font-mono text-gray-400">{s.lastTransactionId || '—'}</td>
+                      <td className="px-3 py-3 font-medium text-gray-450">{s.lastOrderDate || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
