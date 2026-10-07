@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Animated left navigation rail for the executive dashboards.
  *

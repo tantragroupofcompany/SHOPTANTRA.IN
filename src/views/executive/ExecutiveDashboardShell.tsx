@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Shared shell for the Founder / Chairman / CEO & MD dashboards.
  *

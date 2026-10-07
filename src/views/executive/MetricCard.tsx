@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * A dashboard metric card.
  *

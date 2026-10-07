@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Slide-in detail panel used by every interactive dashboard card.
  *

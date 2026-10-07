@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Shared executive shell: left navigation rail, header, content, detail panel.
  *
