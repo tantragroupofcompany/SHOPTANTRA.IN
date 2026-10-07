@@ -20,7 +20,8 @@
  *  empty    -> "No data available"
  */
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Inbox, RefreshCw, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Inbox, RefreshCw, X, ExternalLink } from 'lucide-react';
 import { EASE, FOCUS, TOUCH } from './theme';
 
 export interface DetailColumn<T> {
@@ -66,12 +67,17 @@ export default function ExecutiveDetailPanel({
   request: DetailRequest | null;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [filter, setFilter] = useState('all');
   const [nonce, setNonce] = useState(0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const open = !!request;
+
+  // Determine if this is an approval-related detail view that should have a "View Full Approval Center" button
+  const isApprovalView = request?.url === '/api/corporate/sellers' || request?.url === '/api/corporate/products';
+  const approvalCenterUrl = request?.url === '/api/corporate/sellers' ? '/corporate/sellers' : '/corporate/products';
 
   // Escape closes; body scroll is locked while the panel is open.
   useEffect(() => {
@@ -177,15 +183,28 @@ export default function ExecutiveDetailPanel({
               <p className="text-xs text-gray-400 mt-0.5">{request.description}</p>
             ) : null}
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Close details"
-            className={`${TOUCH} shrink-0 px-3 rounded-lg text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 ${EASE} ${FOCUS}`}
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {isApprovalView && (
+              <button
+                type="button"
+                onClick={() => { onClose(); navigate(approvalCenterUrl); }}
+                aria-label="Open full approval center"
+                className={`${TOUCH} px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-orange text-white hover:bg-brand-orange-hover transition flex items-center gap-1.5 ${EASE} ${FOCUS}`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                Approval Center
+              </button>
+            )}
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Close details"
+              className={`${TOUCH} shrink-0 px-3 rounded-lg text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-brand-navy-light/30 ${EASE} ${FOCUS}`}
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         {request?.filters?.length ? (

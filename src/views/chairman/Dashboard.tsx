@@ -13,7 +13,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart, DollarSign, Users, FileText, ShoppingCart, CreditCard, Building2,
-  RotateCcw, Lock,
+  RotateCcw, Lock, UserCheck, PackageCheck,
 } from 'lucide-react';
 import ExecutiveDashboardShell, {
   Section, Rows, ListSection, RevenueByMonth,
@@ -46,6 +46,8 @@ export default function ChairmanDashboard() {
             <MetricCard icon={DollarSign} label="Seller payable" value={formatCurrency(d.finance.sellerPayable)} sub={`${formatCurrency(d.finance.sellerSettled)} settled`} onOpen={() => open('settlements')} />
             <MetricCard icon={RotateCcw} label="Refunds" value={formatCurrency(d.finance.refunds)} sub="refunded to buyers" onOpen={() => open('payments')} />
             <MetricCard icon={Lock} label="Security" value={String(d.security.jwtStatus)} sub={`${formatCount(d.security.corporateSessions)} sessions`} />
+            <MetricCard icon={UserCheck} label="Seller approvals" value={formatCount(d.pendingApprovals.sellers)} sub="awaiting review" onOpen={() => navigate('/corporate/sellers')} />
+            <MetricCard icon={PackageCheck} label="Product approvals" value={formatCount(d.pendingApprovals.products)} sub="awaiting review" onOpen={() => navigate('/corporate/products')} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Section title="Business Overview">

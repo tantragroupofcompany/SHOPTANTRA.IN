@@ -16,8 +16,9 @@
  * differences would misrepresent what the server actually permits.
  */
 import { useCallback, useContext, useState, createContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Building2, Package, ShoppingCart, CreditCard,
-  Percent, Wallet, RefreshCw, LogOut, Shield, X } from 'lucide-react';
+  Percent, Wallet, RefreshCw, LogOut, Shield, X, UserCheck, PackageCheck } from 'lucide-react';
 import ExecutiveSidebar, { type NavItem } from './ExecutiveSidebar';
 import ExecutiveDetailPanel from './ExecutiveDetailPanel';
 import { DETAIL_BUILDERS } from './detailBuilders';
@@ -33,6 +34,8 @@ const NAV: NavItem[] = [
   { id: 'commission', label: 'Commission', icon: Percent },
   { id: 'settlements', label: 'Settlements', icon: Wallet },
   { id: 'security', label: 'Security', icon: Shield },
+  { id: 'seller-approvals', label: 'Seller Approvals', icon: UserCheck },
+  { id: 'product-approvals', label: 'Product Approvals', icon: PackageCheck },
 ];
 
 /** Menu entry -> the detail view it opens. */
@@ -65,6 +68,7 @@ export default function ExecutiveShell({
   onSignOut: () => void;
   children: React.ReactNode;
 }) {
+  const navigate = useNavigate();
   const [active, setActive] = useState('overview');
   const [detailKey, setDetailKey] = useState<string | null>(null);
 
@@ -89,6 +93,15 @@ export default function ExecutiveShell({
 
   const onSelect = (id: string) => {
     setActive(id);
+    // Navigate to full approval pages for approval center items
+    if (id === 'seller-approvals') {
+      navigate('/corporate/sellers');
+      return;
+    }
+    if (id === 'product-approvals') {
+      navigate('/corporate/products');
+      return;
+    }
     const target = NAV_TO_DETAIL[id];
     if (target) setDetailKey(target);
   };

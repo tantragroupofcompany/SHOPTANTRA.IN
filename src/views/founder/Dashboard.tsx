@@ -46,8 +46,8 @@ export default function FounderDashboard() {
             <MetricCard icon={CreditCard} label="Payments" value={formatCount(d.payments.totalPayments)} sub={`${formatCurrency(d.payments.totalCollected)} collected`} onOpen={() => open('payments')} />
             <MetricCard icon={Percent} label="Commission" value={formatCurrency(d.payments.commissionCollected)} sub="collected" onOpen={() => open('commission')} />
             <MetricCard icon={Wallet} label="Seller payable" value={formatCurrency(d.payments.sellerPayable)} sub={`${formatCurrency(d.payments.sellerSettled)} settled`} onOpen={() => open('settlements')} />
-            <MetricCard icon={UserCheck} label="Seller approvals" value={formatCount(d.pendingApprovals.sellers)} sub="awaiting review" onOpen={() => open('sellers')} />
-            <MetricCard icon={PackageCheck} label="Product approvals" value={formatCount(d.pendingApprovals.products)} sub="awaiting review" onOpen={() => open('products')} />
+            <MetricCard icon={UserCheck} label="Seller approvals" value={formatCount(d.pendingApprovals.sellers)} sub="awaiting review" onOpen={() => navigate('/corporate/sellers')} />
+            <MetricCard icon={PackageCheck} label="Product approvals" value={formatCount(d.pendingApprovals.products)} sub="awaiting review" onOpen={() => navigate('/corporate/products')} />
             <MetricCard icon={Clock} label="Pending orders" value={formatCount(d.company.pendingOrders)} sub="awaiting fulfilment" onOpen={() => open('orders')} />
             <MetricCard icon={AlertCircle} label="Out of stock" value={formatCount(d.marketplace.outOfStockProducts)} sub="need restock" onOpen={() => open('products')} />
           </div>

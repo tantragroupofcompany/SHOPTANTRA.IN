@@ -13,7 +13,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Package, ShoppingCart, IndianRupee, Building2, CreditCard, Truck,
-  Users, Percent, Wallet, Clock,
+  Users, Percent, Wallet, Clock, UserCheck, PackageCheck,
 } from 'lucide-react';
 import ExecutiveDashboardShell, {
   Section, Rows, ListSection, RevenueByMonth,
@@ -46,6 +46,8 @@ export default function CEODashboard() {
             <MetricCard icon={Wallet} label="Settlements" value={formatCurrency(d.payments.sellerPayable)} sub="seller payable" onOpen={() => open('settlements')} />
             <MetricCard icon={Clock} label="Pending orders" value={formatCount(d.company.pendingOrders)} sub="to fulfil" onOpen={() => open('orders')} />
             <MetricCard icon={Truck} label="Shipments" value={formatCount(d.shipments.total)} sub={`${formatCount(d.shipping.shipped)} shipped`} onOpen={() => open('orders')} />
+            <MetricCard icon={UserCheck} label="Seller approvals" value={formatCount(d.sellers.pending)} sub="awaiting review" onOpen={() => navigate('/corporate/sellers')} />
+            <MetricCard icon={PackageCheck} label="Product approvals" value={formatCount(d.marketplace.pendingProducts)} sub="awaiting review" onOpen={() => navigate('/corporate/products')} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Section title="Sales & Revenue">
