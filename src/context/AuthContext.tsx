@@ -35,6 +35,17 @@ const validateEmailFormat = (email: string): boolean => {
   return re.test(email);
 };
 
+// JWTs carry the role UPPERCASE (e.g. 'SELLER') for middleware RBAC, while the
+// SPA compares profile.role against lowercase literals ('seller'/'buyer').
+// Normalise at the single point profiles enter React state so a stale
+// localStorage payload or an older API response can never lock a user out.
+const normalizeProfile = <T extends { role?: string } | null>(profile: T): T => {
+  if (profile && typeof profile.role === 'string') {
+    return { ...profile, role: profile.role.toLowerCase() } as T;
+  }
+  return profile;
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -56,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const storedProfile = localStorage.getItem('st_local_profile');
           if (storedProfile) {
-            setProfile(JSON.parse(storedProfile) as Profile);
+            setProfile(normalizeProfile(JSON.parse(storedProfile) as Profile));
           }
         } catch (profileError) {
           console.warn('Failed to restore stored profile:', profileError);
@@ -97,8 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {
-          setProfile(resData.data as Profile);
-          return resData.data as Profile;
+          const normalized = normalizeProfile(resData.data as Profile);
+          setProfile(normalized);
+          return normalized;
         }
       }
     } catch (e) {
@@ -122,21 +134,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const resData = await response.json();
 
       if (response.ok && resData.session && resData.profile) {
+        const loginProfile = normalizeProfile(resData.profile as Profile);
         setSession(resData.session);
         setUser(resData.session.user);
-        setProfile(resData.profile as Profile);
+        setProfile(loginProfile);
 
         // Persist session + profile for SPA page-reload restoration
         try {
           localStorage.setItem('st_local_session', JSON.stringify(resData.session));
-          localStorage.setItem('st_local_profile', JSON.stringify(resData.profile));
+          localStorage.setItem('st_local_profile', JSON.stringify(loginProfile));
           localStorage.setItem('st_local_user', JSON.stringify(resData.session.user));
         } catch (storageError) {
           console.warn('Failed to persist local session:', storageError);
         }
 
         setLoading(false);
-        return { error: null, profile: resData.profile as Profile, roles: resData.roles || [] };
+        return { error: null, profile: loginProfile, roles: resData.roles || [] };
       } else {
         setLoading(false);
         return { error: new Error(resData.error || 'Failed to authenticate.'), profile: null, roles: [] };

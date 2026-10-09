@@ -31,7 +31,7 @@ export function BuyerLayout() {
     );
   }
 
-  if (!user || profile?.role !== 'buyer') {
+  if (!user || (profile?.role || '').toLowerCase() !== 'buyer') {
     return <Navigate to="/login" replace />;
   }
 

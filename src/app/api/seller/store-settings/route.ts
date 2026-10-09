@@ -186,8 +186,12 @@ export async function PUT(request: Request) {
           country: countryVal,
           latitude: latVal,
           longitude: lngVal,
-          // Changing details sets verification back to PENDING until Admin approves
-          verificationStatus: 'PENDING',
+          // DO NOT touch verificationStatus on update. Every address save used
+          // to force it back to 'PENDING', which silently un-verified already
+          // approved warehouses and blocked EVERY shipment for that store
+          // (validateSellerForShipment requires pickup VERIFIED). Re- /
+          // de-verification is an admin action via /api/admin/pickup-locations;
+          // a brand-new address (create below) still starts at PENDING.
         },
         create: {
           sellerId: seller.id,

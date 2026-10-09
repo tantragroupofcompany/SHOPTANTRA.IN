@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { label: 'Dashboard', to: '/seller', icon: LayoutDashboard },
-  { label: 'Store Settings', to: '/seller/store', icon: Store },
+  { label: 'Store Settings', to: '/seller/store-settings', icon: Store },
   { label: 'Products', to: '/seller/products', icon: Package },
   { label: 'Add Product', to: '/seller/products/new', icon: ClipboardList },
   { label: 'Inventory', to: '/seller/inventory', icon: ClipboardList },
@@ -71,7 +71,7 @@ export function SellerLayout() {
     );
   }
 
-  if (!user || profile?.role !== 'seller') {
+  if (!user || (profile?.role || '').toLowerCase() !== 'seller') {
     return <Navigate to="/login" replace />;
   }
 

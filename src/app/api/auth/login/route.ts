@@ -61,8 +61,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Check status if this identity is a seller
-    if (dbUser.role === 'SELLER' && dbUser.sellerProfile) {
+    // 4. Check status if this identity owns a seller profile. Keyed on the
+    //    sellerProfile relation itself (NOT User.role) so BUYER-role accounts
+    //    that own a store — legacy rows upgraded before User.role was
+    //    backfilled — receive exactly the same gating as SELLER-role accounts.
+    if (dbUser.sellerProfile) {
       if (dbUser.sellerProfile.verificationStatus === 'PENDING_VERIFICATION') {
         return NextResponse.json({ error: 'Please verify your email before accessing your seller account.' }, { status: 403 });
       }
@@ -74,10 +77,35 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Create secure JWT token
-    const effectiveRole = accountType
+    // 5. Create secure JWT token.
+    //    ROLE CONSISTENCY: every /api/seller/* route authorises via
+    //    requireRole(['SELLER', ...]) against the JWT role, while the SPA role
+    //    selector is keyed on whether a sellerProfile EXISTS. Legacy rows where
+    //    a buyer upgraded to a seller but User.role stayed 'BUYER' were issued
+    //    a 'BUYER' JWT — the dashboard rendered, but every seller API answered
+    //    403 "Access Denied". Owning a seller profile IS the source of truth
+    //    for seller capability: elevate the JWT role and backfill User.role so
+    //    the two can never drift again. (ADMIN is left untouched.)
+    let effectiveRole = accountType
       ? String(accountType).toUpperCase()
       : dbUser.role;
+
+    if (!accountType && dbUser.sellerProfile && effectiveRole !== 'ADMIN') {
+      effectiveRole = 'SELLER';
+      if (dbUser.role !== 'SELLER') {
+        try {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { role: 'SELLER' },
+          });
+          dbUser.role = 'SELLER';
+        } catch (healError: any) {
+          // Best-effort heal: login must not fail if the backfill write does
+          // not land — the JWT below already carries the correct role.
+          console.warn('[login] Failed to backfill User.role=SELLER:', healError?.code || healError?.message);
+        }
+      }
+    }
     const payload = {
       id: dbUser.id,
       userId: dbUser.id,
