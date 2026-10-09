@@ -188,6 +188,63 @@ const ProductUpload = () => {
     setImages(newImages);
   };
 
+  // File upload state: posts the file to the session-authorised
+  // /api/seller/upload-product-image route (owned-storage path) and fills the
+  // URL slot with the returned public URL.
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset the input so the same file can be re-chosen after an error.
+    e.target.value = '';
+    if (!file) return;
+    if (!user) {
+      setImageUploadError('Please sign in as a seller before uploading images.');
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setImageUploadError('Only JPG, PNG and WebP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageUploadError('File size exceeds the 5 MB limit.');
+      return;
+    }
+    setUploadingImage(true);
+    setImageUploadError(null);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      body.append('userId', user.id);
+      const res = await fetch('/api/seller/upload-product-image', {
+        method: 'POST',
+        body,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success || !json?.url) {
+        throw new Error(json?.error || 'Image upload failed. Please try again.');
+      }
+      setImages((prev) => {
+        const next = [...prev];
+        const slot = next.findIndex((im) => !im.url.trim());
+        const entry = { url: json.url as string, isPrimary: !next.some((im) => im.url.trim()) };
+        if (slot === -1) {
+          if (next.length >= 8) return next;
+          next.push(entry);
+        } else {
+          next[slot] = entry;
+        }
+        return next;
+      });
+    } catch (err: any) {
+      setImageUploadError(err?.message || 'Image upload failed. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleAddVariant = () => {
     if (newVariant.name && newVariant.value) {
       setVariants([...variants, { ...newVariant }]);
@@ -617,6 +674,28 @@ const ProductUpload = () => {
         <Card className="p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Images</h2>
           <div className="space-y-3">
+            {/* File upload posts to the session-authorised upload route so photos
+                land in the seller's own storage folder. The URL slots below
+                remain for sellers who host images elsewhere. */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Upload a photo (JPG, PNG or WebP, max 5 MB)
+              </label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleFileUpload}
+                disabled={uploadingImage}
+              />
+              {uploadingImage && (
+                <p className="mt-1 text-xs text-gray-500">Uploading image…</p>
+              )}
+              {imageUploadError && (
+                <p role="alert" className="mt-1 text-xs font-semibold text-red-600">
+                  {imageUploadError}
+                </p>
+              )}
+            </div>
             {images.map((image, index) => (
               <div key={index} className="flex gap-3 items-end">
                 <div className="flex-1">

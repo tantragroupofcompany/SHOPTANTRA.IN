@@ -13,13 +13,30 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   // 1. SECURITY HEADERS
+  // img-src/connect-src include the configured Supabase project host so seller
+  // logos and product photos actually render. The previous static allow-list
+  // (self + pexels + unsplash) silently blocked every Supabase-hosted image at
+  // the browser level, which is why uploads "succeeded" but photos never
+  // appeared. The host is derived from NEXT_PUBLIC_SUPABASE_URL so no secret
+  // is ever embedded; unknown hosts fall back to the static list.
+  const supabaseHost = (() => {
+    try {
+      const raw = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const host = raw ? new URL(raw).host : '';
+      return host && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host) ? host : '';
+    } catch {
+      return '';
+    }
+  })();
+  const imgSrc = `img-src 'self' blob: data: https://images.pexels.com https://images.unsplash.com${supabaseHost ? ` https://${supabaseHost}` : ' https://*.supabase.co https://*.supabase.in'}`;
+  const connectSrc = `connect-src 'self' https://api.razorpay.com${supabaseHost ? ` https://${supabaseHost}` : ' https://*.supabase.co https://*.supabase.in'}`;
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://images.pexels.com https://images.unsplash.com;
+    ${imgSrc};
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' https://api.razorpay.com;
+    ${connectSrc};
     frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
   `.replace(/\s{2,}/g, ' ').trim();
 

@@ -240,6 +240,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Supabase signOut failed:', e);
     }
 
+    // Server-side sign-out: the `auth_token` session cookie is HttpOnly, so the
+    // `document.cookie` clears below can NEVER delete it. Without this call the
+    // server session survived logout until its 1-hour expiry and any request
+    // carrying the cookie kept full privileges. Fail-open: a network error must
+    // never trap the user in a logged-in UI.
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn('Server signOut failed:', e);
+    }
+
     // Clear the shared HttpOnly auth cookie(s) used by middleware RBAC
     document.cookie = 'auth_token=; path=/; max-age=0';
     document.cookie = 'auth_role=; path=/; max-age=0';
