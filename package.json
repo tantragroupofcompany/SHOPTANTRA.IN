@@ -10,14 +10,15 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs && node scripts/test-product-approval.cjs && node scripts/test-seller-authz.cjs && node scripts/test-customer-flow.cjs && node scripts/test-corporate-access.cjs",
+    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs && node scripts/test-product-approval.cjs && node scripts/test-seller-authz.cjs && node scripts/test-customer-flow.cjs && node scripts/test-corporate-access.cjs && node scripts/test-seller-registration.cjs",
     "test:executives": "node scripts/test-executive-auth.cjs",
     "test:dashboards": "node scripts/test-dashboard-regressions.cjs",
     "test:product-approval": "node scripts/test-product-approval.cjs",
     "test:seller-authz": "node scripts/test-seller-authz.cjs",
     "test:customer-flow": "node scripts/test-customer-flow.cjs",
     "test:corporate-access": "node scripts/test-corporate-access.cjs",
-    "seed:executives": "node scripts/seed-executives.cjs"
+    "seed:executives": "node scripts/seed-executives.cjs",
+    "test:seller-registration": "node scripts/test-seller-registration.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.19.3",

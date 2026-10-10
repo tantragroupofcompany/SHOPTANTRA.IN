@@ -3,6 +3,8 @@ import { prisma } from '../../../../lib/prisma';
 import { hashPassword, verifyPassword, classifyDbError } from '../../../../lib/authUtils';
 
 import { sendVerificationEmail } from '../../../../lib/email';
+import { allocateSellerId } from '../../../../lib/sellerId';
+import { processSellerRegistration } from '../../../../lib/sellerRegistrationService';
 import crypto from 'crypto';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Perform database insertions in a transaction
+    let createdSeller: { id: string } | null = null;
     const result = await prisma.$transaction(async (tx) => {
       let newUser;
       if (isUpgradingToSeller && emailExists) {
@@ -162,7 +165,10 @@ export async function POST(request: Request) {
 
       if (uppercaseRole === 'SELLER') {
         const storeName = businessInfo?.storeName || `${cleanFullName}'s Store`;
-        await tx.seller.create({
+        // Atomically allocate the permanent, unique Seller ID inside this same
+        // transaction so the counter and the seller row commit together.
+        const { sellerId } = await allocateSellerId(tx);
+        createdSeller = await tx.seller.create({
           data: {
             userId: newUser.id,
             storeName: sanitizeString(storeName.trim()),
@@ -177,6 +183,7 @@ export async function POST(request: Request) {
             otpCode: hashedOtp,
             otpExpiresAt: otpExpiresAt,
             lastOtpSentAt: new Date(),
+            sellerId,
           }
         });
       }
@@ -185,8 +192,13 @@ export async function POST(request: Request) {
     });
 
     if (uppercaseRole === 'SELLER') {
-      // Dispatch email asynchronously
+      // Dispatch verification OTP asynchronously
       sendVerificationEmail(cleanEmail, cleanFullName, unhashedOtp);
+      // Fire-and-forget: generate + store the registration PDF and send the
+      // confirmation email. Best-effort — never blocks or fails registration.
+      if (createdSeller?.id) {
+        processSellerRegistration(createdSeller.id);
+      }
     }
 
     console.log(`[USER REGISTERED]: ID=${result.id}, Email=${result.email}, Role=${result.role}`);

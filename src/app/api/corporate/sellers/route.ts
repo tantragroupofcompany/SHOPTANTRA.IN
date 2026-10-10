@@ -44,6 +44,7 @@ export async function GET(request: any) {
         take: 200,
         select: {
           id: true,
+          sellerId: true,
           storeName: true,
           storeDescription: true,
           status: true,
@@ -54,6 +55,11 @@ export async function GET(request: any) {
           emailVerified: true,
           user: { select: { email: true, phone: true, fullName: true } },
           _count: { select: { products: true, orders: true } },
+          documents: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { generationStatus: true, lastDeliveryStatus: true, documentVersion: true, generatedAt: true },
+          },
         },
       }),
       prisma.seller.count({ where }),

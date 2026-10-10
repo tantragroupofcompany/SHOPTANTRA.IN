@@ -107,12 +107,64 @@ export const sendVerificationEmail = async (email: string, name: string, otp: st
     return { success: true };
   } catch (error) {
     console.error('Error sending verification email:', error);
-    // If SMTP is not configured, we still return true in dev to not block registration, 
-    // but log a loud warning. For production, you might want to return false if email fails.
     if (!process.env.SMTP_HOST) {
       console.warn('⚠️ SMTP credentials not found. Email delivery skipped.');
-      return { success: true }; 
+      return { success: true };
     }
+    return { success: false, error };
+  }
+};
+
+/**
+ * Seller registration confirmation. Includes the permanent Seller ID and the
+ * current (unapproved) approval status. The PDF itself is NOT attached by
+ * default — it lives in private storage and is linked via the seller
+ * dashboard. Never sends bank/OTP/token data.
+ */
+export const sendSellerRegistrationEmail = async (
+  email: string,
+  name: string,
+  sellerId: string,
+  approvalStatus: string
+): Promise<{ success: boolean; error?: any }> => {
+  try {
+    if (!process.env.SMTP_HOST) {
+      console.warn('⚠️ SMTP credentials not found. Seller registration email skipped (document retained).');
+      return { success: false };
+    }
+    const transporter = createTransporter();
+    const mailOptions = {
+      from: `"${process.env.SMTP_FROM_NAME || 'ShopTantra'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: email,
+      subject: `ShopTantra Seller Registration — ${sellerId}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #1B3A6B; margin: 0;">ShopTantra</h1>
+          </div>
+          <h2 style="color: #333;">Welcome, ${name || 'Seller'}!</h2>
+          <p style="color: #555; font-size: 15px; line-height: 1.5;">
+            Your seller registration has been received. Your permanent Seller ID is below.
+          </p>
+          <div style="background-color: #f4f7fb; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 22px; font-weight: bold; letter-spacing: 2px; color: #E85D04;">${sellerId}</span>
+          </div>
+          <p style="color: #555; font-size: 14px; line-height: 1.5;">
+            Current approval status: <strong>${approvalStatus}</strong>.<br/>
+            A full registration profile PDF is available in your seller dashboard. Please keep your Seller ID for reference.
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 26px 0;" />
+          <p style="color: #888; font-size: 12px; text-align: center;">
+            &copy; ${new Date().getFullYear()} ShopTantra. All rights reserved.
+          </p>
+        </div>
+      `,
+    };
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Seller registration email sent: %s', info.messageId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending seller registration email:', error);
     return { success: false, error };
   }
 };

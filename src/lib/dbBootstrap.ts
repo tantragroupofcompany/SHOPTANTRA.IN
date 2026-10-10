@@ -101,6 +101,37 @@ const STATEMENTS: string[] = [
      END IF;
    END $$`,
   `CREATE INDEX IF NOT EXISTS "Address_userId_idx" ON "Address" ("userId")`,
+  // --- Permanent Seller ID + registration PDF records (additive, idempotent) ---
+  `ALTER TABLE "Seller" ADD COLUMN IF NOT EXISTS "sellerId" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Seller_sellerId_key" ON "Seller" ("sellerId") WHERE "sellerId" IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS "SellerIdCounter" (
+     "date"      TEXT NOT NULL,
+     "lastSeq"   INTEGER NOT NULL DEFAULT 0,
+     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     CONSTRAINT "SellerIdCounter_pkey" PRIMARY KEY ("date")
+   )`,
+  `CREATE TABLE IF NOT EXISTS "SellerDocument" (
+     "id"                 TEXT NOT NULL,
+     "sellerProfileId"    TEXT NOT NULL,
+     "sellerBusinessId"   TEXT,
+     "documentType"       TEXT NOT NULL DEFAULT 'SELLER_REGISTRATION_PDF',
+     "storageKey"         TEXT,
+     "documentVersion"    INTEGER NOT NULL DEFAULT 1,
+     "generationStatus"   TEXT NOT NULL DEFAULT 'PENDING',
+     "generatedAt"        TIMESTAMP(3),
+     "lastDeliveryStatus" TEXT,
+     "createdAt"          TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     "updatedAt"          TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     CONSTRAINT "SellerDocument_pkey" PRIMARY KEY ("id")
+   )`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SellerDocument_sellerProfileId_fkey') THEN
+       ALTER TABLE "SellerDocument" ADD CONSTRAINT "SellerDocument_sellerProfileId_fkey"
+         FOREIGN KEY ("sellerProfileId") REFERENCES "Seller"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+     END IF;
+   END $$`,
+  `CREATE INDEX IF NOT EXISTS "SellerDocument_sellerProfileId_idx" ON "SellerDocument" ("sellerProfileId")`,
+  `CREATE INDEX IF NOT EXISTS "SellerDocument_generationStatus_idx" ON "SellerDocument" ("generationStatus")`,
 ];
 
 export async function applyStatements(): Promise<void> {

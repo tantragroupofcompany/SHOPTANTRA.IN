@@ -64,6 +64,12 @@ model Seller {
   otpResendCount    Int             @default(0)
   lastOtpSentAt     DateTime?
   verificationStatus String         @default("PENDING_VERIFICATION")
+  // Permanent, unique business identifier, format SLYYYYMMDDNNNN.
+  // Server-generated at registration, never seller-editable. Nullable so
+  // legacy rows created before this column existed simply stay null until the
+  // backfill in lib/dbBootstrap assigns them one.
+  sellerId          String?         @unique
+  documents         SellerDocument[]
   products          Product[]
   orders            Order[]         @relation("SellerOrders")
   wallet            VendorWallet?
@@ -75,6 +81,35 @@ model Seller {
   subscriptions     Subscription[]
   coupons           Coupon[]
   settings          SellerSettings?
+}
+
+model SellerIdCounter {
+  // One row per Asia/Kolkata calendar day (YYYYMMDD). `lastSeq` is incremented
+  // atomically inside the registration transaction so concurrent signups never
+  // collide. See lib/sellerId.ts.
+  date     String   @id
+  lastSeq  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model SellerDocument {
+  id                String   @id @default(uuid())
+  sellerProfileId   String
+  seller            Seller   @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  // The business identifier (SLYYYYMMDDNNNN) captured at generation time so an
+  // old PDF's record stays readable even if (hypothetically) reassigned.
+  sellerBusinessId  String?
+  documentType      String   @default("SELLER_REGISTRATION_PDF")
+  storageKey        String?  // private storage path; null until stored
+  documentVersion   Int      @default(1)
+  generationStatus  String   @default("PENDING") // PENDING, GENERATED, FAILED
+  generatedAt       DateTime?
+  lastDeliveryStatus String? // EMAIL_SENT, EMAIL_FAILED, WHATSAPP_CONFIG_REQUIRED...
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([sellerProfileId])
+  @@index([generationStatus])
 }
 
 model Product {
