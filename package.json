@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs && node scripts/test-product-approval.cjs && node scripts/test-seller-authz.cjs && node scripts/test-customer-flow.cjs && node scripts/test-corporate-access.cjs && node scripts/test-seller-registration.cjs",
+    "test": "node scripts/test-executive-auth.cjs && node scripts/test-dashboard-regressions.cjs && node scripts/test-product-approval.cjs && node scripts/test-seller-authz.cjs && node scripts/test-customer-flow.cjs && node scripts/test-corporate-access.cjs && node scripts/test-seller-registration.cjs && node scripts/test-cod-gateway-logs.cjs",
     "test:executives": "node scripts/test-executive-auth.cjs",
     "test:dashboards": "node scripts/test-dashboard-regressions.cjs",
     "test:product-approval": "node scripts/test-product-approval.cjs",
@@ -18,7 +18,10 @@
     "test:customer-flow": "node scripts/test-customer-flow.cjs",
     "test:corporate-access": "node scripts/test-corporate-access.cjs",
     "seed:executives": "node scripts/seed-executives.cjs",
-    "test:seller-registration": "node scripts/test-seller-registration.cjs"
+    "test:seller-registration": "node scripts/test-seller-registration.cjs",
+    "test:cod-gateway-logs": "node scripts/test-cod-gateway-logs.cjs",
+    "test:cod-gateway-logs:prisma": "node scripts/setup-gateway-logs-harness.cjs && tsx scripts/test-prisma-gateway-logs-types.ts",
+    "harness:cod-gateway-logs": "node scripts/setup-gateway-logs-harness.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.19.3",
@@ -53,6 +56,7 @@
     "postcss": "^8.4.35",
     "prisma": "^6.19.3",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vercel": "^54.14.2",

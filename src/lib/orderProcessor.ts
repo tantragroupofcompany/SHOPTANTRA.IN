@@ -51,7 +51,44 @@ interface ProcessOrderParams {
     shippingAddress: any;
   };
   method?: string;
-  gatewayLogs?: any;
+  // Free-form diagnostic payload. The Payment.gatewayLogs column is a String?
+  // in the Prisma schema, so this is ALWAYS serialized with
+  // serializeGatewayLogs() before the payment.create call — never written raw.
+  gatewayLogs?: unknown;
+}
+
+/**
+ * Serialize the gateway diagnostic payload for the Payment.gatewayLogs column.
+ *
+ * Prisma declares gatewayLogs as `String?`, so passing a raw object throws
+ * "Invalid prisma.payment.create() invocation ... Expected String or Null,
+ * provided Object" and aborts the whole checkout transaction. Every write
+ * path (COD default, COD with caller logs, Razorpay verification, Razorpay
+ * webhook) funnels through here so none of them can repeat that failure.
+ *
+ * - null/undefined/'' → a default `{ verifiedAt }` envelope (never null, so
+ *   the payment row always carries an audit trace).
+ * - string → passed through unchanged (already schema-compatible).
+ * - anything else → JSON.stringify; on circular/unserializable input falls
+ *   back to a safe envelope instead of throwing.
+ */
+export function serializeGatewayLogs(value: unknown): string {
+  if (value == null) {
+    return JSON.stringify({ verifiedAt: new Date().toISOString() });
+  }
+  if (typeof value === 'string') {
+    return value === ''
+      ? JSON.stringify({ verifiedAt: new Date().toISOString() })
+      : value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return JSON.stringify({
+      verifiedAt: new Date().toISOString(),
+      note: 'gatewayLogs payload was not JSON-serializable',
+    });
+  }
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -366,7 +403,10 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
           method: method || gateway,
           webhookVerified: !isPendingMethod,
           transactionReference,
-          gatewayLogs: gatewayLogs || { verifiedAt: new Date().toISOString() },
+          // gatewayLogs is a String? column: serialize first. Passing a raw
+          // object throws "Invalid prisma.payment.create() ... Expected String
+          // or Null, provided Object" and kills COD/Razorpay checkout.
+          gatewayLogs: serializeGatewayLogs(gatewayLogs),
         },
       });
 

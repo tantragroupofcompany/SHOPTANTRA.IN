@@ -37,3 +37,10 @@ _tok.tmp
 
 # Local scratch output from lint/build/test runs
 *.log
+
+# Isolated Prisma harness used by scripts/test-prisma-gateway-logs-types.ts.
+# It is a throwaway SQLite database plus a generated client; it must never be
+# committed and must never be confused with the real production database.
+prisma/harness/harness.db
+prisma/harness/harness.db-journal
+prisma/node_modules/

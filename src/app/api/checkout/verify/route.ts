@@ -122,8 +122,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
     }
     console.error('Error verifying payment:', error?.name || 'Error');
+    // NEVER echo error.message to the browser: a Prisma validation failure
+    // (e.g. "Invalid prisma.payment.create() invocation ... Expected String
+    // or Null, provided Object") would leak schema internals and the failed
+    // order's internals into the checkout page.
     return NextResponse.json(
-      { error: error.message || 'Payment signature verification failed' },
+      { error: 'Unable to process this order. Please try again.' },
       { status: 500 }
     );
   }

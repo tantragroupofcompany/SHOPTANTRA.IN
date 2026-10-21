@@ -1,0 +1,33 @@
+// Minimal isolated schema for the gatewayLogs type-validation harness.
+// It mirrors the REAL `Payment` model's gatewayLogs column exactly:
+//   gatewayLogs  String?
+// The harness runs on a throwaway SQLite file and never touches the
+// production Postgres database.
+datasource db {
+  provider = "sqlite"
+  url      = env("HARNESS_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/harness-client"
+}
+
+model Payment {
+  id                   String   @id @default(uuid())
+  orderId              String
+  gateway              String   @default("RAZORPAY")
+  amount               Float
+  status               String   @default("PENDING")
+  method               String?
+  gatewayLogs          String?
+  webhookVerified      Boolean  @default(false)
+  platformAmount       Float    @default(0)
+  sellerTransferAmount Float    @default(0)
+  transactionReference String?  @unique
+  razorpayOrderId      String?  @unique
+  razorpayPaymentId    String?  @unique
+  razorpaySignature    String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
