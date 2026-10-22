@@ -161,9 +161,44 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
       where: { transactionReference },
     });
 
-    if (existingPayment && existingPayment.status === 'PAID') {
-      console.warn(`Payment with reference ${transactionReference} already processed. Skipping duplicate.`);
-      return { success: true, message: 'Duplicate payment skipped', alreadyProcessed: true };
+    if (existingPayment) {
+      // `Payment.transactionReference` is UNIQUE, so a reference that already
+      // has a payment row is spent: the request has already been processed and
+      // must never create a second order, a second ledger row, or decrement
+      // the stock twice.
+      //
+      // The old guard only skipped when `status === 'PAID'`. A COD payment is
+      // `PENDING` (the cash is collected on delivery, so it is never PAID at
+      // checkout time), so a retried COD request fell straight through to
+      // `tx.payment.create()` and crashed on the unique constraint:
+      //   P2002: Unique constraint failed on the fields: (`transactionReference`)
+      // The buyer then saw "Unable to process this order" for an order that
+      // had in fact been created. The reference is now consumed by ANY status.
+      //
+      // A FAILED payment is skipped as well: the unique constraint would make a
+      // second row impossible anyway, and re-running the whole fulfilment
+      // transaction for a reference that already produced an order would
+      // double-count the ledger.
+      console.warn(
+        `Payment with reference ${transactionReference} already processed (status=${existingPayment.status}). Skipping duplicate.`
+      );
+
+      // Return the order that was already created so the caller can show the
+      // customer their existing order instead of an empty receipt.
+      const existingOrder = existingPayment.orderId
+        ? await prisma.order.findUnique({ where: { id: existingPayment.orderId } })
+        : null;
+
+      return {
+        success: true,
+        message: 'Duplicate payment skipped',
+        alreadyProcessed: true,
+        data: existingOrder
+          ? { order: existingOrder, payment: existingPayment }
+          : { payment: existingPayment },
+        order: existingOrder ?? undefined,
+        payment: existingPayment,
+      };
     }
 
     const {

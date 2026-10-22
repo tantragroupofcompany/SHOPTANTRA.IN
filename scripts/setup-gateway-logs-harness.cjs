@@ -25,7 +25,9 @@ const GENERATED_CLIENT_REL = path.join('prisma', 'node_modules', '.prisma', 'har
 
 function run(args, env) {
   console.log('> ' + args.join(' '));
-  execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+  // The workspace path contains spaces, so every path argument is quoted.
+  const quoted = args.map((a) => (/[\s]/.test(a) ? `"${a}"` : a));
+  execFileSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', quoted, {
     cwd: ROOT,
     stdio: 'inherit',
     env: { ...process.env, ...env },

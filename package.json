@@ -21,7 +21,9 @@
     "test:seller-registration": "node scripts/test-seller-registration.cjs",
     "test:cod-gateway-logs": "node scripts/test-cod-gateway-logs.cjs",
     "test:cod-gateway-logs:prisma": "node scripts/setup-gateway-logs-harness.cjs && tsx scripts/test-prisma-gateway-logs-types.ts",
-    "harness:cod-gateway-logs": "node scripts/setup-gateway-logs-harness.cjs"
+    "harness:cod-gateway-logs": "node scripts/setup-gateway-logs-harness.cjs",
+    "test:cod-e2e": "node scripts/setup-cod-e2e-harness.cjs && node scripts/run-cod-e2e.mjs",
+    "harness:cod-e2e": "node scripts/setup-cod-e2e-harness.cjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^6.19.3",

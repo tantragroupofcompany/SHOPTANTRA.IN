@@ -44,3 +44,13 @@ _tok.tmp
 prisma/harness/harness.db
 prisma/harness/harness.db-journal
 prisma/node_modules/
+
+# Isolated COD end-to-end harness (scripts/test-cod-checkout-e2e.ts).
+# The schema is GENERATED from prisma/schema.prisma by
+# scripts/setup-cod-e2e-harness.cjs and is therefore not committed; only the
+# throwaway SQLite database is ignored here. The database must never be
+# committed and must never be confused with the real production database.
+prisma/e2e/e2e.db
+prisma/e2e/e2e.db-journal
+prisma/e2e/schema.prisma
+prisma/e2e/node_modules/
