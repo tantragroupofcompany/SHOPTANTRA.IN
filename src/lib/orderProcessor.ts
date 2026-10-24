@@ -94,33 +94,36 @@ export function serializeGatewayLogs(value: unknown): string {
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /**
- * Resolve the effective commission rate server-side with the documented priority:
- * 1. Product-specific commissionPercent
- * 2. CATEGORY CommissionRule
- * 3. GLOBAL CommissionRule
- * 4. GlobalSettings.defaultCommissionRate
- * 5. Seller commissionRate (fallback)
- * Lookups are wrapped so a not-yet-migrated production table degrades safely.
+ * Resolve the fallback commission rate OUTSIDE the checkout transaction.
+ *
+ * Product-agnostic priority:
+ *   1. CATEGORY CommissionRule
+ *   2. GLOBAL  CommissionRule
+ *   3. GlobalSettings.defaultCommissionRate
+ *
+ * Returns `null` (never throws) if no rule/setting can be read - e.g. a
+ * not-yet-migrated production DB. The caller then falls back to the per-seller
+ * rate, so a missing table/column degrades gracefully instead of 500ing.
+ *
+ * CRITICAL: this runs on the STANDALONE `prisma` client, never on `tx`. Postgres
+ * aborts the entire transaction the instant any statement inside an interactive
+ * transaction throws (error 25P02). These reads previously ran on `tx`; when
+ * GlobalSettings.parentCompanyLogoUrl was missing in production, Prisma's default
+ * full-row SELECT threw P2022 and poisoned the transaction, which then made the
+ * subsequent `commission.create` fail with 25P02. Selecting only the column we
+ * actually need makes the lookup robust even if sibling columns drift.
  */
-async function resolveCommissionRate(tx: any, seller: any, category: string, products: any[]): Promise<number> {
+async function resolveFallbackCommissionRate(client: any, category: string): Promise<number | null> {
   try {
-    const productSpecific = products.find((p: any) => p.commissionPercent != null);
-    if (productSpecific && productSpecific.commissionPercent != null) {
-      return Number(productSpecific.commissionPercent);
-    }
-  } catch (e) {
-    console.warn('Commission (product-specific) lookup fell back:', e);
-  }
-  try {
-    const categoryRule = await tx.commissionRule.findFirst({
+    const categoryRule = await client.commissionRule.findFirst({
       where: { scope: 'CATEGORY', category, isActive: true },
     });
     if (categoryRule) return Number(categoryRule.rate);
   } catch (e) {
-    console.warn('Commission (category) lookup fell back:', e);
+    console.warn('Commission (category rule) lookup fell back:', e);
   }
   try {
-    const globalRule = await tx.commissionRule.findFirst({
+    const globalRule = await client.commissionRule.findFirst({
       where: { scope: 'GLOBAL', isActive: true },
     });
     if (globalRule) return Number(globalRule.rate);
@@ -128,14 +131,17 @@ async function resolveCommissionRate(tx: any, seller: any, category: string, pro
     console.warn('Commission (global rule) lookup fell back:', e);
   }
   try {
-    const settings = await tx.globalSettings.findUnique({ where: { id: 'settings' } });
+    const settings = await client.globalSettings.findUnique({
+      where: { id: 'settings' },
+      select: { defaultCommissionRate: true },
+    });
     if (settings && settings.defaultCommissionRate != null) {
       return Number(settings.defaultCommissionRate);
     }
   } catch (e) {
     console.warn('Commission (global settings) lookup fell back:', e);
   }
-  return Number(seller.commissionRate) || 10;
+  return null;
 }
 
 export async function processVerifiedOrder(params: ProcessOrderParams) {
@@ -222,6 +228,17 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
     }
 
     // Run order fulfillment inside a single atomic transaction
+    // 3a. Resolve the fallback commission rate BEFORE the transaction.
+    //     These are read-only config lookups. Running them on `tx` was fatal:
+    //     when GlobalSettings.parentCompanyLogoUrl was missing in production,
+    //     Prisma's default full-row SELECT threw P2022, which (per Postgres)
+    //     aborted the entire interactive transaction, poisoning every later
+    //     statement - including `commission.create` (error 25P02) - and turned
+    //     the checkout into a 500. Running on the standalone `prisma` client
+    //     keeps one bad read from aborting an otherwise-good order.
+    const primaryCategory = items[0]?.category || 'General';
+    const fallbackCommissionRate = await resolveFallbackCommissionRate(prisma, primaryCategory);
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. Ensure User profile exists.
       //    The upsert create branch MUST include all required fields (password is NOT NULL).
@@ -445,9 +462,15 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         },
       });
 
-      // 7. Calculate Commission fee (server-side resolution)
-      const primaryCategory = items[0]?.category || 'General';
-      const commissionRate = await resolveCommissionRate(tx, seller, primaryCategory, dbProducts);
+      // 7. Calculate Commission fee (server-side resolution).
+      //    The rate was pre-resolved BEFORE this transaction - see
+      //    resolveFallbackCommissionRate above. The product-specific override is a
+      //    pure in-memory lookup on rows already fetched in this tx, so it can
+      //    neither fail nor abort the transaction.
+      const productSpecific = dbProducts.find((p: any) => p.commissionPercent != null);
+      const commissionRate = productSpecific && productSpecific.commissionPercent != null
+        ? Number(productSpecific.commissionPercent)
+        : (fallbackCommissionRate ?? (Number(seller.commissionRate) || 10));
       const commissionAmount = round2((totalAmount * commissionRate) / 100);
       const sellerPayout = round2(totalAmount - commissionAmount);
 
@@ -492,57 +515,6 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         },
       });
 
-      // 11. Payment split bookkeeping (platform amount vs seller transfer amount).
-      //     New columns added by migration 20260825000000. Guarded so that if the
-      //     migration has not yet been applied in production the order still completes.
-      try {
-        await tx.payment.update({
-          where: { id: payment.id },
-          data: {
-            platformAmount: commissionAmount,
-            sellerTransferAmount: sellerPayout,
-          },
-        });
-      } catch (splitError: any) {
-        console.warn('Payment split columns not yet available (migration pending). Skipping split bookkeeping.', splitError?.message);
-      }
-
-      // 12. Seller Settlement ledger. A prepaid order is recorded as PENDING until the
-      //     official Razorpay Route / linked-account transfer actually executes. The
-      //     seller is NEVER silently marked paid when transfer is not possible.
-      let settlementStatus = 'PENDING';
-      let settlementReason: string | null = null;
-      if (isPendingMethod) {
-        settlementReason = 'Order payment not yet captured';
-      } else if (process.env.RAZORPAY_ROUTE_ENABLED === 'true' && seller.razorpayLinkedAccountId) {
-        settlementStatus = 'PROCESSING';
-      } else {
-        settlementReason = seller.razorpayLinkedAccountId
-          ? 'AUTO_TRANSFER_NOT_CONFIGURED'
-          : 'SELLER_LINKED_ACCOUNT_MISSING';
-      }
-
-      let settlement: any = null;
-      try {
-        settlement = await tx.sellerSettlement.create({
-          data: {
-            orderId: order.id,
-            sellerId: seller.id,
-            paymentId: payment.id,
-            grossAmount: totalAmount,
-            commissionPercent: commissionRate,
-            commissionAmount,
-            sellerAmount: sellerPayout,
-            status: settlementStatus,
-            failureReason: settlementReason,
-          },
-        });
-      } catch (settlementError: any) {
-        // Migration 20260825000000 pending in production: order still completes,
-        // settlement ledger will populate once the migration is applied.
-        console.warn('SellerSettlement table not yet available (migration pending). Skipping settlement ledger write.', settlementError?.message);
-      }
-
       // 13. Create Admin Notification
       await tx.adminNotification.create({
         data: {
@@ -554,35 +526,98 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
         },
       });
 
-      return { order, payment, commission, wallet, settlement };
+      return {
+        order,
+        payment,
+        commission,
+        wallet,
+        seller,
+        isPendingMethod,
+        commissionRate,
+        commissionAmount,
+        sellerPayout,
+        totalAmount,
+      };
     });
+
+    // 11. Payment split bookkeeping (platform amount vs seller transfer amount).
+    //     POST-COMMIT and non-fatal: these columns are added by migration
+    //     20260825000000. If that migration is still pending in production the
+    //     already-committed order must still complete, so a missing column only
+    //     logs a warning. Running on the standalone client (not `tx`) means the
+    //     write can never poison the fulfilment transaction it's no longer in.
+    try {
+      await prisma.payment.update({
+        where: { id: result.payment.id },
+        data: {
+          platformAmount: result.commissionAmount,
+          sellerTransferAmount: result.sellerPayout,
+        },
+      });
+    } catch (splitError: any) {
+      console.warn('Payment split columns not yet available (migration pending). Skipping split bookkeeping.', splitError?.message);
+    }
+
+    // 12. Seller Settlement ledger. POST-COMMIT and non-fatal: a prepaid order is
+    //     recorded as PENDING until the official Razorpay Route / linked-account
+    //     transfer actually executes. The seller is NEVER silently marked paid
+    //     when a transfer cannot happen. A missing SellerSettlement table
+    //     (migration 20260825000000 pending) only skips the ledger row.
+    let settlementStatus = 'PENDING';
+    let settlementReason: string | null = null;
+    if (result.isPendingMethod) {
+      settlementReason = 'Order payment not yet captured';
+    } else if (process.env.RAZORPAY_ROUTE_ENABLED === 'true' && result.seller?.razorpayLinkedAccountId) {
+      settlementStatus = 'PROCESSING';
+    } else {
+      settlementReason = result.seller?.razorpayLinkedAccountId
+        ? 'AUTO_TRANSFER_NOT_CONFIGURED'
+        : 'SELLER_LINKED_ACCOUNT_MISSING';
+    }
+
+    let settlement: any = null;
+    try {
+      settlement = await prisma.sellerSettlement.create({
+        data: {
+          orderId: result.order.id,
+          sellerId: result.seller.id,
+          paymentId: result.payment.id,
+          grossAmount: result.totalAmount,
+          commissionPercent: result.commissionRate,
+          commissionAmount: result.commissionAmount,
+          sellerAmount: result.sellerPayout,
+          status: settlementStatus,
+          failureReason: settlementReason,
+        },
+      });
+    } catch (settlementError: any) {
+      console.warn('SellerSettlement table not yet available (migration pending). Skipping settlement ledger write.', settlementError?.message);
+    }
 
     // 14. Attempt automatic seller transfer using the official Razorpay Route API.
     //     Guarded: if the transfer fails, the settlement is marked FAILED (visible in
-    //     seller/corporate dashboards) and the order remains intact.
-    if (result.settlement && result.settlement.status === 'PROCESSING') {
+    //     seller/corporate dashboards) and the order remains intact. Runs on the
+    //     standalone client against the already-committed order + settlement.
+    if (settlement && settlement.status === 'PROCESSING') {
       try {
         const Razorpay = (await import('razorpay')).default;
         const rzp = new Razorpay({
           key_id: process.env.RAZORPAY_KEY_ID!,
           key_secret: process.env.RAZORPAY_KEY_SECRET!,
         });
-        const sellerForTransfer = await prisma.seller.findUnique({
-          where: { id: result.settlement.sellerId },
-        });
         const transferRef = result.payment.razorpayPaymentId || result.payment.transactionReference;
         const transfer: any = await rzp.payments.transfer(transferRef, {
           transfers: [
             {
-              account: sellerForTransfer?.razorpayLinkedAccountId,
-              amount: Math.round(result.settlement.sellerAmount * 100),
+              account: result.seller?.razorpayLinkedAccountId,
+              amount: Math.round(settlement.sellerAmount * 100),
               currency: 'INR',
             },
           ],
         });
         const transferId = transfer?.id;
         await prisma.sellerSettlement.update({
-          where: { id: result.settlement.id },
+          where: { id: settlement.id },
           data: { status: 'TRANSFERRED', transferId, failureReason: null },
         });
         await prisma.commission.update({
@@ -593,7 +628,7 @@ export async function processVerifiedOrder(params: ProcessOrderParams) {
       } catch (transferError: any) {
         console.error('[SELLER TRANSFER] Automatic transfer failed:', transferError);
         await prisma.sellerSettlement.update({
-          where: { id: result.settlement.id },
+          where: { id: settlement.id },
           data: {
             status: 'FAILED',
             failureReason: transferError?.message || 'Razorpay Route transfer failed',

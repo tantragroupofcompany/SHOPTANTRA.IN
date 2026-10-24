@@ -44,7 +44,20 @@ export async function ensureMarketplaceTables(): Promise<void> {
     `CREATE UNIQUE INDEX IF NOT EXISTS "SellerSettlement_paymentId_key" ON "SellerSettlement"("paymentId")`,
     `CREATE INDEX IF NOT EXISTS "SellerSettlement_sellerId_idx" ON "SellerSettlement"("sellerId")`,
     `CREATE INDEX IF NOT EXISTS "SellerSettlement_status_idx" ON "SellerSettlement"("status")`,
-  ];
+  // --- DownloadAnalytics: marketplace download telemetry ---
+  // The Prisma model long existed, but the table was never created in production,
+  // so /api/download threw "Could not find the table 'public.DownloadAnalytics'".
+  // Idempotent: safe to re-run on every cold start.
+  `CREATE TABLE IF NOT EXISTS "DownloadAnalytics" (
+      "id"           TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+      "platform"     TEXT NOT NULL,
+      "url"          TEXT NOT NULL,
+      "userAgent"    TEXT,
+      "downloadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS "DownloadAnalytics_platform_idx" ON "DownloadAnalytics" ("platform")`,
+  `CREATE INDEX IF NOT EXISTS "DownloadAnalytics_downloadedAt_idx" ON "DownloadAnalytics" ("downloadedAt")`,
+];
 
   for (const sql of statements) {
     try {

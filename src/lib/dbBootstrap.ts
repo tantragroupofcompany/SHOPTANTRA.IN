@@ -56,6 +56,13 @@ const STATEMENTS: string[] = [
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "transferId" TEXT`,
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "failureReason" TEXT`,
   `ALTER TABLE "Commission" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  // --- Company logo + marketplace telemetry ---
+  // GlobalSettings.parentCompanyLogoUrl is declared in schema.prisma but was never
+  // added to a migration, so it is MISSING in production. A default full-row SELECT
+  // throws P2022 ("column does not exist"); inside the checkout transaction that
+  // aborted the tx and surfaced downstream as a 500 on commission.create (25P02).
+  // Self-heal on every cold start behind Supabase's pooler.
+  `ALTER TABLE "GlobalSettings" ADD COLUMN IF NOT EXISTS "parentCompanyLogoUrl" TEXT`,
   // --- Shipping Xpress integration (Phase 8/9) — supplier pickup → carrier ---
   // Applied at runtime because production runs behind Supabase's pooler where
   // `prisma migrate deploy` cannot take its advisory locks. Every statement is
