@@ -1,0 +1,6 @@
+Vercel CLI 54.21.1 (Node.js 24.16.0)
+Retrieving project…
+> Downloading `production` environment variables for shoptantra/shoptantra
+Downloading
+
+✓ Created         .env.prodverify file

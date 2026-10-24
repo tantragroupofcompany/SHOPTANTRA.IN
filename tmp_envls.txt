@@ -1,0 +1,22 @@
+Vercel CLI 54.21.1 (Node.js 24.16.0)
+Retrieving project…
+> Environment Variables found for shoptantra/shoptantra [453ms]
+
+ name                               value               environments                created     
+ EXECUTIVE_CEO_PASSWORD             Encrypted           Production                  23d ago     
+ EXECUTIVE_CHAIRMAN_PASSWORD        Encrypted           Production                  23d ago     
+ EXECUTIVE_FOUNDER_PASSWORD         Encrypted           Production                  23d ago     
+ SUPABASE_POOLER_HOST               Encrypted           Production                  27d ago     
+ NEXT_PUBLIC_SUPABASE_URL           Encrypted           Production                  27d ago     
+ SUPABASE_SERVICE_ROLE_KEY          Encrypted           Development                 33d ago     
+ NEXT_PUBLIC_RAZORPAY_KEY_ID        Encrypted           Production                  58d ago     
+ RAZORPAY_WEBHOOK_SECRET            Encrypted           Preview, Production         93d ago     
+ RAZORPAY_KEY_SECRET                Encrypted           Production, Preview         93d ago     
+ RAZORPAY_KEY_ID                    Encrypted           Production, Preview         93d ago     
+ SUPABASE_SERVICE_ROLE_KEY          Encrypted           Preview, Production         95d ago     
+ ADMIN_PASSWORD                     Encrypted           Production                  117d ago    
+ ADMIN_EMAIL                        Encrypted           Production                  117d ago    
+ DATABASE_URL                       Encrypted           Production                  119d ago    
+ JWT_SECRET                         Encrypted           Production                  119d ago    
+ NEXT_PUBLIC_SUPABASE_ANON_KEY      Encrypted           Production                  119d ago    
+

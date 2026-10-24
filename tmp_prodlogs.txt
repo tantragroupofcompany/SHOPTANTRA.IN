@@ -1,0 +1,26 @@
+Vercel CLI 54.21.1 (Node.js 24.16.0)
+Resolving deployment "shoptantra-2j5e8cpue-shoptantra.vercel.app"
+Fetching project "prj_YbfHLMkwbCY8Ibr707zWvgQp11To"
+Fetching logs...
+TIME         HOST               LEVEL                                     STATUS  MESSAGE                               
+14:51:46.98  shoptantra.in      info   ε GET /sitemap.xml                 200     (no message)                          
+14:51:46.05  shoptantra.in      info   ε GET /robots.txt                  200     (no message)                          
+14:40:26.88  shoptantra.in      info   ε GET /sw.js                       304     (no message)                          
+14:39:55.64  shoptantra.in      error  ε POST /api/checkout/verify        500     Error verifying payment in database: …
+14:39:52.09  shoptantra.in      info   ε POST /api/shipping/calculate     200     (no message)                          
+14:39:25.43  shoptantra.in      info   ε GET /sw.js                       304     (no message)                          
+14:39:23.69  shoptantra.in      info   λ GET /api/seller/profile          200     (no message)                          
+14:39:22.97  shoptantra.in      info   ε GET /manifest.json               304     (no message)                          
+14:39:22.07  shoptantra.in      info   λ GET /checkout                    200     (no message)                          
+14:38:56.79  shoptantra.in      info   λ GET /api/corporate/sellers       200     (no message)                          
+14:38:56.54  shoptantra.in      info   λ GET /api/seller/profile          200     (no message)                          
+14:38:55.56  shoptantra.in      info   ε GET /api/corporate/verify        200     (no message)                          
+14:38:28.91  shoptantra.in      info   ε GET /sw.js                       304     (no message)                          
+14:38:23.78  shoptantra.in      info   ε GET /api/seller/profile          200     [db-bootstrap] Ensuring marketplace s…
+14:38:18.41  shoptantra.in      info   ε GET /manifest.json               304     (no message)                          
+14:38:18.30  shoptantra.in      info   ε GET /manifest.json               304     (no message)                          
+14:38:15.26  shoptantra.in      info   λ GET /checkout                    200     (no message)                          
+14:38:15.26  shoptantra.in      info   λ GET /corporate/sellers           200     (no message)                          
+14:31:15.57  www.shoptantra.in  info   λ GET /                            200     (no message)                          
+14:14:45.75  shoptantra.in      info   ε GET /wp-login.php                200     (no message)                          
+Fetched 20 logs for shoptantra/shoptantra

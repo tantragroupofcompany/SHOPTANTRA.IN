@@ -1,0 +1,47 @@
+Vercel CLI 54.21.1 (Node.js 24.16.0)
+Fetching deployments in shoptantra
+> Deployments for shoptantra/shoptantra [407ms]
+
+  Age     Project                   Deployment                                             Status      Environment     Duration     Username                     
+  2h      shoptantra/shoptantra     https://shoptantra-2j5e8cpue-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  2h      shoptantra/shoptantra     https://shoptantra-r7ho3kxx9-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  1d      shoptantra/shoptantra     https://shoptantra-em45dsxv1-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  12d     shoptantra/shoptantra     https://shoptantra-11nqclew2-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  12d     shoptantra/shoptantra     https://shoptantra-cck014591-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  13d     shoptantra/shoptantra     https://shoptantra-g5udq97t8-shoptantra.vercel.app     ● Ready     Production      53s          jadavnileshbhai2006-8886     
+  13d     shoptantra/shoptantra     https://shoptantra-4i98defak-shoptantra.vercel.app     ● Ready     Production      48s          jadavnileshbhai2006-8886     
+  13d     shoptantra/shoptantra     https://shoptantra-edavsqh2w-shoptantra.vercel.app     ● Ready     Production      47s          jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-n9m68da5e-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-kfakbionk-shoptantra.vercel.app     ● Ready     Production      52s          jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-laynabi2u-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-7lntc4yzj-shoptantra.vercel.app     ● Ready     Production      58s          jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-qqkkwan4l-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-itvzbzabv-shoptantra.vercel.app     ● Ready     Production      58s          jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-m82rfuz9p-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-b96lliva5-shoptantra.vercel.app     ● Ready     Production      54s          jadavnileshbhai2006-8886     
+  15d     shoptantra/shoptantra     https://shoptantra-ahe9op4sm-shoptantra.vercel.app     ● Ready     Production      54s          jadavnileshbhai2006-8886     
+  16d     shoptantra/shoptantra     https://shoptantra-94vmy7mn0-shoptantra.vercel.app     ● Ready     Production      1m           jadavnileshbhai2006-8886     
+  17d     shoptantra/shoptantra     https://shoptantra-9nreu0wm3-shoptantra.vercel.app     ● Ready     Production      54s          jadavnileshbhai2006-8886     
+  17d     shoptantra/shoptantra     https://shoptantra-9saa9dcpa-shoptantra.vercel.app     ● Ready     Production      53s          jadavnileshbhai2006-8886     
+
+https://shoptantra-2j5e8cpue-shoptantra.vercel.app
+https://shoptantra-r7ho3kxx9-shoptantra.vercel.app
+https://shoptantra-em45dsxv1-shoptantra.vercel.app
+https://shoptantra-11nqclew2-shoptantra.vercel.app
+https://shoptantra-cck014591-shoptantra.vercel.app
+https://shoptantra-g5udq97t8-shoptantra.vercel.app
+https://shoptantra-4i98defak-shoptantra.vercel.app
+https://shoptantra-edavsqh2w-shoptantra.vercel.app
+https://shoptantra-n9m68da5e-shoptantra.vercel.app
+https://shoptantra-kfakbionk-shoptantra.vercel.app
+https://shoptantra-laynabi2u-shoptantra.vercel.app
+https://shoptantra-7lntc4yzj-shoptantra.vercel.app
+https://shoptantra-qqkkwan4l-shoptantra.vercel.app
+https://shoptantra-itvzbzabv-shoptantra.vercel.app
+https://shoptantra-m82rfuz9p-shoptantra.vercel.app
+https://shoptantra-b96lliva5-shoptantra.vercel.app
+https://shoptantra-ahe9op4sm-shoptantra.vercel.app
+https://shoptantra-94vmy7mn0-shoptantra.vercel.app
+https://shoptantra-9nreu0wm3-shoptantra.vercel.app
+https://shoptantra-9saa9dcpa-shoptantra.vercel.app
+> To display the next page, run `vercel ls shoptantra --yes --next 1791215934265`
