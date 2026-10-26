@@ -40,9 +40,18 @@ export function SellerLayout() {
   // forwards them to the dashboard once the status flips to ACTIVE.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const checkApproval = async () => {
       try {
         const res = await fetch('/api/seller/approval-status');
+        // Session expired: sign out (clears cookies + localStorage + AuthContext
+        // state) so the render logic redirects to /login.
+        if (res.status === 401) {
+          await signOut();
+          if (!cancelled) setApprovalGate('allowed');
+          return;
+        }
         if (!res.ok) {
           if (!cancelled) setApprovalGate('allowed');
           return;
@@ -57,9 +66,16 @@ export function SellerLayout() {
       } catch {
         if (!cancelled) setApprovalGate('allowed');
       }
-    })();
+    };
+
+    checkApproval();
+    // Re-poll every 15s so an executive approval/rejection takes effect
+    // without requiring a full page reload.
+    intervalId = setInterval(checkApproval, 15000);
+
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
   }, []);
 

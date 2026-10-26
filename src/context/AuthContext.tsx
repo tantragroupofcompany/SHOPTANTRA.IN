@@ -74,7 +74,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         fetchProfile(sbSession.user.id).finally(() => setLoading(false));
       } else {
-        setLoading(false);
+        // No Supabase session — try to restore from localStorage (JWT cookie login).
+        // The login route sets auth_token + auth_role cookies (read by middleware
+        // RBAC) and the signIn() helper above persists profile + user to
+        // localStorage. On cold reload we restore those so the seller dashboard
+        // renders instead of bouncing to /login, while the JWT cookie continues
+        // to authorize API calls server-side.
+        ;(async () => {
+          try {
+            const storedProfile = localStorage.getItem('st_local_profile');
+            const storedUser = localStorage.getItem('st_local_user');
+            if (storedProfile && storedUser) {
+              const restoredProfile = normalizeProfile(JSON.parse(storedProfile) as Profile);
+              const restoredUser = JSON.parse(storedUser);
+              setProfile(restoredProfile);
+              setUser(restoredUser);
+              // Fetch a fresh profile from the API so the seller's current
+              // approval status (ACTIVE / PENDING / REJECTED / …) is reflected.
+              if (restoredProfile.id) {
+                await fetchProfile(restoredProfile.id);
+              }
+            }
+          } catch (restoreError) {
+            console.warn('Failed to restore local session:', restoreError);
+          } finally {
+            setLoading(false);
+          }
+        })();
       }
     }).catch(err => {
       console.warn('Supabase getSession failed:', err);
