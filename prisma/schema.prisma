@@ -459,9 +459,12 @@ model Review {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating         Int
   comment        String
-  status         String   @default("pending")
+  status         String   @default("pending") // pending, approved, rejected, quarantined
   sellerResponse String?
   createdAt      DateTime @default(now())
+
+  // One review per buyer per product: prevents duplicate / spam submissions.
+  @@unique([productId, userId])
 }
 
 model Lead {
@@ -579,4 +582,22 @@ model Address {
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// Audit log for data-cleanup and moderation operations.
+// Idempotent: each entry records the operation type, target model,
+// target id(s), actor, reason, and a timestamp. Never deleted.
+model AuditLog {
+  id        String   @id @default(uuid())
+  operation String   // e.g. "PURGE_DEMO_USER", "QUARANTINE_REVIEW", "ARCHIVE_PRODUCT"
+  model     String   // e.g. "User", "Review", "Product", "Seller"
+  targetId  String?  // id of the affected row (null for bulk ops)
+  actor     String?  // who initiated the operation (script name or user id)
+  reason    String?  // human-readable classification reason
+  before    Json?    // sanitized snapshot of the row before mutation (PII stripped)
+  after     Json?    // sanitized snapshot after mutation
+  createdAt DateTime @default(now())
+
+  @@index([operation, model])
+  @@index([createdAt])
 }
