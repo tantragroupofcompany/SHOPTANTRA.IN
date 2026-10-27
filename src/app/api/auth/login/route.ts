@@ -66,7 +66,14 @@ export async function POST(request: Request) {
     //    that own a store — legacy rows upgraded before User.role was
     //    backfilled — receive exactly the same gating as SELLER-role accounts.
     if (dbUser.sellerProfile) {
-      if (dbUser.sellerProfile.verificationStatus === 'PENDING_VERIFICATION') {
+      // Block PENDING_VERIFICATION only when the seller is NOT already ACTIVE.
+      // An ACTIVE seller has been corporate-approved; a legacy row may still
+      // carry verificationStatus='PENDING_VERIFICATION' from before the approve
+      // endpoint wrote both fields. Such sellers must be able to log in.
+      if (
+        dbUser.sellerProfile.verificationStatus === 'PENDING_VERIFICATION' &&
+        dbUser.sellerProfile.status !== 'ACTIVE'
+      ) {
         return NextResponse.json({ error: 'Please verify your email before accessing your seller account.' }, { status: 403 });
       }
       // Blocked / rejected / suspended sellers cannot access their seller account.
