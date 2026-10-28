@@ -8,7 +8,7 @@ import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 import { Upload, X, Store, RefreshCw } from 'lucide-react';
 
 const StoreSettings = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [seller, setSeller] = useState<Seller | null>(null);
   const [formData, setFormData] = useState({
     store_name: '',
@@ -50,10 +50,13 @@ const StoreSettings = () => {
 
   useEffect(() => {
     const fetchSellerData = async () => {
-      if (!user) return;
+      if (!user || !profile) return;
 
       try {
-        const res = await fetch(`/api/seller/store-settings?userId=${user.id}`);
+        // profile.id is the database User ID from /api/auth/login. user.id can
+        // be a Supabase Auth UUID (from onAuthStateChange) which never matches
+        // the seller's userId column, causing a 404.
+        const res = await fetch(`/api/seller/store-settings?userId=${profile.id}`);
         if (!res.ok) {
           throw new Error('Failed to load store settings from API');
         }
@@ -149,7 +152,7 @@ const StoreSettings = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           store_name: formData.store_name,
           store_description: formData.store_description,
           business_type: formData.business_type,
@@ -205,7 +208,7 @@ const StoreSettings = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           bank_account_number: bankData.bank_account_number,
           bank_ifsc: bankData.bank_ifsc,
           bank_account_name: bankData.bank_account_name
@@ -297,7 +300,7 @@ const StoreSettings = () => {
             const uploadFile = new File([blob], file.name, { type: 'image/jpeg' });
             const formData = new FormData();
             formData.append('file', uploadFile);
-            formData.append('userId', user.id);
+            formData.append('userId', profile.id);
 
             try {
               const res = await fetch('/api/seller/upload-logo', {
@@ -332,7 +335,7 @@ const StoreSettings = () => {
   };
 
   const handleRemoveLogo = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     setUploadingLogo(true);
     setLogoError(null);
 
@@ -341,7 +344,7 @@ const StoreSettings = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           store_logo_url: null
         })
       });
@@ -387,7 +390,7 @@ const StoreSettings = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           address: addressData.address,
           address_line2: addressData.address_line2,
           city: addressData.city,

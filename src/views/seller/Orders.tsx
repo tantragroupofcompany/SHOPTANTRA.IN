@@ -17,7 +17,7 @@ interface OrderWithItems extends Order {
 type OrderStatusFilter = 'all' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 const Orders = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -32,13 +32,16 @@ const Orders = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user) return;
+      if (!user || !profile) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`/api/seller/orders?userId=${user.id}`);
+        // profile.id is the database User ID from /api/auth/login. user.id can
+        // be a Supabase Auth UUID (from onAuthStateChange) which never matches
+        // the seller's userId column, causing a 404 "Seller profile not found".
+        const res = await fetch(`/api/seller/orders?userId=${profile.id}`);
         if (!res.ok) throw new Error('Failed to load orders from API');
         const resData = await res.json();
 
