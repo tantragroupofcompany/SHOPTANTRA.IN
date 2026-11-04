@@ -39,6 +39,7 @@ const StoreSettings = () => {
     longitude: '',
   });
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [savingStore, setSavingStore] = useState(false);
   const [savingBank, setSavingBank] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -48,64 +49,76 @@ const StoreSettings = () => {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchSellerData = async () => {
-      if (!user || !profile) return;
+  const fetchSellerData = async () => {
+    if (!user || !profile) return;
 
-      try {
-        // profile.id is the database User ID from /api/auth/login. user.id can
-        // be a Supabase Auth UUID (from onAuthStateChange) which never matches
-        // the seller's userId column, causing a 404.
-        const res = await fetch(`/api/seller/store-settings?userId=${profile.id}`);
-        if (!res.ok) {
-          throw new Error('Failed to load store settings from API');
-        }
-        const resData = await res.json();
-
-        if (resData.success && resData.data) {
-          const data = resData.data;
-          setSeller(data as any);
-          setLogoUrl(data.store_logo_url || null);
-          setFormData({
-            store_name: data.store_name || '',
-            store_description: data.store_description || '',
-            business_type: data.business_type || '',
-            gst_number: data.gst_number || '',
-            pan_number: data.pan_number || '',
-          });
-          setBankData({
-            bank_account_number: data.bank_account_number || '',
-            bank_ifsc: data.bank_ifsc || '',
-            bank_account_name: data.bank_account_name || '',
-          });
-          setAddressData({
-            address: data.address || '',
-            city: data.city || '',
-            state: data.state || '',
-            pincode: data.pincode || '',
-            pickup_store_name: data.pickup_store_name || '',
-            pickup_contact_name: data.pickup_contact_name || '',
-            pickup_phone: data.pickup_phone || '',
-            pickup_email: data.pickup_email || '',
-            address_line2: data.address_line2 || '',
-            country: data.country || 'India',
-            pickup_location_id: data.pickup_location_id || '',
-            pickup_verification_status: data.pickup_verification_status || 'PENDING',
-            latitude: data.latitude || '',
-            longitude: data.longitude || '',
-          });
-        }
-      } catch (err) {
-        setErrors({
-          general: err instanceof Error ? err.message : 'Failed to load store settings',
-        });
-      } finally {
-        setLoading(false);
+    setRetrying(true);
+    try {
+      // profile.id is the database User ID from /api/auth/login. user.id can
+      // be a Supabase Auth UUID (from onAuthStateChange) which never matches
+      // the seller's userId column, causing a 404.
+      const res = await fetch(`/api/seller/store-settings?userId=${profile.id}`);
+      if (!res.ok) {
+        let message = 'Failed to load store settings. Please try again.';
+        if (res.status === 401) message = 'Your session has expired. Please log in again.';
+        else if (res.status === 403) message = "You don't have permission to view this store's settings.";
+        else if (res.status === 404) message = 'No store profile found. Complete seller registration to set up your store.';
+        else if (res.status === 500) message = 'Our servers are temporarily unavailable. Please try again in a moment.';
+        throw new Error(message);
       }
-    };
+      const resData = await res.json();
 
+      if (resData.success && resData.data) {
+        const data = resData.data;
+        setSeller(data as any);
+        setLogoUrl(data.store_logo_url || null);
+        setFormData({
+          store_name: data.store_name || '',
+          store_description: data.store_description || '',
+          business_type: data.business_type || '',
+          gst_number: data.gst_number || '',
+          pan_number: data.pan_number || '',
+        });
+        setBankData({
+          bank_account_number: data.bank_account_number || '',
+          bank_ifsc: data.bank_ifsc || '',
+          bank_account_name: data.bank_account_name || '',
+        });
+        setAddressData({
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
+          pickup_store_name: data.pickup_store_name || '',
+          pickup_contact_name: data.pickup_contact_name || '',
+          pickup_phone: data.pickup_phone || '',
+          pickup_email: data.pickup_email || '',
+          address_line2: data.address_line2 || '',
+          country: data.country || 'India',
+          pickup_location_id: data.pickup_location_id || '',
+          pickup_verification_status: data.pickup_verification_status || 'PENDING',
+          latitude: data.latitude || '',
+          longitude: data.longitude || '',
+        });
+      }
+    } catch (err) {
+      setErrors({
+        general: err instanceof Error ? err.message : 'Failed to load store settings',
+      });
+    } finally {
+      setLoading(false);
+      setRetrying(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSellerData();
   }, [user]);
+
+  const retryLoad = async () => {
+    setErrors({});
+    await fetchSellerData();
+  };
 
   const handleStoreChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -459,6 +472,9 @@ const StoreSettings = () => {
       {errors.general && (
         <Card className="border-red-200 bg-red-50">
           <p className="text-red-800">{errors.general}</p>
+          <Button onClick={retryLoad} disabled={retrying} className="mt-3 text-sm">
+            {retrying ? 'Retrying…' : 'Try again'}
+          </Button>
         </Card>
       )}
 

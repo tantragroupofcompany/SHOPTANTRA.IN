@@ -319,16 +319,6 @@ export default function ProductDetail() {
       setSubmittingReview(false);
     }
   };
-    <div className="flex items-center gap-0.5 text-brand-gold">
-      {[...Array(5)].map((_, i) => (
-        <Star
-          key={i}
-          size={16}
-          className={i < Math.floor(rating) ? 'fill-brand-gold' : 'text-gray-300 dark:text-gray-600'}
-        />
-      ))}
-    </div>
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-colors duration-300">
