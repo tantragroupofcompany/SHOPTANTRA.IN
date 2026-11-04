@@ -25,7 +25,7 @@ interface SellerData {
 }
 
 const Earnings = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [sellerData, setSellerData] = useState<SellerData>({
     total_earned: 0,
@@ -42,14 +42,14 @@ const Earnings = () => {
 
   useEffect(() => {
     fetchEarningsData();
-  }, [user]);
+  }, [user, profile]);
 
   const fetchEarningsData = async () => {
     try {
       setLoading(true);
-      if (!user?.id) return;
+      if (!user || !profile) return;
 
-      const res = await fetch(`/api/seller/earnings?userId=${user.id}`);
+      const res = await fetch(`/api/seller/earnings?userId=${profile.id}`);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

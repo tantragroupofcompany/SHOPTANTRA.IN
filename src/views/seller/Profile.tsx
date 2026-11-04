@@ -72,7 +72,7 @@ const Profile = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           full_name: formData.full_name,
           phone: formData.phone
         })
@@ -119,7 +119,7 @@ const Profile = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           current_password: passwordData.current_password,
           new_password: passwordData.new_password
         })

@@ -17,17 +17,18 @@ interface Notification {
 }
 
 const Notifications = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
   const [markingAllRead, setMarkingAllRead] = useState(false);
 
   const fetchNotifications = async () => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/seller/notifications?userId=${user.id}`);
+      // profile.id is the database User ID from /api/auth/login.
+      const res = await fetch(`/api/seller/notifications?userId=${profile.id}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -43,7 +44,7 @@ const Notifications = () => {
 
   useEffect(() => {
     fetchNotifications();
-  }, [user]);
+  }, [user, profile]);
 
   const filteredNotifications = filterType === 'all'
     ? notifications
@@ -84,13 +85,13 @@ const Notifications = () => {
   };
 
   const handleMarkAsRead = async (id: string) => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     try {
       const res = await fetch('/api/seller/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           action: 'read',
           notificationId: id
         })
@@ -104,7 +105,7 @@ const Notifications = () => {
   };
 
   const handleMarkAllAsRead = async () => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     setMarkingAllRead(true);
     const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
     try {
@@ -112,7 +113,7 @@ const Notifications = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           action: 'read_all',
           ids: unreadIds
         })
@@ -128,13 +129,13 @@ const Notifications = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     try {
       const res = await fetch('/api/seller/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           action: 'delete',
           notificationId: id
         })
@@ -148,14 +149,14 @@ const Notifications = () => {
   };
 
   const handleDeleteAll = async () => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     const allIds = notifications.map(n => n.id);
     try {
       const res = await fetch('/api/seller/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           action: 'delete_all',
           ids: allIds
         })

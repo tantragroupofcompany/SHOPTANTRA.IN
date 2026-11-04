@@ -19,7 +19,7 @@ type ProductStatus = 'all' | 'ACTIVE' | 'DRAFT' | 'PENDING' | 'REJECTED';
 
 const Products = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [products, setProducts] = useState<ProductWithImage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProductStatus>('all');
@@ -33,13 +33,15 @@ const Products = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!user) return;
+      if (!user || !profile) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`/api/seller/products?userId=${user.id}`);
+        // profile.id is the database User ID from /api/auth/login. user.id can
+        // be a Supabase Auth UUID which never matches the seller's userId column.
+        const res = await fetch(`/api/seller/products?userId=${profile.id}`);
         if (!res.ok) throw new Error('Failed to load products');
         const resData = await res.json();
 
@@ -54,7 +56,7 @@ const Products = () => {
     };
 
     fetchProducts();
-  }, [user]);
+  }, [user, profile]);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase());

@@ -18,7 +18,7 @@ interface InventoryItem {
 }
 
 const Inventory = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
@@ -36,7 +36,7 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchInventory();
-  }, [user]);
+  }, [user, profile]);
 
   useEffect(() => {
     applyFilters();
@@ -45,8 +45,9 @@ const Inventory = () => {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      if (!user?.id) return;
-      const res = await fetch(`/api/seller/inventory?userId=${user.id}`);
+      if (!user || !profile) return;
+      // profile.id is the database User ID from /api/auth/login.
+      const res = await fetch(`/api/seller/inventory?userId=${profile.id}`);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

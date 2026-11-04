@@ -33,7 +33,7 @@ interface OrderStatus {
 }
 
 const SalesReports = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -60,14 +60,14 @@ const SalesReports = () => {
     if (fromDate && toDate) {
       fetchReportData();
     }
-  }, [fromDate, toDate, user]);
+  }, [fromDate, toDate, user, profile]);
 
   const fetchReportData = async () => {
     try {
       setLoading(true);
-      if (!user?.id) return;
+      if (!user || !profile) return;
 
-      const res = await fetch(`/api/seller/sales-report?userId=${user.id}&fromDate=${fromDate}&toDate=${toDate}`);
+      const res = await fetch(`/api/seller/sales-report?userId=${profile.id}&fromDate=${fromDate}&toDate=${toDate}`);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

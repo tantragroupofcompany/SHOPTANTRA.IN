@@ -44,7 +44,7 @@ interface Shipment {
 }
 
 const Shipments = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -58,10 +58,11 @@ const Shipments = () => {
   const [pickupTimeSlot, setPickupTimeSlot] = useState('10:00 - 13:00');
 
   const fetchShipments = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/shipment/list?sellerId=${user.id}`);
+      // profile.id is the database User ID; user.id can be a Supabase Auth UUID.
+      const res = await fetch(`/api/shipment/list?sellerId=${profile.id}`);
       const result = await res.json();
       if (result.success) {
         setShipments(result.data || []);
@@ -75,7 +76,7 @@ const Shipments = () => {
 
   useEffect(() => {
     fetchShipments();
-  }, [user]);
+  }, [user, profile]);
 
   const handleUpdateStatus = async (shipmentId: string, status: string, trackingNumber?: string, dispatchDate?: string) => {
     try {

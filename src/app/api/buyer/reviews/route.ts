@@ -69,6 +69,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
     }
 
+    // Verified purchase: the buyer must have a DELIVERED order containing this product.
+    // This prevents fake reviews from buyers who never purchased the item.
+    const purchasedOrder = await prisma.order.findFirst({
+      where: {
+        buyerId: session.userId,
+        items: { some: { productId } },
+        status: 'DELIVERED',
+      },
+      select: { id: true },
+    });
+    if (!purchasedOrder) {
+      return NextResponse.json(
+        {
+          error:
+            'You can only review a product after you have purchased and received it.',
+        },
+        { status: 403 }
+      );
+    }
+
     // Duplicate prevention: a buyer may submit at most one review per product.
     const existing = await prisma.review.findFirst({
       where: { productId, userId: session.userId },

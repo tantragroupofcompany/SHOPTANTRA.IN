@@ -25,7 +25,7 @@ const ProductUpload = () => {
   // stored product and submits a PUT instead of a POST.
   const { id: editId } = useParams();
   const isEdit = Boolean(editId);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryLoading, setCategoryLoading] = useState(true);
@@ -217,7 +217,7 @@ const ProductUpload = () => {
     try {
       const body = new FormData();
       body.append('file', file);
-      body.append('userId', user.id);
+      body.append('userId', profile.id);
       const res = await fetch('/api/seller/upload-product-image', {
         method: 'POST',
         body,
@@ -264,7 +264,7 @@ const ProductUpload = () => {
     setLoading(true);
 
     try {
-      if (!user) throw new Error('User not authenticated');
+      if (!user || !profile) throw new Error('User not authenticated');
       if (!formData.title || !formData.price || !formData.category) {
         throw new Error('Please fill in all required fields');
       }
@@ -285,7 +285,7 @@ const ProductUpload = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...(isEdit ? { id: editId } : {}),
-          userId: user.id,
+          userId: profile.id,
           title: formData.title,
           price: formData.price,
           comparePrice: formData.comparePrice,

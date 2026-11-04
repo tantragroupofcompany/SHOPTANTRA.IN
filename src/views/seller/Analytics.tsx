@@ -32,7 +32,7 @@ interface ReviewTrend {
 }
 
 const Analytics = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<TrafficStats>({
     pageViewsTracked: false,
@@ -50,15 +50,17 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, [user]);
+  }, [user, profile]);
 
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      if (!user?.id) return;
+      if (!user || !profile) return;
 
+      // profile.id is the database User ID from /api/auth/login. user.id can
+      // be a Supabase Auth UUID which never matches the seller's userId column.
       // 1. Fetch general analytics (revenue metrics, top products, customer counts)
-      const genRes = await fetch(`/api/analytics?sellerId=${user.id}`);
+      const genRes = await fetch(`/api/analytics?sellerId=${profile.id}`);
       if (genRes.ok) {
         const genData = await genRes.json();
         if (genData.success && genData.data) {
@@ -99,7 +101,7 @@ const Analytics = () => {
       }
 
       // 2. Fetch reviews for rating and review trends
-      const revRes = await fetch(`/api/seller/reviews?userId=${user.id}`);
+      const revRes = await fetch(`/api/seller/reviews?userId=${profile.id}`);
       if (revRes.ok) {
         const revData = await revRes.json();
         if (revData.success && revData.data) {
@@ -135,7 +137,7 @@ const Analytics = () => {
       }
 
       // 3. Fetch orders for customer demographics
-      const ordRes = await fetch(`/api/seller/orders?userId=${user.id}`);
+      const ordRes = await fetch(`/api/seller/orders?userId=${profile.id}`);
       if (ordRes.ok) {
         const ordData = await ordRes.json();
         if (ordData.success && ordData.data) {

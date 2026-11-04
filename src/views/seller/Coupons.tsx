@@ -27,7 +27,7 @@ export default function SafeSellerCoupons() {
 }
 
 function SellerCoupons() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [coupons, setCoupons] = useState<SellerCoupon[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,10 +44,10 @@ function SellerCoupons() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchCoupons = async () => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/seller/coupons?userId=${user.id}`);
+      const res = await fetch(`/api/seller/coupons?userId=${profile.id}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -68,7 +68,7 @@ function SellerCoupons() {
 
   useEffect(() => {
     fetchCoupons();
-  }, [user]);
+  }, [user, profile]);
 
   const handleOpenAddModal = () => {
     setFormCode('');
@@ -94,7 +94,7 @@ function SellerCoupons() {
 
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCode.trim() || !user?.id) return;
+    if (!formCode.trim() || !user || !profile) return;
 
     try {
       let res;
@@ -117,7 +117,7 @@ function SellerCoupons() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: user.id,
+            userId: profile.id,
             code: formCode,
             discountType: formDiscountType,
             discountValue: formDiscountValue,

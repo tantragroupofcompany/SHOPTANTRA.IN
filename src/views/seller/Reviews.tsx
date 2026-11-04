@@ -26,7 +26,7 @@ interface RatingDistribution {
 }
 
 const Reviews = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [filteredReviews, setFilteredReviews] = useState<Review[]>([]);
@@ -41,7 +41,7 @@ const Reviews = () => {
 
   useEffect(() => {
     fetchReviews();
-  }, [user]);
+  }, [user, profile]);
 
   useEffect(() => {
     applyFilters();
@@ -50,9 +50,9 @@ const Reviews = () => {
   const fetchReviews = async () => {
     try {
       setLoading(true);
-      if (!user?.id) return;
+      if (!user || !profile) return;
 
-      const res = await fetch(`/api/seller/reviews?userId=${user.id}`);
+      const res = await fetch(`/api/seller/reviews?userId=${profile.id}`);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

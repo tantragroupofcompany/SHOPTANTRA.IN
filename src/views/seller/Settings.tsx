@@ -33,7 +33,7 @@ interface LoginHistory {
 }
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreference>({
     newOrders: true,
@@ -92,11 +92,11 @@ const Settings = () => {
 
   // Load preferences from database
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     
     const fetchSettings = async () => {
       try {
-        const response = await fetch(`/api/seller/settings?userId=${user.id}`);
+        const response = await fetch(`/api/seller/settings?userId=${profile.id}`);
         if (response.ok) {
           const resData = await response.json();
           if (resData.success && resData.data) {
@@ -114,17 +114,17 @@ const Settings = () => {
     };
     
     fetchSettings();
-  }, [user]);
+  }, [user, profile]);
 
   // Save settings helper
   const saveSettings = async (prefs: NotificationPreference, twoFa: boolean) => {
-    if (!user?.id) return;
+    if (!user || !profile) return;
     try {
       await fetch('/api/seller/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id,
+          userId: profile.id,
           notificationPrefs: prefs,
           twoFaEnabled: twoFa
         })
