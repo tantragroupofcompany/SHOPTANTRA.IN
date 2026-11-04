@@ -157,10 +157,15 @@ export async function authorizePolyfillRequest(
   }
 
   // 2. A signed-in non-staff user may only touch self-scoped tables. Staff
-  //    tables (whole-store/platform rows) are refused for ordinary users.
+  //    tables (whole-store/platform rows) are refused for ordinary users --
+  //    EXCEPT public catalogue tables (products, sellers, reviews, ...),
+  //    which any visitor -- including a logged-in buyer -- must be able to
+  //    read. Without this exception a logged-in buyer cannot browse the
+  //    storefront, view a seller's store, or load product details.
   if (
     !isStaff &&
     STAFF_TABLES.has(table) &&
+    !PUBLIC_TABLES.has(table) &&
     !Object.prototype.hasOwnProperty.call(SELF_TABLES, table)
   ) {
     return {
