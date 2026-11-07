@@ -52,7 +52,8 @@ const Reviews = () => {
       setLoading(true);
       if (!user || !profile) return;
 
-      const res = await fetch(`/api/seller/reviews?userId=${profile.id}`);
+      const url = profile?.id ? `/api/seller/reviews?userId=${profile.id}` : '/api/seller/reviews';
+      const res = await fetch(url);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

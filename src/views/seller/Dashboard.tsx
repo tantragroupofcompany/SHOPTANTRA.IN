@@ -36,10 +36,12 @@ function SellerDashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const walletRes = await fetch(`/api/vendor/wallet?sellerId=${sellerId}`);
+        const queryParam = profile?.id ? `?sellerId=${profile.id}` : '';
+        const userParam = profile?.id ? `?userId=${profile.id}` : '';
+        const walletRes = await fetch(`/api/vendor/wallet${queryParam}`);
         const walletData = await walletRes.json();
 
-        const analyticsRes = await fetch(`/api/analytics?sellerId=${sellerId}`);
+        const analyticsRes = await fetch(`/api/analytics${queryParam}`);
         const analyticsData = await analyticsRes.json();
 
         if (walletData.success && analyticsData.success) {
@@ -73,7 +75,7 @@ function SellerDashboard() {
           }
         }
 
-        const storeRes = await fetch(`/api/seller/store-settings?userId=${sellerId}`);
+        const storeRes = await fetch(`/api/seller/store-settings${userParam}`);
         const storeData = await storeRes.json();
         if (storeData.success && storeData.data) {
           setLogoUrl(storeData.data.store_logo_url || null);

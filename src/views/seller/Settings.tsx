@@ -96,7 +96,8 @@ const Settings = () => {
     
     const fetchSettings = async () => {
       try {
-        const response = await fetch(`/api/seller/settings?userId=${profile.id}`);
+        const url = profile?.id ? `/api/seller/settings?userId=${profile.id}` : '/api/seller/settings';
+        const response = await fetch(url);
         if (response.ok) {
           const resData = await response.json();
           if (resData.success && resData.data) {

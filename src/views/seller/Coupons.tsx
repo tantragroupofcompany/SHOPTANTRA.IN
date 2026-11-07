@@ -47,7 +47,8 @@ function SellerCoupons() {
     if (!user || !profile) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/seller/coupons?userId=${profile.id}`);
+      const url = profile?.id ? `/api/seller/coupons?userId=${profile.id}` : '/api/seller/coupons';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

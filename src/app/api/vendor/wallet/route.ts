@@ -5,14 +5,7 @@ import { requireSellerScope } from '../../../../lib/sellerAuth';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const sellerIdParam = searchParams.get('sellerId');
-
-    if (!sellerIdParam) {
-      return NextResponse.json(
-        { error: 'sellerId query parameter is required' },
-        { status: 400 }
-      );
-    }
+    const sellerIdParam = searchParams.get('sellerId') || searchParams.get('userId');
 
     // AUTHORIZATION: a seller may only read their OWN wallet. This route
     // previously trusted the `sellerId` query parameter with no authentication
@@ -21,8 +14,8 @@ export async function GET(request: Request) {
     if (!scope.ok) return scope.response;
     const sellerId = scope.sellerId;
 
-    // 1. Fetch wallet details and transaction logs
-    const wallet = await prisma.vendorWallet.findUnique({
+    // 1. Fetch wallet details and transaction logs (auto-provision if missing)
+    let wallet = await prisma.vendorWallet.findUnique({
       where: { sellerId },
       include: {
         transactions: {
@@ -31,6 +24,23 @@ export async function GET(request: Request) {
         },
       },
     });
+
+    if (!wallet) {
+      try {
+        wallet = await prisma.vendorWallet.create({
+          data: {
+            sellerId,
+            balance: 0.0,
+            pendingEarnings: 0.0,
+          },
+          include: {
+            transactions: true,
+          },
+        });
+      } catch {
+        // If concurrent create or schema variance, fall back safely
+      }
+    }
 
     // 2. Fetch order metrics to compute store performance analytics
     const orders = await prisma.order.findMany({

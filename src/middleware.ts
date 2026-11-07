@@ -131,13 +131,17 @@ export async function middleware(request: NextRequest) {
       const guard = await requireRole(request, ['FOUNDER']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/admin') || path.startsWith('/api/management')) {
-      const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'ADMIN']);
+      const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN', 'ADMIN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/corporate') && !isCorporateLogout) {
       const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
+    } else if (path === '/api/seller/profile' || path.startsWith('/api/seller/profile?') || path === '/api/seller/approval-status' || path.startsWith('/api/seller/approval-status?')) {
+      // User profile and seller approval status can be reached by any authenticated session (including buyer and executives)
+      const guard = await requireRole(request, ['BUYER', 'SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+      if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/seller')) {
-      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/shipment')) {
       // Shipment booking/labeling was previously NOT matched by any prefix
@@ -147,10 +151,10 @@ export async function middleware(request: NextRequest) {
       // and full delivery address) and shipment cancellation to anyone. The
       // only callers are the authenticated seller and admin dashboards, so the
       // same roles that may read or mutate seller data gate these routes.
-      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      const guard = await requireRole(request, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/buyer')) {
-      const guard = await requireRole(request, ['BUYER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+      const guard = await requireRole(request, ['BUYER', 'SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
       if (guard instanceof NextResponse) return guard;
     } else if (path.startsWith('/api/analytics')) {
       // This endpoint matched NONE of the guarded prefixes above, so it fell

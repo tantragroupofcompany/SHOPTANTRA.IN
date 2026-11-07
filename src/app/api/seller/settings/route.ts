@@ -7,10 +7,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sellerIdParam = searchParams.get('sellerId') || searchParams.get('userId');
 
-    if (!sellerIdParam) {
-      return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
-    }
-
     const scope = await requireSellerScope(request, sellerIdParam);
     if (!scope.ok) return scope.response;
     const sellerId = scope.sellerId;
@@ -57,9 +53,6 @@ export async function PUT(request: Request) {
     const { sellerId: sellerIdParam, userId, notificationPrefs, twoFaEnabled } = body;
 
     const idToResolve = sellerIdParam || userId;
-    if (!idToResolve) {
-      return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
-    }
 
     // AUTHORIZATION: a seller may only change their OWN settings.
     const scope = await requireSellerScope(request, idToResolve);

@@ -1,20 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { classifyDbError } from '../../../../lib/authUtils';
+import { requireAuth } from '../../../../middleware/index';
 
 export async function POST(request: Request) {
   try {
-    const { userId, orderId, subject, description, type } = await request.json();
+    const auth = await requireAuth(request as any);
+    if (auth instanceof NextResponse) return auth;
+    const sessionUserId = (auth as any).userId;
 
-    if (!userId || !subject || !description || !type) {
+    const body = await request.json();
+    const { userId, orderId, subject, description, type } = body || {};
+    const effectiveUserId = sessionUserId || userId;
+
+    if (!effectiveUserId || !subject || !description || !type) {
       return NextResponse.json({ error: 'Missing required ticket fields' }, { status: 400 });
     }
 
     try {
       const ticket = await prisma.supportTicket.create({
         data: {
-          userId,
-          orderId,
+          userId: effectiveUserId,
+          orderId: orderId || null,
           subject,
           description,
           type,

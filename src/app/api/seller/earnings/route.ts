@@ -12,10 +12,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sellerIdParam = searchParams.get('sellerId') || searchParams.get('userId');
 
-    if (!sellerIdParam) {
-      return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
-    }
-
     const scope = await requireSellerScope(request, sellerIdParam);
     if (!scope.ok) return scope.response;
     const sellerId = scope.sellerId;

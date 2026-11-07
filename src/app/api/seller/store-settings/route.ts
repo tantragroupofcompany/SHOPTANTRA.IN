@@ -8,10 +8,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sellerIdParam = searchParams.get('sellerId') || searchParams.get('userId');
 
-    if (!sellerIdParam) {
-      return NextResponse.json({ error: 'sellerId or userId query parameter is required' }, { status: 400 });
-    }
-
     // AUTHORIZATION: a seller may only read their OWN store settings. This
     // route previously trusted the query parameter and fell back to an
     // arbitrary ACTIVE seller, leaking a random store's GST / bank details.
@@ -107,9 +103,6 @@ export async function PUT(request: Request) {
     } = body;
 
     const idToResolve = sellerIdParam || userId;
-    if (!idToResolve) {
-      return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
-    }
 
     // AUTHORIZATION: a seller may only modify their OWN store. Previously this
     // let a caller rewrite another store's GST / PAN / bank account details.
@@ -129,11 +122,11 @@ export async function PUT(request: Request) {
     const bizTypeVal = business_type !== undefined ? business_type : (businessType !== undefined ? businessType : seller.businessType);
     const gstVal = gst_number !== undefined ? gst_number : (gstNumber !== undefined ? gstNumber : seller.gstNumber);
     const panVal = pan_number !== undefined ? pan_number : (panNumber !== undefined ? panNumber : seller.panNumber);
-    
+
     const bankAcNoVal = bank_account_number !== undefined ? bank_account_number : (bankAccountNumber !== undefined ? bankAccountNumber : seller.bankAccountNo);
     const bankIfscVal = bank_ifsc !== undefined ? bank_ifsc : (bankIfsc !== undefined ? bankIfsc : seller.bankIfsc);
     const bankAcNameVal = bank_account_name !== undefined ? bank_account_name : (bankAccountName !== undefined ? bankAccountName : seller.bankAccountName);
-    
+
     const logoVal = store_logo_url !== undefined ? store_logo_url : (logoUrl !== undefined ? logoUrl : seller.logoUrl);
     const bannerVal = store_banner_url !== undefined ? store_banner_url : (bannerUrl !== undefined ? bannerUrl : seller.bannerUrl);
 
@@ -162,7 +155,7 @@ export async function PUT(request: Request) {
       const stateVal = state !== undefined ? state : (seller.pickupAddress?.state || seller.state || '');
       const pinVal = pincode !== undefined ? pincode : (seller.pickupAddress?.pincode || seller.pincode || '');
       const countryVal = country !== undefined ? country : (seller.pickupAddress?.country || 'India');
-      
+
       const pickupStoreNameVal = pickup_store_name !== undefined ? pickup_store_name : (seller.pickupAddress?.storeName || storeNameVal);
       const pickupContactNameVal = pickup_contact_name !== undefined ? pickup_contact_name : (seller.pickupAddress?.contactName || seller.user?.fullName || 'Store Contact');
       const pickupPhoneVal = pickup_phone !== undefined ? pickup_phone : (seller.pickupAddress?.phone || seller.user?.phone || '9999999999');

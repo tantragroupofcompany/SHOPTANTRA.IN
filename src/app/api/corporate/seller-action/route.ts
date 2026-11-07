@@ -39,19 +39,64 @@ export async function POST(request: any) {
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     }
 
-    const updatedSeller = await prisma.seller.update({
-      where: { id: sellerId },
-      data: {
-        status,
-        ...(status === 'ACTIVE' ? { verificationStatus: 'VERIFIED' } : {}),
-      },
-      select: {
-        id: true,
-        storeName: true,
-        status: true,
-        verificationStatus: true,
-        updatedAt: true,
-      },
+    const updatedSeller = await prisma.$transaction(async (tx) => {
+      const seller = await tx.seller.update({
+        where: { id: sellerId },
+        data: {
+          status,
+          ...(status === 'ACTIVE' ? { verificationStatus: 'VERIFIED' } : {}),
+        },
+        select: {
+          id: true,
+          storeName: true,
+          status: true,
+          verificationStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      if (status === 'ACTIVE' && existing.userId) {
+        // Activate seller role on user account
+        await tx.user.update({
+          where: { id: existing.userId },
+          data: { role: 'SELLER' },
+        });
+
+        // Ensure default vendor wallet exists
+        const wallet = await tx.vendorWallet.findUnique({ where: { sellerId } });
+        if (!wallet) {
+          await tx.vendorWallet.create({
+            data: {
+              sellerId,
+              balance: 0.0,
+              pendingEarnings: 0.0,
+            },
+          });
+        }
+
+        // Ensure default seller settings exist
+        const settings = await tx.sellerSettings.findUnique({ where: { sellerId } });
+        if (!settings) {
+          await tx.sellerSettings.create({
+            data: {
+              sellerId,
+              notificationPrefs: JSON.stringify({
+                newOrders: true,
+                lowStock: true,
+                payments: true,
+                reviews: true,
+                emailNotifications: true,
+                smsNotifications: false,
+                readNotifications: [],
+                deletedNotifications: [],
+              }),
+              twoFaEnabled: false,
+            },
+          });
+        }
+      }
+
+      return seller;
     });
 
     return NextResponse.json({

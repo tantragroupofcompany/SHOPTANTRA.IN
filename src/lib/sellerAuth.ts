@@ -156,9 +156,10 @@ export async function requireOrderAccess(
  * seller. Exported for routes that only need the mapping helper.
  */
 export async function resolveSellerIdStrict(id: string | null | undefined): Promise<string | null> {
-  if (!id) return null;
+  if (!id || id === 'undefined' || id === 'null' || id === 'seller_placeholder' || !id.trim()) return null;
+  const cleanId = id.trim();
   const seller = await prisma.seller.findFirst({
-    where: { OR: [{ id }, { userId: id }] },
+    where: { OR: [{ id: cleanId }, { userId: cleanId }, { sellerId: cleanId }] },
     select: { id: true },
   });
   return seller ? seller.id : null;
@@ -185,17 +186,61 @@ export async function requireSellerScope(
   const userId = (guard as any).userId as string | undefined;
   const elevated = ELEVATED_ROLES.has(role);
 
+  // Clean requested id: treat placeholder or undefined strings as omitted
+  const cleanRequestedId =
+    requestedId &&
+    requestedId !== 'undefined' &&
+    requestedId !== 'null' &&
+    requestedId !== 'seller_placeholder' &&
+    requestedId.trim() !== ''
+      ? requestedId.trim()
+      : null;
+
   // A user owns at most one store: resolve the caller's own seller row.
   const ownSeller = userId
-    ? await prisma.seller.findFirst({ where: { userId }, select: { id: true } })
+    ? await prisma.seller.findFirst({
+        where: {
+          OR: [
+            { userId },
+            { id: userId },
+            { sellerId: userId },
+          ],
+        },
+        select: { id: true, userId: true, status: true, verificationStatus: true },
+      })
     : null;
+
+  // Helper to verify operational access for a seller row
+  const checkSellerStatus = (sellerRow: { status?: string | null }) => {
+    if (elevated) return null;
+    const st = String(sellerRow.status || '').toUpperCase();
+    if (st === 'SUSPENDED') {
+      return NextResponse.json({ error: 'This seller account is suspended. Contact support for assistance.' }, { status: 403 });
+    }
+    if (st === 'BLOCKED') {
+      return NextResponse.json({ error: 'This seller account is blocked. Contact support for assistance.' }, { status: 403 });
+    }
+    if (st === 'REJECTED') {
+      return NextResponse.json({ error: 'This seller account was rejected. Contact support for assistance.' }, { status: 403 });
+    }
+    if (st === 'PENDING') {
+      return NextResponse.json({ error: 'Your seller account is pending corporate approval.' }, { status: 403 });
+    }
+    return null;
+  };
 
   // Case A — the caller named a specific store. It must be theirs (or they are
   // an executive). No fallback: an unknown id is a 404, never a random store.
-  if (requestedId) {
+  if (cleanRequestedId) {
     const target = await prisma.seller.findFirst({
-      where: { OR: [{ id: requestedId }, { userId: requestedId }] },
-      select: { id: true },
+      where: {
+        OR: [
+          { id: cleanRequestedId },
+          { userId: cleanRequestedId },
+          { sellerId: cleanRequestedId },
+        ],
+      },
+      select: { id: true, userId: true, status: true, verificationStatus: true },
     });
     if (!target) {
       return { ok: false, response: NextResponse.json({ error: 'Seller profile not found' }, { status: 404 }) };
@@ -209,11 +254,19 @@ export async function requireSellerScope(
         ),
       };
     }
+
+    const statusError = checkSellerStatus(target);
+    if (statusError) return { ok: false, response: statusError };
+
     return { ok: true, sellerId: target.id, role, userId, elevated };
   }
 
   // Case B — no store named: use the caller's own store.
-  if (ownSeller) return { ok: true, sellerId: ownSeller.id, role, userId, elevated };
+  if (ownSeller) {
+    const statusError = checkSellerStatus(ownSeller);
+    if (statusError) return { ok: false, response: statusError };
+    return { ok: true, sellerId: ownSeller.id, role, userId, elevated };
+  }
 
   // Case C — an executive browsing without a specific store. Pick the oldest
   // active store deterministically (this is the ONLY remaining "pick a store"

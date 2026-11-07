@@ -28,7 +28,8 @@ const Notifications = () => {
     try {
       setLoading(true);
       // profile.id is the database User ID from /api/auth/login.
-      const res = await fetch(`/api/seller/notifications?userId=${profile.id}`);
+      const url = profile?.id ? `/api/seller/notifications?userId=${profile.id}` : '/api/seller/notifications';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

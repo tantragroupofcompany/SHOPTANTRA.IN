@@ -57,7 +57,8 @@ const StoreSettings = () => {
       // profile.id is the database User ID from /api/auth/login. user.id can
       // be a Supabase Auth UUID (from onAuthStateChange) which never matches
       // the seller's userId column, causing a 404.
-      const res = await fetch(`/api/seller/store-settings?userId=${profile.id}`);
+      const url = profile?.id ? `/api/seller/store-settings?userId=${profile.id}` : '/api/seller/store-settings';
+      const res = await fetch(url);
       if (!res.ok) {
         let message = 'Failed to load store settings. Please try again.';
         if (res.status === 401) message = 'Your session has expired. Please log in again.';

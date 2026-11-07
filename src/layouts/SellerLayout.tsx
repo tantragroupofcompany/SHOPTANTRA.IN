@@ -87,7 +87,9 @@ export function SellerLayout() {
     );
   }
 
-  if (!user || (profile?.role || '').toLowerCase() !== 'seller') {
+  const allowedSellerRoles = ['seller', 'admin', 'founder', 'ceo_md', 'chairman'];
+  const currentSellerRole = (profile?.role || (user as any)?.role || '').toLowerCase();
+  if (!user || (!allowedSellerRoles.includes(currentSellerRole) && currentSellerRole !== '')) {
     return <Navigate to="/login" replace />;
   }
 

@@ -39,7 +39,10 @@ export async function GET(request: Request) {
     } else {
       // Non-staff callers are always scoped to their own store.
       const own = sessionUserId
-        ? await prisma.seller.findFirst({ where: { userId: sessionUserId }, select: { id: true } })
+        ? await prisma.seller.findFirst({
+            where: { OR: [{ userId: sessionUserId }, { id: sessionUserId }] },
+            select: { id: true },
+          })
         : null;
       if (!own) {
         return NextResponse.json({ error: 'Seller profile not found for this account' }, { status: 403 });

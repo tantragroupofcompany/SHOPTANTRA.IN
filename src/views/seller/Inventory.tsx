@@ -47,7 +47,8 @@ const Inventory = () => {
       setLoading(true);
       if (!user || !profile) return;
       // profile.id is the database User ID from /api/auth/login.
-      const res = await fetch(`/api/seller/inventory?userId=${profile.id}`);
+      const url = profile?.id ? `/api/seller/inventory?userId=${profile.id}` : '/api/seller/inventory';
+      const res = await fetch(url);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {

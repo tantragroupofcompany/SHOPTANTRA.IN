@@ -20,12 +20,8 @@ function getSupabaseAdmin(): SupabaseClient | null {
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const userId = formData.get('userId') as string;
+    const userId = (formData.get('userId') as string) || (formData.get('sellerId') as string) || undefined;
     const file = formData.get('file') as File;
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
-    }
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });

@@ -41,7 +41,8 @@ const Products = () => {
 
         // profile.id is the database User ID from /api/auth/login. user.id can
         // be a Supabase Auth UUID which never matches the seller's userId column.
-        const res = await fetch(`/api/seller/products?userId=${profile.id}`);
+        const url = profile?.id ? `/api/seller/products?userId=${profile.id}` : '/api/seller/products';
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to load products');
         const resData = await res.json();
 

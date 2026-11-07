@@ -62,7 +62,8 @@ const Shipments = () => {
     try {
       setLoading(true);
       // profile.id is the database User ID; user.id can be a Supabase Auth UUID.
-      const res = await fetch(`/api/shipment/list?sellerId=${profile.id}`);
+      const url = profile?.id ? `/api/shipment/list?sellerId=${profile.id}` : '/api/shipment/list';
+      const res = await fetch(url);
       const result = await res.json();
       if (result.success) {
         setShipments(result.data || []);

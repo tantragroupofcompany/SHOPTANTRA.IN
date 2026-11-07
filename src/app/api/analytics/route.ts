@@ -31,29 +31,58 @@ export async function GET(request: any) {
     // and read that seller's revenue and orders. Executives and admins retain
     // company-wide access, which is what the admin dashboard and revenue page
     // rely on.
-    if (role === 'SELLER' && sellerIdParam && sellerIdParam !== sessionUserId) {
-      const ownsSellerProfile = await prisma.seller.findFirst({
-        where: { OR: [{ id: sellerIdParam }, { userId: sellerIdParam }] },
-        select: { userId: true },
-      });
-      if (!ownsSellerProfile || ownsSellerProfile.userId !== sessionUserId) {
+    const cleanSellerParam =
+      sellerIdParam &&
+      sellerIdParam !== 'undefined' &&
+      sellerIdParam !== 'null' &&
+      sellerIdParam !== 'seller_placeholder' &&
+      sellerIdParam.trim() !== ''
+        ? sellerIdParam.trim()
+        : null;
+
+    let sellerId: string | null = null;
+
+    if (role === 'SELLER') {
+      const ownSeller = sessionUserId
+        ? await prisma.seller.findFirst({
+            where: { OR: [{ userId: sessionUserId }, { id: sessionUserId }] },
+            select: { id: true, userId: true },
+          })
+        : null;
+
+      if (!ownSeller) {
         return NextResponse.json(
-          { error: 'You can only view analytics for your own seller account.' },
+          { error: 'Seller profile not found for this account' },
           { status: 403 }
         );
       }
-    }
 
-    // Resolve user ID or seller profile ID to seller profile ID
-    let sellerId = sellerIdParam;
-    if (sellerIdParam) {
+      if (role === 'SELLER' && sellerIdParam && cleanSellerParam) {
+        const target = await prisma.seller.findFirst({
+          where: { OR: [{ id: cleanSellerParam }, { userId: cleanSellerParam }, { sellerId: cleanSellerParam }] },
+          select: { id: true, userId: true },
+        });
+        if (!target || target.id !== ownSeller.id) {
+          return NextResponse.json(
+            { error: 'You can only view analytics for your own seller account.' },
+            { status: 403 }
+          );
+        }
+        sellerId = target.id;
+      } else {
+        sellerId = ownSeller.id;
+      }
+    } else if (cleanSellerParam) {
+      // Executives and admins filtering by a specific seller
       const associatedSeller = await prisma.seller.findFirst({
         where: {
           OR: [
-            { id: sellerIdParam },
-            { userId: sellerIdParam }
-          ]
-        }
+            { id: cleanSellerParam },
+            { userId: cleanSellerParam },
+            { sellerId: cleanSellerParam },
+          ],
+        },
+        select: { id: true },
       });
       if (associatedSeller) {
         sellerId = associatedSeller.id;

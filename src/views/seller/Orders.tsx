@@ -41,7 +41,8 @@ const Orders = () => {
         // profile.id is the database User ID from /api/auth/login. user.id can
         // be a Supabase Auth UUID (from onAuthStateChange) which never matches
         // the seller's userId column, causing a 404 "Seller profile not found".
-        const res = await fetch(`/api/seller/orders?userId=${profile.id}`);
+        const url = profile?.id ? `/api/seller/orders?userId=${profile.id}` : '/api/seller/orders';
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Failed to load orders from API');
         const resData = await res.json();
 

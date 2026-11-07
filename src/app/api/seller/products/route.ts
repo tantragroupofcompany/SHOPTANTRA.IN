@@ -40,20 +40,20 @@ async function resolveSellerId(id: string | null): Promise<string | null> {
 async function requireSeller(request: Request): Promise<
   { ok: true; sellerId: string; actingRole: string; userId?: string } | NextResponse
 > {
-  const guard = await requireRole(request as any, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD']);
+  const guard = await requireRole(request as any, ['SELLER', 'ADMIN', 'FOUNDER', 'CEO_MD', 'CHAIRMAN']);
   if (guard instanceof NextResponse) return guard;
 
   const actingRole = (guard as any).role as string;
   const sessionUserId = (guard as any).userId as string | undefined;
 
   const seller = await prisma.seller.findFirst({
-    where: sessionUserId ? { userId: sessionUserId } : undefined,
+    where: sessionUserId ? { OR: [{ userId: sessionUserId }, { id: sessionUserId }] } : undefined,
   });
 
   // Executives/admins are not sellers, so they have no own-seller row; they are
   // allowed through and the caller resolves the target seller from the request.
   if (!seller) {
-    if (actingRole === 'ADMIN' || actingRole === 'FOUNDER' || actingRole === 'CEO_MD') {
+    if (actingRole === 'ADMIN' || actingRole === 'FOUNDER' || actingRole === 'CEO_MD' || actingRole === 'CHAIRMAN') {
       return { ok: true, sellerId: '', actingRole, userId: sessionUserId };
     }
     return NextResponse.json({ error: 'Seller profile not found for this account' }, { status: 403 });
@@ -195,7 +195,7 @@ export async function POST(request: Request) {
     const auth = await requireSeller(request);
     if (auth instanceof NextResponse) return auth;
     const isExecutive =
-      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD';
+      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD' || auth.actingRole === 'CHAIRMAN';
 
     const body = await request.json();
     const {
@@ -229,12 +229,8 @@ export async function POST(request: Request) {
     } = body;
 
     const idToResolve = sellerIdParam || userId;
-    if (!idToResolve && !isExecutive) {
-      return NextResponse.json({ error: 'sellerId or userId is required' }, { status: 400 });
-    }
-
     const sellerId = isExecutive
-      ? await resolveSellerId(idToResolve)
+      ? ((idToResolve ? await resolveSellerId(idToResolve) : null) || auth.sellerId)
       : auth.sellerId;
     if (!sellerId) {
       return NextResponse.json({ error: 'Seller profile not found' }, { status: 404 });
@@ -336,7 +332,7 @@ export async function PUT(request: Request) {
     const auth = await requireSeller(request);
     if (auth instanceof NextResponse) return auth;
     const isExecutive =
-      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD';
+      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD' || auth.actingRole === 'CHAIRMAN';
 
     const body = await request.json();
     const {
@@ -468,7 +464,7 @@ export async function DELETE(request: Request) {
     const auth = await requireSeller(request);
     if (auth instanceof NextResponse) return auth;
     const isExecutive =
-      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD';
+      auth.actingRole === 'ADMIN' || auth.actingRole === 'FOUNDER' || auth.actingRole === 'CEO_MD' || auth.actingRole === 'CHAIRMAN';
 
     const assertOwnership = async (productId: string) => {
       const product = await prisma.product.findUnique({

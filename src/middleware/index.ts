@@ -6,8 +6,21 @@ import { getJwtSecret, normalizeCorporateRole } from '../lib/corporateAuth';
 const CORPORATE_COOKIE = 'corporate_auth_token';
 const AUTH_COOKIE = 'auth_token';
 
-function getToken(request: NextRequest) {
-  return request.cookies.get(CORPORATE_COOKIE)?.value || request.cookies.get(AUTH_COOKIE)?.value;
+function getToken(request: NextRequest | Request) {
+  if ('cookies' in request && typeof (request as any).cookies?.get === 'function') {
+    const val = (request as any).cookies.get(CORPORATE_COOKIE)?.value || (request as any).cookies.get(AUTH_COOKIE)?.value;
+    if (val) return val;
+  }
+  const cookieHeader = request.headers.get('cookie') || '';
+  const match = cookieHeader.match(/(?:^|;\s*)(?:corporate_auth_token|auth_token)=([^;]+)/);
+  if (match && match[1]) return decodeURIComponent(match[1]);
+
+  const authHeader = request.headers.get('authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+
+  return undefined;
 }
 
 // Verify JWT with jose (WebCrypto) so this works in BOTH the Edge runtime
@@ -17,10 +30,10 @@ function getToken(request: NextRequest) {
 async function verifyToken(token: string) {
   const secret = getJwtSecret();
   const { payload } = await jwtVerify(token, secret);
-  return payload as { role?: string; userId?: string };
+  return payload as { role?: string; userId?: string; id?: string; sub?: string };
 }
 
-export async function requireAuth(request: NextRequest) {
+export async function requireAuth(request: NextRequest | Request) {
   const token = getToken(request);
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized access. Please login.' }, { status: 401 });
@@ -28,13 +41,14 @@ export async function requireAuth(request: NextRequest) {
 
   try {
     const payload = await verifyToken(token);
-    return { role: normalizeCorporateRole(payload.role) ?? payload.role?.toUpperCase(), userId: payload.userId };
+    const resolvedUserId = payload.userId || payload.id || payload.sub;
+    return { role: normalizeCorporateRole(payload.role) ?? payload.role?.toUpperCase(), userId: resolvedUserId };
   } catch (e) {
     return NextResponse.json({ error: 'Invalid authentication token.' }, { status: 401 });
   }
 }
 
-export async function requireRole(request: NextRequest, allowedRoles: string[]) {
+export async function requireRole(request: NextRequest | Request, allowedRoles: string[]) {
   const token = getToken(request);
   if (!token) {
     return NextResponse.json({ error: 'Unauthorized access. Please login.' }, { status: 401 });
@@ -50,7 +64,8 @@ export async function requireRole(request: NextRequest, allowedRoles: string[]) 
       return NextResponse.json({ error: 'Access Denied – You do not have permission to access this area.' }, { status: 403 });
     }
 
-    return { role, userId: (payload as any).userId };
+    const resolvedUserId = (payload as any).userId || (payload as any).id || (payload as any).sub;
+    return { role, userId: resolvedUserId };
   } catch (e) {
     return NextResponse.json({ error: 'Invalid authentication token.' }, { status: 401 });
   }

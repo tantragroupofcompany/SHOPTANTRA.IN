@@ -98,18 +98,25 @@ export async function POST(request: Request) {
       : dbUser.role;
 
     if (!accountType && dbUser.sellerProfile && effectiveRole !== 'ADMIN') {
-      effectiveRole = 'SELLER';
-      if (dbUser.role !== 'SELLER') {
-        try {
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { role: 'SELLER' },
-          });
-          dbUser.role = 'SELLER';
-        } catch (healError: any) {
-          // Best-effort heal: login must not fail if the backfill write does
-          // not land — the JWT below already carries the correct role.
-          console.warn('[login] Failed to backfill User.role=SELLER:', healError?.code || healError?.message);
+      const sellerStatus = String(dbUser.sellerProfile.status || '').toUpperCase();
+      if (sellerStatus === 'ACTIVE' || sellerStatus === 'APPROVED') {
+        effectiveRole = 'SELLER';
+        if (dbUser.role !== 'SELLER') {
+          try {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { role: 'SELLER' },
+            });
+            dbUser.role = 'SELLER';
+          } catch (healError: any) {
+            // Best-effort heal: login must not fail if the backfill write does
+            // not land — the JWT below already carries the correct role.
+            console.warn('[login] Failed to backfill User.role=SELLER:', healError?.code || healError?.message);
+          }
+        }
+      } else if (sellerStatus === 'PENDING') {
+        if (effectiveRole !== 'ADMIN') {
+          effectiveRole = 'BUYER';
         }
       }
     }

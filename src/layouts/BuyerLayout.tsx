@@ -31,7 +31,9 @@ export function BuyerLayout() {
     );
   }
 
-  if (!user || (profile?.role || '').toLowerCase() !== 'buyer') {
+  const allowedBuyerRoles = ['buyer', 'seller', 'admin', 'founder', 'ceo_md', 'chairman'];
+  const currentRole = (profile?.role || (user as any)?.role || '').toLowerCase();
+  if (!user || (!allowedBuyerRoles.includes(currentRole) && currentRole !== '')) {
     return <Navigate to="/login" replace />;
   }
 

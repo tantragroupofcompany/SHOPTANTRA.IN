@@ -67,7 +67,8 @@ const SalesReports = () => {
       setLoading(true);
       if (!user || !profile) return;
 
-      const res = await fetch(`/api/seller/sales-report?userId=${profile.id}&fromDate=${fromDate}&toDate=${toDate}`);
+      const query = profile?.id ? `userId=${profile.id}&` : '';
+      const res = await fetch(`/api/seller/sales-report?${query}fromDate=${fromDate}&toDate=${toDate}`);
       if (res.ok) {
         const resData = await res.json();
         if (resData.success && resData.data) {
