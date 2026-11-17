@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { requireRole } from '../../../../middleware/index';
 import { classifyDbError } from '../../../../lib/authUtils';
+import { sendApprovalEmail } from '../../../../lib/email';
 
-export async function POST(request: any) {
-  const guard = await requireRole(request, ['FOUNDER', 'CEO_MD', 'CHAIRMAN']);
+const CORPORATE_APPROVERS = ['FOUNDER', 'CEO_MD', 'CHAIRMAN'];
+let approvingExecutive: string | null = null;
+
+export async function POST(request: Request) {
+  const guard = await requireRole(request, CORPORATE_APPROVERS);
   if (guard instanceof NextResponse) return guard;
+
+  const actingUserId = (guard as any)?.userId;
+  if (actingUserId) approvingExecutive = actingUserId;
 
   try {
     const body = await request.json();
@@ -15,9 +22,22 @@ export async function POST(request: any) {
       return NextResponse.json({ success: false, error: 'sellerId and action are required' }, { status: 400 });
     }
 
-    const existing = await prisma.seller.findUnique({ where: { id: sellerId } });
+    const existing = await prisma.seller.findUnique({
+      where: { id: sellerId },
+      include: { user: { select: { email: true, fullName: true } } },
+    });
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Seller not found' }, { status: 404 });
+    }
+
+    const rawStatus = String(existing.status || '').toUpperCase();
+    if (rawStatus === 'REJECTED' || rawStatus === 'BLOCKED' || rawStatus === 'SUSPENDED') {
+      if (action.toLowerCase() === 'approve') {
+        return NextResponse.json(
+          { success: false, error: 'Cannot approve a seller whose status is already ' + rawStatus },
+          { status: 409 }
+        );
+      }
     }
 
     let status: string;
@@ -40,55 +60,40 @@ export async function POST(request: any) {
     }
 
     const updatedSeller = await prisma.$transaction(async (tx) => {
+      const sellerUpdateData: Record<string, any> = { status };
+      if (status === 'ACTIVE') {
+        sellerUpdateData.verificationStatus = 'VERIFIED';
+      }
+
       const seller = await tx.seller.update({
         where: { id: sellerId },
-        data: {
-          status,
-          ...(status === 'ACTIVE' ? { verificationStatus: 'VERIFIED' } : {}),
-        },
-        select: {
-          id: true,
-          storeName: true,
-          status: true,
-          verificationStatus: true,
-          updatedAt: true,
+        data: sellerUpdateData,
+        include: {
+          user: { select: { email: true, fullName: true } },
         },
       });
 
-      if (status === 'ACTIVE' && existing.userId) {
-        // Activate seller role on user account
+      if (existing.userId) {
         await tx.user.update({
           where: { id: existing.userId },
-          data: { role: 'SELLER' },
+          data: { isActive: true, role: 'SELLER' },
         });
+      }
 
-        // Ensure default vendor wallet exists
+      if (status === 'ACTIVE') {
         const wallet = await tx.vendorWallet.findUnique({ where: { sellerId } });
         if (!wallet) {
-          await tx.vendorWallet.create({
-            data: {
-              sellerId,
-              balance: 0.0,
-              pendingEarnings: 0.0,
-            },
-          });
+          await tx.vendorWallet.create({ data: { sellerId, balance: 0.0, pendingEarnings: 0.0 } });
         }
-
-        // Ensure default seller settings exist
         const settings = await tx.sellerSettings.findUnique({ where: { sellerId } });
         if (!settings) {
           await tx.sellerSettings.create({
             data: {
               sellerId,
               notificationPrefs: JSON.stringify({
-                newOrders: true,
-                lowStock: true,
-                payments: true,
-                reviews: true,
-                emailNotifications: true,
-                smsNotifications: false,
-                readNotifications: [],
-                deletedNotifications: [],
+                newOrders: true, lowStock: true, payments: true, reviews: true,
+                emailNotifications: true, smsNotifications: false,
+                readNotifications: [], deletedNotifications: [],
               }),
               twoFaEnabled: false,
             },
@@ -96,19 +101,42 @@ export async function POST(request: any) {
         }
       }
 
+      await tx.auditLog.create({
+        data: {
+          operation: status === 'ACTIVE' ? 'SELLER_APPROVED' :
+            (status === 'REJECTED' ? 'SELLER_REJECTED' :
+              status === 'SUSPENDED' ? 'SELLER_SUSPENDED' : 'SELLER_BLOCKED'),
+          model: 'Seller',
+          targetId: sellerId,
+          actor: approvingExecutive || actingUserId || 'unknown',
+          reason: 'Corporate approval action: ' + action,
+          before: { status: existing.status, verificationStatus: existing.verificationStatus },
+          after: { status, verificationStatus: status === 'ACTIVE' ? 'VERIFIED' : existing.verificationStatus },
+        },
+      });
+
       return seller;
     });
 
+    (async () => {
+      try {
+        await sendApprovalEmail(
+          existing.user?.email || 'unknown@example.com',
+          existing.user?.fullName || existing.storeName || 'Seller',
+          updatedSeller.storeName
+        );
+      } catch (emailErr: any) {
+        console.error('[seller-action] Approval email delivery failed (approval preserved):', emailErr?.message || emailErr);
+      }
+    })();
+
     return NextResponse.json({
       success: true,
-      message: `Seller ${status.toLowerCase()} successfully`,
+      message: 'Seller ' + status.toLowerCase() + ' successfully',
       data: updatedSeller,
     });
+
   } catch (error: any) {
-    // Never ship the raw Prisma/driver message to the browser: it can disclose
-    // table names, column names and the connection host. A known DB outage is
-    // reported as 503; anything else gets a generic 500. Detail stays in the
-    // server log — same contract as the other corporate routes.
     console.error('Seller action error:', error);
     const classified = classifyDbError(error);
     if (classified) {

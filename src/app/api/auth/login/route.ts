@@ -61,44 +61,50 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Check status if this identity owns a seller profile. Keyed on the
-    //    sellerProfile relation itself (NOT User.role) so BUYER-role accounts
-    //    that own a store — legacy rows upgraded before User.role was
-    //    backfilled — receive exactly the same gating as SELLER-role accounts.
+    // 4. Check status if this identity owns a seller profile.
+    //    APPROVED + ACTIVE + VERIFIED = LOGIN ALLOWED
+    //    PENDING / REJECTED / SUSPENDED / BLOCKED = LOGIN BLOCKED WITH CLEAR MESSAGE
     if (dbUser.sellerProfile) {
-      // Block PENDING_VERIFICATION only when the seller is NOT already ACTIVE.
-      // An ACTIVE seller has been corporate-approved; a legacy row may still
-      // carry verificationStatus='PENDING_VERIFICATION' from before the approve
-      // endpoint wrote both fields. Such sellers must be able to log in.
-      if (
-        dbUser.sellerProfile.verificationStatus === 'PENDING_VERIFICATION' &&
-        dbUser.sellerProfile.status !== 'ACTIVE'
-      ) {
-        return NextResponse.json({ error: 'Please verify your email before accessing your seller account.' }, { status: 403 });
+      // Check User.isActive flag (account enable/disable)
+      if (dbUser.isActive === false) {
+        return NextResponse.json({
+          error: 'This account has been deactivated. Contact support for assistance.',
+        }, { status: 403 });
       }
-      // Blocked / rejected / suspended sellers cannot access their seller account.
-      // (Pending sellers may log in to see their pending-approval screen, but all
-      //  protected seller APIs still independently check status === 'ACTIVE'.)
-      if (['REJECTED', 'SUSPENDED', 'BLOCKED'].includes(dbUser.sellerProfile.status)) {
-        return NextResponse.json({ error: 'This seller account is not active. Contact support for assistance.' }, { status: 403 });
-      }
-    }
 
-    // 5. Create secure JWT token.
-    //    ROLE CONSISTENCY: every /api/seller/* route authorises via
-    //    requireRole(['SELLER', ...]) against the JWT role, while the SPA role
-    //    selector is keyed on whether a sellerProfile EXISTS. Legacy rows where
-    //    a buyer upgraded to a seller but User.role stayed 'BUYER' were issued
-    //    a 'BUYER' JWT — the dashboard rendered, but every seller API answered
-    //    403 "Access Denied". Owning a seller profile IS the source of truth
-    //    for seller capability: elevate the JWT role and backfill User.role so
-    //    the two can never drift again. (ADMIN is left untouched.)
-    let effectiveRole = accountType
-      ? String(accountType).toUpperCase()
-      : dbUser.role;
-
-    if (!accountType && dbUser.sellerProfile && effectiveRole !== 'ADMIN') {
       const sellerStatus = String(dbUser.sellerProfile.status || '').toUpperCase();
+      const verificationStatus = String(dbUser.sellerProfile.verificationStatus || '').toUpperCase();
+
+      // PENDING_VERIFICATION on a non-active seller means email not yet verified
+      if (verificationStatus === 'PENDING_VERIFICATION' && sellerStatus !== 'ACTIVE') {
+        return NextResponse.json({
+          error: 'Please verify your email before accessing your seller account.',
+        }, { status: 403 });
+      }
+
+      // Block all ineligible seller statuses with clear, distinct messages
+      if (sellerStatus === 'PENDING') {
+        return NextResponse.json({
+          error: 'Your seller account is pending corporate approval. Please wait for approval before logging in.',
+        }, { status: 403 });
+      }
+      if (sellerStatus === 'REJECTED') {
+        return NextResponse.json({
+          error: 'Your seller account was rejected. Contact support for assistance.',
+        }, { status: 403 });
+      }
+      if (sellerStatus === 'SUSPENDED') {
+        return NextResponse.json({
+          error: 'This seller account is suspended. Contact support for assistance.',
+        }, { status: 403 });
+      }
+      if (sellerStatus === 'BLOCKED') {
+        return NextResponse.json({
+          error: 'This seller account is blocked. Contact support for assistance.',
+        }, { status: 403 });
+      }
+
+      // Only ACTIVE or APPROVED sellers may log in
       if (sellerStatus === 'ACTIVE' || sellerStatus === 'APPROVED') {
         effectiveRole = 'SELLER';
         if (dbUser.role !== 'SELLER') {
@@ -114,11 +120,16 @@ export async function POST(request: Request) {
             console.warn('[login] Failed to backfill User.role=SELLER:', healError?.code || healError?.message);
           }
         }
-      } else if (sellerStatus === 'PENDING') {
-        if (effectiveRole !== 'ADMIN') {
-          effectiveRole = 'BUYER';
-        }
+      } else {
+        // Unknown/inconsistent status — fail closed
+        return NextResponse.json({
+          error: 'Your seller account status is not valid for login. Contact support.',
+        }, { status: 403 });
       }
+    } else {
+      // No seller profile — if accountType=SELLER was requested, already blocked above.
+      // Otherwise BUYER-only login proceeds.
+      effectiveRole = accountType ? String(accountType).toUpperCase() : dbUser.role;
     }
     const payload = {
       id: dbUser.id,

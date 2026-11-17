@@ -168,3 +168,71 @@ export const sendSellerRegistrationEmail = async (
     return { success: false, error };
   }
 };
+
+/**
+ * Seller account approved email. Sent after a corporate executive approves
+ * a seller's account. Confirms activation and explains next steps.
+ * Never sends passwords, OTPs, or auth tokens.
+ */
+export const sendApprovalEmail = async (
+  email: string,
+  name: string,
+  sellerId: string
+): Promise<{ success: boolean; error?: any }> => {
+  try {
+    if (!process.env.SMTP_HOST) {
+      console.warn('⚠️ SMTP credentials not found. Seller approval email skipped.');
+      return { success: false };
+    }
+    const transporter = createTransporter();
+    const dashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://shoptantra.in';
+    const loginUrl = dashboardUrl + '/seller/login';
+    const mailOptions = {
+      from: `"${process.env.SMTP_FROM_NAME || 'ShopTantra'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: email,
+      subject: 'Your ShopTantra Seller Account Has Been Approved!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #1B3A6B; margin: 0;">ShopTantra</h1>
+          </div>
+          <h2 style="color: #333;">Hello, ${name || 'Seller'}!</h2>
+          <p style="color: #555; font-size: 15px; line-height: 1.5;">
+            Great news — your ShopTantra seller application has been <strong>approved</strong> and your account is now <strong>active</strong>.
+          </p>
+          <div style="background-color: #e7f7e7; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+            <p style="color: #28a745; font-weight: bold; margin: 0;">
+              ✅ You can now log in to your seller dashboard using your registered email address: ${email}
+            </p>
+          </div>
+          <div style="background-color: #f4f7fb; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <p style="color: #555; font-size: 14px; margin: 0 0 10px 0;"><strong>Your Seller ID:</strong> ${sellerId}</p>
+            <p style="color: #555; font-size: 14px; margin: 0;"><strong>Login URL:</strong> <a href="${loginUrl}">${loginUrl}</a></p>
+          </div>
+          <h3 style="color: #333; font-size: 15px;">Security Instructions</h3>
+          <ul style="color: #555; font-size: 14px; line-height: 1.6;">
+            <li>Use your registered email and original password to log in.</li>
+            <li>Never share your password with anyone. ShopTantra will never ask for your password by email.</li>
+            <li>If you suspect unauthorized access to your account, change your password immediately.</li>
+            <li>Log out from the seller dashboard when using shared or public computers.</li>
+          </ul>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${loginUrl}" style="background-color: #1B3A6B; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+              Log in to Seller Dashboard
+            </a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 26px 0;" />
+          <p style="color: #888; font-size: 12px; text-align: center;">
+            &copy; ${new Date().getFullYear()} ShopTantra. All rights reserved.
+          </p>
+        </div>
+      `,
+    };
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Seller approval email sent: %s', info.messageId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending seller approval email:', error);
+    return { success: false, error };
+  }
+};
